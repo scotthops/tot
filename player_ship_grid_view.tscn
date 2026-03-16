@@ -1,0 +1,5 @@
+[gd_scene format=3 uid="uid://c367ptalxsejj"]
+
+[ext_resource type="PackedScene" uid="uid://bc5bieea6alyo" path="res://scenes/ships/ship_grid_view.tscn" id="1_k2bat"]
+
+[node name="PlayerShipGridView" unique_id=848091438 instance=ExtResource("1_k2bat")]

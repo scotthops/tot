@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://q3t3c8pogdhp"]
+
+[node name="TileView" type="Button" unique_id=223529827]
+offset_right = 32.0
+offset_bottom = 32.0
+focus_mode = 0

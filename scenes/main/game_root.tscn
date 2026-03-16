@@ -1,0 +1,11 @@
+[gd_scene format=3 uid="uid://bkbdv58iqqtsk"]
+
+[ext_resource type="PackedScene" uid="uid://qyrwm2kwqerr" path="res://scenes/battle/battle_scene.tscn" id="1_xdano"]
+
+[node name="GameRoot" type="Node" unique_id=984748271]
+
+[node name="BattleLayer" type="Node" parent="." unique_id=1315110180]
+
+[node name="BattleScene" parent="BattleLayer" unique_id=171627533 instance=ExtResource("1_xdano")]
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=1684447784]

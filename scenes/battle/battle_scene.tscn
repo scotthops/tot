@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://qyrwm2kwqerr"]
+
+[ext_resource type="PackedScene" uid="uid://bc5bieea6alyo" path="res://scenes/ships/ship_grid_view.tscn" id="1_3hov6"]
+[ext_resource type="Script" uid="uid://cyy8auci877q7" path="res://scripts/Battle/BattleScene.cs" id="1_6iigb"]
+
+[node name="BattleScene" type="Control" unique_id=171627533]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_6iigb")
+
+[node name="Background" type="ColorRect" parent="." unique_id=567774482]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07739546, 0.09391118, 0.21482694, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=511929596]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer" unique_id=847151303]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="PlayerShipGridView" parent="MarginContainer/HBoxContainer" unique_id=848091438 instance=ExtResource("1_3hov6")]
+layout_mode = 2
+
+[node name="EnemyShipGridView" parent="MarginContainer/HBoxContainer" unique_id=1423426248 instance=ExtResource("1_3hov6")]
+layout_mode = 2
+
+[node name="BattleHud" type="Control" parent="." unique_id=1243377903]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

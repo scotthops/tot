@@ -1,0 +1,74 @@
+[gd_scene format=3 uid="uid://bc5bieea6alyo"]
+
+[ext_resource type="Script" uid="uid://be0ycxymschta" path="res://scripts/UI/ShipGridView.cs" id="1_5yqgs"]
+[ext_resource type="PackedScene" uid="uid://q3t3c8pogdhp" path="res://scenes/ships/tile_view.tscn" id="2_2nmpy"]
+
+[node name="ShipGridView" type="PanelContainer" unique_id=848091438]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+script = ExtResource("1_5yqgs")
+TileViewScene = ExtResource("2_2nmpy")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1038273722]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1000054846]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderBar" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1752747813]
+layout_mode = 2
+
+[node name="ShipNameLabel" type="Label" parent="MarginContainer/VBoxContainer/HeaderBar" unique_id=239454346]
+layout_mode = 2
+size_flags_vertical = 6
+text = "Ship"
+horizontal_alignment = 1
+
+[node name="HullBar" type="ProgressBar" parent="MarginContainer/VBoxContainer" unique_id=2120792716]
+layout_mode = 2
+value = 100.0
+
+[node name="GridStack" type="Control" parent="MarginContainer/VBoxContainer" unique_id=644647405]
+custom_minimum_size = Vector2(320, 320)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Grid" type="GridContainer" parent="MarginContainer/VBoxContainer/GridStack" unique_id=1145198243]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="RoomOverlay" type="Control" parent="MarginContainer/VBoxContainer/GridStack" unique_id=1223665621]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="CrewOverlay" type="Control" parent="MarginContainer/VBoxContainer/GridStack" unique_id=1623563194]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EffectsOverlay" type="Control" parent="MarginContainer/VBoxContainer/GridStack" unique_id=1143855426]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
