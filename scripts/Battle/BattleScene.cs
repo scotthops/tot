@@ -10,6 +10,7 @@ public partial class BattleScene : Control
 	[Export] public ShipLayoutDef PlayerLayout { get; set; } = null!;
 	[Export] public ShipLayoutDef EnemyLayout { get; set; } = null!;
 
+	private BattleState _battleState = null!;
 	private ShipGridView _playerShipView = null!;
 	private ShipGridView _enemyShipView = null!;
 	private Label _selectionSourceLabel = null!;
@@ -30,20 +31,35 @@ public partial class BattleScene : Control
 			return;
 		}
 
-		var battleState = BattleState.Create(PlayerLayout, EnemyLayout);
-		_playerShipView.Render(battleState.PlayerShip);
-		_enemyShipView.Render(battleState.EnemyShip);
+		_battleState = BattleState.Create(PlayerLayout, EnemyLayout);
+		_playerShipView.Render(_battleState.PlayerShip);
+		_enemyShipView.Render(_battleState.EnemyShip);
 
 		_playerShipView.RoomSelected += (ship, room) => OnRoomSelected("Player", ship, room);
 		_enemyShipView.RoomSelected += (ship, room) => OnRoomSelected("Enemy", ship, room);
-		GD.Print("[BattleScene] Subscribed to room selection events for both ship views.");
 		ShowSelectionState("None", null, null);
 	}
 
 	private void OnRoomSelected(string shipSource, ShipState ship, ShipRoomState? room)
 	{
-		GD.Print($"[BattleScene] Received RoomSelected source='{shipSource}' ship='{ship.Name}' room='{room?.DisplayName ?? "<none>"}' system='{room?.SystemType ?? "<none>"}'");
+		ClearOtherShipSelection(ship);
 		ShowSelectionState(shipSource, ship, room);
+	}
+
+	private void ClearOtherShipSelection(ShipState selectedShip)
+	{
+		if (selectedShip == _battleState.PlayerShip)
+		{
+			_battleState.EnemyShip.ClearSelection();
+			_enemyShipView.Render(_battleState.EnemyShip);
+			return;
+		}
+
+		if (selectedShip == _battleState.EnemyShip)
+		{
+			_battleState.PlayerShip.ClearSelection();
+			_playerShipView.Render(_battleState.PlayerShip);
+		}
 	}
 
 	private void ShowSelectionState(string shipSource, ShipState? ship, ShipRoomState? room)

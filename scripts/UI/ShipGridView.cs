@@ -27,8 +27,6 @@ public partial class ShipGridView : PanelContainer
 		{
 			GD.PushError("ShipGridView: TileViewScene is not assigned.");
 		}
-
-		GD.Print($"[ShipGridView] Ready for '{Name}'");
 	}
 
 	public void RenderFromLayout(ShipLayoutDef layout)
@@ -101,14 +99,11 @@ public partial class ShipGridView : PanelContainer
 	{
 		if (_shipState == null)
 		{
-			GD.PushWarning($"[ShipGridView] Click ignored for '{Name}' because ship state is null.");
 			return;
 		}
 
-		GD.Print($"[ShipGridView] '{_shipState.Name}' tile pressed at ({x},{y})");
 		_shipState.SelectRoomAt(x, y);
 		var selectedRoom = _shipState.GetSelectedRoom();
-		GD.Print($"[ShipGridView] Emitting RoomSelected for ship='{_shipState.Name}' room='{selectedRoom?.DisplayName ?? "<none>"}'");
 		RoomSelected?.Invoke(_shipState, selectedRoom);
 		Render(_shipState);
 	}
