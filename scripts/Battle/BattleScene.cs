@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 using TidesOfTime.UI;
@@ -70,24 +71,13 @@ public partial class BattleScene : Control
 	{
 		if (selection == null)
 		{
-			ConfigureActionButton(_primaryActionButton, "Action 1", null);
-			ConfigureActionButton(_secondaryActionButton, "Action 2", null);
+			ConfigureActionButtons([]);
 			_battleState.SetLastIssuedIntent(null);
 			_actionStatusLabel.Text = "Select a room to see actions.";
 			return;
 		}
 
-		if (selection.ShipSource == "Enemy")
-		{
-			ConfigureActionButton(_primaryActionButton, "Target System", BattleActionKind.TargetSystem);
-			ConfigureActionButton(_secondaryActionButton, "Board Room", BattleActionKind.BoardRoom);
-		}
-		else
-		{
-			ConfigureActionButton(_primaryActionButton, "Repair / Assign", BattleActionKind.RepairOrAssign);
-			ConfigureActionButton(_secondaryActionButton, "Inspect System", BattleActionKind.InspectSystem);
-		}
-
+		ConfigureActionButtons(_battleState.GetAvailableActions());
 		_actionStatusLabel.Text = $"Ready: {selection.Room.DisplayName} on {selection.Ship.Name}";
 	}
 
@@ -130,6 +120,19 @@ public partial class BattleScene : Control
 		}
 
 		button.SetMeta("action_kind", (int)actionKind.Value);
+	}
+
+	private void ConfigureActionButtons(IReadOnlyList<BattleAvailableAction> actions)
+	{
+		ConfigureActionButton(
+			_primaryActionButton,
+			actions.Count > 0 ? actions[0].DisplayLabel : "Action 1",
+			actions.Count > 0 ? actions[0].Kind : null);
+
+		ConfigureActionButton(
+			_secondaryActionButton,
+			actions.Count > 1 ? actions[1].DisplayLabel : "Action 2",
+			actions.Count > 1 ? actions[1].Kind : null);
 	}
 
 	private static BattleActionKind? GetActionKind(Button button)

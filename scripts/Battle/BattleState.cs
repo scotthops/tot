@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 
@@ -5,6 +6,18 @@ namespace TidesOfTime.Battle;
 
 public class BattleState
 {
+	private static readonly BattleAvailableAction[] PlayerRoomActions =
+	[
+		new(BattleActionKind.RepairOrAssign, BattleActionIntent.ToDisplayLabel(BattleActionKind.RepairOrAssign)),
+		new(BattleActionKind.InspectSystem, BattleActionIntent.ToDisplayLabel(BattleActionKind.InspectSystem))
+	];
+
+	private static readonly BattleAvailableAction[] EnemyRoomActions =
+	[
+		new(BattleActionKind.TargetSystem, BattleActionIntent.ToDisplayLabel(BattleActionKind.TargetSystem)),
+		new(BattleActionKind.BoardRoom, BattleActionIntent.ToDisplayLabel(BattleActionKind.BoardRoom))
+	];
+
 	public ShipState PlayerShip { get; }
 	public ShipState EnemyShip { get; }
 	public BattleSelection? CurrentSelection { get; private set; }
@@ -59,5 +72,17 @@ public class BattleState
 	public void SetLastIssuedIntent(BattleActionIntent? actionIntent)
 	{
 		LastIssuedIntent = actionIntent;
+	}
+
+	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
+	{
+		if (CurrentSelection == null)
+		{
+			return [];
+		}
+
+		return CurrentSelection.ShipSource == "Enemy"
+			? EnemyRoomActions
+			: PlayerRoomActions;
 	}
 }

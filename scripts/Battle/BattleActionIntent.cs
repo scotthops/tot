@@ -8,6 +8,10 @@ public enum BattleActionKind
 	InspectSystem
 }
 
+public sealed record BattleAvailableAction(
+	BattleActionKind Kind,
+	string DisplayLabel);
+
 public sealed record BattleActionIntent(
 	BattleActionKind Kind,
 	string ShipSource,
@@ -18,10 +22,10 @@ public sealed record BattleActionIntent(
 {
 	public string ToStatusText()
 	{
-		return $"{KindToDisplayText(Kind)}: {RoomDisplayName} ({SystemType}) on {ShipSource} ({ShipName})";
+		return $"{ToDisplayLabel(Kind)}: {RoomDisplayName} ({SystemType}) on {ShipSource} ({ShipName})";
 	}
 
-	private static string KindToDisplayText(BattleActionKind kind)
+	public static string ToDisplayLabel(BattleActionKind kind)
 	{
 		return kind switch
 		{
