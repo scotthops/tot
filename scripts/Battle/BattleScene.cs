@@ -22,6 +22,7 @@ public partial class BattleScene : Control
 	private string? _currentSelectionSource;
 	private ShipState? _currentSelectedShip;
 	private ShipRoomState? _currentSelectedRoom;
+	private BattleActionIntent? _lastActionIntent;
 
 	public override void _Ready()
 	{
@@ -92,6 +93,7 @@ public partial class BattleScene : Control
 			_secondaryActionButton.Text = "Action 2";
 			_primaryActionButton.Disabled = true;
 			_secondaryActionButton.Disabled = true;
+			_lastActionIntent = null;
 			_actionStatusLabel.Text = "Select a room to see actions.";
 			return;
 		}
@@ -124,13 +126,44 @@ public partial class BattleScene : Control
 
 	private void RunPrototypeAction(string actionName)
 	{
-		if (_currentSelectedShip == null || _currentSelectedRoom == null || string.IsNullOrEmpty(_currentSelectionSource))
+		var actionIntent = CreateActionIntent(actionName);
+		if (actionIntent == null)
 		{
 			_actionStatusLabel.Text = "Select a room first.";
 			return;
 		}
 
-		_actionStatusLabel.Text =
-			$"{actionName}: {_currentSelectedRoom.DisplayName} on {_currentSelectionSource} ({_currentSelectedShip.Name})";
+		_lastActionIntent = actionIntent;
+		_actionStatusLabel.Text = actionIntent.ToStatusText();
+	}
+
+	private BattleActionIntent? CreateActionIntent(string actionName)
+	{
+		if (_currentSelectedShip == null || _currentSelectedRoom == null || string.IsNullOrEmpty(_currentSelectionSource))
+		{
+			return null;
+		}
+
+		var kind = actionName switch
+		{
+			"Target System" => BattleActionKind.TargetSystem,
+			"Board Room" => BattleActionKind.BoardRoom,
+			"Repair / Assign" => BattleActionKind.RepairOrAssign,
+			"Inspect System" => BattleActionKind.InspectSystem,
+			_ => (BattleActionKind?)null
+		};
+
+		if (kind == null)
+		{
+			return null;
+		}
+
+		return new BattleActionIntent(
+			kind.Value,
+			_currentSelectionSource,
+			_currentSelectedShip.Name,
+			_currentSelectedRoom.RoomId,
+			_currentSelectedRoom.DisplayName,
+			_currentSelectedRoom.SystemType);
 	}
 }
