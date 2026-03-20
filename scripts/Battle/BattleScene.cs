@@ -36,11 +36,13 @@ public partial class BattleScene : Control
 
 		_playerShipView.RoomSelected += (ship, room) => OnRoomSelected("Player", ship, room);
 		_enemyShipView.RoomSelected += (ship, room) => OnRoomSelected("Enemy", ship, room);
+		GD.Print("[BattleScene] Subscribed to room selection events for both ship views.");
 		ShowSelectionState("None", null, null);
 	}
 
 	private void OnRoomSelected(string shipSource, ShipState ship, ShipRoomState? room)
 	{
+		GD.Print($"[BattleScene] Received RoomSelected source='{shipSource}' ship='{ship.Name}' room='{room?.DisplayName ?? "<none>"}' system='{room?.SystemType ?? "<none>"}'");
 		ShowSelectionState(shipSource, ship, room);
 	}
 

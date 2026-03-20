@@ -1,3 +1,4 @@
+using Godot;
 using TidesOfTime.Data;
 
 namespace TidesOfTime.Ships;
@@ -41,6 +42,7 @@ public class ShipState
 	{
 		var room = GetRoomAt(x, y);
 		SelectedRoomId = room?.RoomId;
+		GD.Print($"[ShipState] Ship='{Name}' tile=({x},{y}) selectedRoom='{SelectedRoomId ?? "<none>"}'");
 	}
 
 	private ShipRoomState? GetRoomById(string? roomId)
