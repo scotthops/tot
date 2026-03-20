@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
@@ -8,6 +9,8 @@ namespace TidesOfTime.UI;
 public partial class ShipGridView : PanelContainer
 {
 	[Export] public PackedScene? TileViewScene { get; set; }
+
+	public event Action<ShipState, ShipRoomState?>? RoomSelected;
 
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
@@ -100,6 +103,7 @@ public partial class ShipGridView : PanelContainer
 		}
 
 		_shipState.SelectRoomAt(x, y);
+		RoomSelected?.Invoke(_shipState, _shipState.GetSelectedRoom());
 		Render(_shipState);
 	}
 

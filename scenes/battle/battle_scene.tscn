@@ -54,3 +54,37 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="SelectionPanel" type="PanelContainer" parent="BattleHud"]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 260.0
+offset_bottom = 124.0
+
+[node name="MarginContainer" type="MarginContainer" parent="BattleHud/SelectionPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="BattleHud/SelectionPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="SelectionTitleLabel" type="Label" parent="BattleHud/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Selection"
+
+[node name="SelectionSourceLabel" type="Label" parent="BattleHud/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Ship: None"
+
+[node name="SelectionRoomLabel" type="Label" parent="BattleHud/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Room: None"
+
+[node name="SelectionSystemLabel" type="Label" parent="BattleHud/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "System: None"
