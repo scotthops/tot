@@ -19,11 +19,11 @@ public partial class BattleScene : Control
 
 	public override void _Ready()
 	{
-		_playerShipView = GetNode<ShipGridView>("MarginContainer/HBoxContainer/PlayerShipGridView");
-		_enemyShipView = GetNode<ShipGridView>("MarginContainer/HBoxContainer/EnemyShipGridView");
-		_selectionSourceLabel = GetNode<Label>("BattleHud/SelectionPanel/MarginContainer/VBoxContainer/SelectionSourceLabel");
-		_selectionRoomLabel = GetNode<Label>("BattleHud/SelectionPanel/MarginContainer/VBoxContainer/SelectionRoomLabel");
-		_selectionSystemLabel = GetNode<Label>("BattleHud/SelectionPanel/MarginContainer/VBoxContainer/SelectionSystemLabel");
+		_playerShipView = GetNode<ShipGridView>("MarginContainer/VBoxContainer/HBoxContainer/PlayerShipGridView");
+		_enemyShipView = GetNode<ShipGridView>("MarginContainer/VBoxContainer/HBoxContainer/EnemyShipGridView");
+		_selectionSourceLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionSourceLabel");
+		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionRoomLabel");
+		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionSystemLabel");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
