@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using TidesOfTime.Crew;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 
@@ -14,14 +15,17 @@ public partial class ShipGridView : PanelContainer
 
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
-	private GridContainer _grid = null!;
+	private Control _grid = null!;
+	private Control _crewOverlay = null!;
 	private ShipState? _shipState;
+	private int _boardRenderRevision;
 
 	public override void _Ready()
 	{
 		_shipNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/HeaderBar/ShipNameLabel");
 		_hullBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/HullBar");
-		_grid = GetNode<GridContainer>("MarginContainer/VBoxContainer/GridStack/Grid");
+		_grid = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/Grid");
+		_crewOverlay = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/CrewOverlay");
 
 		if (TileViewScene == null)
 		{
@@ -40,40 +44,8 @@ public partial class ShipGridView : PanelContainer
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
 
-		ClearGrid();
-		_grid.Columns = shipState.Grid.Width;
-		var roomById = BuildRoomIndex(shipState.Grid);
-
-		foreach (var tile in shipState.Grid.Tiles)
-		{
-			if (TileViewScene == null)
-			{
-				GD.PushError("ShipGridView: TileViewScene is not assigned.");
-				return;
-			}
-
-			var tileNode = TileViewScene.Instantiate<Button>();
-
-			tileNode.Text = "";
-			tileNode.CustomMinimumSize = new Vector2(36, 36);
-			tileNode.FocusMode = Control.FocusModeEnum.None;
-			tileNode.Pressed += () => OnTilePressed(tile.X, tile.Y);
-
-			if (tile.Walkable)
-			{
-				var room = roomById.GetValueOrDefault(tile.RoomId);
-				var color = GetRoomColor(room);
-				var isSelected = room?.RoomId == shipState.SelectedRoomId;
-				ApplyTileStyle(tileNode, color, isSelected);
-			}
-			else
-			{
-				ApplyTileStyle(tileNode, new Color(0.15f, 0.15f, 0.15f), false);
-				tileNode.Disabled = true;
-			}
-
-			_grid.AddChild(tileNode);
-		}
+		var renderRevision = ++_boardRenderRevision;
+		Callable.From(() => RebuildBoardDeferred(renderRevision)).CallDeferred();
 	}
 
 	private static Dictionary<string, ShipRoomState> BuildRoomIndex(ShipGridState gridState)
@@ -87,9 +59,14 @@ public partial class ShipGridView : PanelContainer
 		return roomById;
 	}
 
-	private void ClearGrid()
+	private void ClearBoard()
 	{
 		foreach (Node child in _grid.GetChildren())
+		{
+			child.QueueFree();
+		}
+
+		foreach (Node child in _crewOverlay.GetChildren())
 		{
 			child.QueueFree();
 		}
@@ -149,4 +126,151 @@ public partial class ShipGridView : PanelContainer
 			_ => new Color(0.6f, 0.6f, 0.6f)
 		};
 	}
+
+	private void RebuildBoardDeferred(int renderRevision)
+	{
+		if (_shipState == null || renderRevision != _boardRenderRevision)
+		{
+			return;
+		}
+
+		if (TileViewScene == null)
+		{
+			GD.PushError("ShipGridView: TileViewScene is not assigned.");
+			return;
+		}
+
+		ClearBoard();
+		var roomById = BuildRoomIndex(_shipState.Grid);
+		var layout = CalculateBoardLayout(_shipState.Grid.Width, _shipState.Grid.Height);
+
+		foreach (var tile in _shipState.Grid.Tiles)
+		{
+			var tileNode = TileViewScene.Instantiate<Button>();
+			tileNode.Text = "";
+			tileNode.Position = GetTilePosition(layout, tile.X, tile.Y);
+			tileNode.Size = new Vector2(layout.TileSize, layout.TileSize);
+			tileNode.CustomMinimumSize = tileNode.Size;
+			tileNode.FocusMode = Control.FocusModeEnum.None;
+			tileNode.Pressed += () => OnTilePressed(tile.X, tile.Y);
+
+			if (tile.Walkable)
+			{
+				var room = roomById.GetValueOrDefault(tile.RoomId);
+				var color = GetRoomColor(room);
+				var isSelected = room?.RoomId == _shipState.SelectedRoomId;
+				ApplyTileStyle(tileNode, color, isSelected);
+			}
+			else
+			{
+				ApplyTileStyle(tileNode, new Color(0.15f, 0.15f, 0.15f), false);
+				tileNode.Disabled = true;
+			}
+
+			_grid.AddChild(tileNode);
+		}
+
+		foreach (var crew in _shipState.GetCrewOnBoard())
+		{
+			var marker = CreateCrewMarker(crew);
+			var tilePosition = GetTilePosition(layout, crew.Position.TileX, crew.Position.TileY);
+			var tileSize = new Vector2(layout.TileSize, layout.TileSize);
+			marker.Position = tilePosition + (tileSize - marker.Size) * 0.5f;
+			_crewOverlay.AddChild(marker);
+		}
+	}
+
+	private BoardLayout CalculateBoardLayout(int gridWidth, int gridHeight)
+	{
+		var tileSize = Mathf.Floor(Mathf.Min(
+			_grid.Size.X / Mathf.Max(gridWidth, 1),
+			_grid.Size.Y / Mathf.Max(gridHeight, 1)));
+
+		tileSize = Mathf.Max(tileSize, 24.0f);
+
+		var boardSize = new Vector2(tileSize * gridWidth, tileSize * gridHeight);
+		var origin = (_grid.Size - boardSize) * 0.5f;
+
+		return new BoardLayout(origin, tileSize);
+	}
+
+	private static Vector2 GetTilePosition(BoardLayout layout, int tileX, int tileY)
+	{
+		return layout.Origin + new Vector2(tileX * layout.TileSize, tileY * layout.TileSize);
+	}
+
+	private static Control CreateCrewMarker(CrewState crew)
+	{
+		var marker = new PanelContainer
+		{
+			CustomMinimumSize = new Vector2(24, 24),
+			Size = new Vector2(24, 24),
+			MouseFilter = Control.MouseFilterEnum.Ignore
+		};
+
+		var style = new StyleBoxFlat
+		{
+			BgColor = GetCrewMarkerFillColor(crew),
+			BorderColor = GetCrewMarkerBorderColor(crew),
+			BorderWidthLeft = 2,
+			BorderWidthTop = 2,
+			BorderWidthRight = 2,
+			BorderWidthBottom = 2,
+			CornerRadiusTopLeft = 12,
+			CornerRadiusTopRight = 12,
+			CornerRadiusBottomRight = 12,
+			CornerRadiusBottomLeft = 12
+		};
+		marker.AddThemeStyleboxOverride("panel", style);
+
+		var label = new Label
+		{
+			Text = crew.ShortLabel,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+			SizeFlagsVertical = Control.SizeFlags.ExpandFill
+		};
+
+		label.AddThemeColorOverride("font_color", GetCrewMarkerTextColor(crew));
+		label.AddThemeColorOverride("font_outline_color", new Color(0.04f, 0.04f, 0.08f, 0.95f));
+		label.AddThemeConstantOverride("outline_size", 2);
+		label.AddThemeFontSizeOverride("font_size", 14);
+
+		marker.AddChild(label);
+		return marker;
+	}
+
+	private static Color GetCrewMarkerFillColor(CrewState crew)
+	{
+		return crew.Allegiance switch
+		{
+			CrewAllegiance.Player => new Color(0.17f, 0.35f, 0.62f, 0.95f),
+			CrewAllegiance.Enemy => new Color(0.62f, 0.22f, 0.18f, 0.95f),
+			_ => new Color(0.35f, 0.35f, 0.35f, 0.95f)
+		};
+	}
+
+	private static Color GetCrewMarkerBorderColor(CrewState crew)
+	{
+		return crew.Allegiance switch
+		{
+			CrewAllegiance.Player => new Color(0.78f, 0.9f, 1.0f),
+			CrewAllegiance.Enemy => new Color(1.0f, 0.82f, 0.78f),
+			_ => new Color(0.8f, 0.8f, 0.8f)
+		};
+	}
+
+	private static Color GetCrewMarkerTextColor(CrewState crew)
+	{
+		return crew.Allegiance switch
+		{
+			CrewAllegiance.Player => new Color(0.95f, 0.98f, 1.0f),
+			CrewAllegiance.Enemy => new Color(1.0f, 0.95f, 0.93f),
+			_ => Colors.White
+		};
+	}
+
+	private readonly record struct BoardLayout(Vector2 Origin, float TileSize);
 }

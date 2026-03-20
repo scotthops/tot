@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using TidesOfTime.Crew;
 using TidesOfTime.Data;
 
 namespace TidesOfTime.Ships;
@@ -7,6 +9,7 @@ public class ShipState
 	public string Name { get; }
 	public int Hull { get; set; }
 	public ShipGridState Grid { get; }
+	public List<CrewState> Crew { get; } = new();
 	public string? SelectedRoomId { get; private set; }
 
 	public ShipState(string name, int hull, ShipGridState grid)
@@ -46,6 +49,21 @@ public class ShipState
 	public void ClearSelection()
 	{
 		SelectedRoomId = null;
+	}
+
+	public IReadOnlyList<CrewState> GetCrewOnBoard()
+	{
+		return Crew;
+	}
+
+	public CrewState? GetCrewAtTile(int x, int y)
+	{
+		return Crew.Find(crew => crew.Position.TileX == x && crew.Position.TileY == y);
+	}
+
+	public bool IsTileOccupied(int x, int y)
+	{
+		return GetCrewAtTile(x, y) != null;
 	}
 
 	private ShipRoomState? GetRoomById(string? roomId)

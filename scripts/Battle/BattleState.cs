@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TidesOfTime.Crew;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 
@@ -31,9 +32,13 @@ public class BattleState
 
 	public static BattleState Create(ShipLayoutDef playerLayout, ShipLayoutDef enemyLayout)
 	{
-		return new BattleState(
-			ShipState.FromLayout(playerLayout),
-			ShipState.FromLayout(enemyLayout));
+		var playerShip = ShipState.FromLayout(playerLayout);
+		var enemyShip = ShipState.FromLayout(enemyLayout);
+
+		SeedPrototypeCrew(playerShip, ShipSide.Player, CrewAllegiance.Player);
+		SeedPrototypeCrew(enemyShip, ShipSide.Enemy, CrewAllegiance.Enemy);
+
+		return new BattleState(playerShip, enemyShip);
 	}
 
 	public void SetSelection(string shipSource, ShipState ship, ShipRoomState? room)
@@ -84,5 +89,71 @@ public class BattleState
 		return CurrentSelection.ShipSource == "Enemy"
 			? EnemyRoomActions
 			: PlayerRoomActions;
+	}
+
+	private static void SeedPrototypeCrew(ShipState ship, ShipSide currentShipSide, CrewAllegiance allegiance)
+	{
+		var spawnTiles = GetPrototypeCrewSpawnTiles(ship);
+		var crewConfigs = new (string Id, string Name, string ShortLabel, string CrewClass)[]
+		{
+			("captain", "Captain Mara", "C", "Captain"),
+			("gunner", "Gunner Flint", "G", "Gunner"),
+			("surgeon", "Surgeon Vale", "S", "Surgeon")
+		};
+
+		for (var i = 0; i < spawnTiles.Count && i < crewConfigs.Length; i++)
+		{
+			var crewConfig = crewConfigs[i];
+			var tile = spawnTiles[i];
+			ship.Crew.Add(new CrewState(
+				$"{ship.Name.ToLowerInvariant().Replace(" ", "-")}-{crewConfig.Id}",
+				crewConfig.Name,
+				crewConfig.ShortLabel,
+				crewConfig.CrewClass,
+				allegiance,
+				new CrewPosition(currentShipSide, tile.X, tile.Y)));
+		}
+	}
+
+	private static List<(int X, int Y)> GetPrototypeCrewSpawnTiles(ShipState ship)
+	{
+		var spawnTiles = new List<(int X, int Y)>();
+
+		foreach (var room in ship.Grid.Rooms)
+		{
+			if (room.Tiles.Count == 0)
+			{
+				continue;
+			}
+
+			var tile = room.Tiles[0];
+			spawnTiles.Add((tile.X, tile.Y));
+			if (spawnTiles.Count >= 3)
+			{
+				return spawnTiles;
+			}
+		}
+
+		foreach (var tile in ship.Grid.Tiles)
+		{
+			if (!tile.Walkable)
+			{
+				continue;
+			}
+
+			var tilePosition = (tile.X, tile.Y);
+			if (spawnTiles.Contains(tilePosition))
+			{
+				continue;
+			}
+
+			spawnTiles.Add(tilePosition);
+			if (spawnTiles.Count >= 3)
+			{
+				break;
+			}
+		}
+
+		return spawnTiles;
 	}
 }
