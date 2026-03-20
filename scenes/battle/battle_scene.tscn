@@ -72,6 +72,31 @@ text = "Room: None"
 layout_mode = 2
 text = "System: None"
 
+[node name="ActionSpacer" type="HSeparator" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ActionTitleLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Actions"
+
+[node name="ActionButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PrimaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow"]
+layout_mode = 2
+text = "Action 1"
+disabled = true
+
+[node name="SecondaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow"]
+layout_mode = 2
+text = "Action 2"
+disabled = true
+
+[node name="ActionStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Select a room to see actions."
+
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=847151303]
 layout_mode = 2
 size_flags_vertical = 3
