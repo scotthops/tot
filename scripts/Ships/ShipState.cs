@@ -1,15 +1,22 @@
-using Godot;
-using System;
+using TidesOfTime.Data;
 
-public partial class ShipState : Node
+namespace TidesOfTime.Ships;
+
+public class ShipState
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
+	public string Name { get; }
+	public int Hull { get; set; }
+	public ShipGridState Grid { get; }
+
+	public ShipState(string name, int hull, ShipGridState grid)
 	{
+		Name = name;
+		Hull = hull;
+		Grid = grid;
 	}
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
+	public static ShipState FromLayout(ShipLayoutDef layout, int hull = 100)
 	{
+		return new ShipState(layout.ShipName, hull, ShipStateFactory.CreateGridState(layout));
 	}
 }

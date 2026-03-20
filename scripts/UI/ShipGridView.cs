@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 
@@ -6,7 +7,7 @@ namespace TidesOfTime.UI;
 
 public partial class ShipGridView : PanelContainer
 {
-	[Export] public PackedScene TileViewScene { get; set; }
+	[Export] public PackedScene? TileViewScene { get; set; }
 
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
@@ -26,20 +27,26 @@ public partial class ShipGridView : PanelContainer
 
 	public void RenderFromLayout(ShipLayoutDef layout)
 	{
-		var gridState = ShipStateFactory.CreateGridState(layout);
-		Render(layout.ShipName, 100, gridState);
+		Render(ShipState.FromLayout(layout));
 	}
 
-	public void Render(string shipName, int hull, ShipGridState gridState)
+	public void Render(ShipState shipState)
 	{
-		_shipNameLabel.Text = shipName;
-		_hullBar.Value = hull;
+		_shipNameLabel.Text = shipState.Name;
+		_hullBar.Value = shipState.Hull;
 
 		ClearGrid();
-		_grid.Columns = gridState.Width;
+		_grid.Columns = shipState.Grid.Width;
+		var roomById = BuildRoomIndex(shipState.Grid);
 
-		foreach (var tile in gridState.Tiles)
+		foreach (var tile in shipState.Grid.Tiles)
 		{
+			if (TileViewScene == null)
+			{
+				GD.PushError("ShipGridView: TileViewScene is not assigned.");
+				return;
+			}
+
 			var tileNode = TileViewScene.Instantiate<Button>();
 
 			tileNode.Text = "";
@@ -47,7 +54,7 @@ public partial class ShipGridView : PanelContainer
 
 			if (tile.Walkable)
 			{
-				var color = GetRoomColor(tile.RoomId);
+				var color = GetRoomColor(tile.RoomId, roomById);
 				tileNode.Modulate = color;
 			}
 			else
@@ -60,6 +67,17 @@ public partial class ShipGridView : PanelContainer
 		}
 	}
 
+	private static Dictionary<string, ShipRoomState> BuildRoomIndex(ShipGridState gridState)
+	{
+		var roomById = new Dictionary<string, ShipRoomState>();
+		foreach (var room in gridState.Rooms)
+		{
+			roomById[room.RoomId] = room;
+		}
+
+		return roomById;
+	}
+
 	private void ClearGrid()
 	{
 		foreach (Node child in _grid.GetChildren())
@@ -68,15 +86,20 @@ public partial class ShipGridView : PanelContainer
 		}
 	}
 
-	private Color GetRoomColor(string roomId)
+	private Color GetRoomColor(string roomId, IReadOnlyDictionary<string, ShipRoomState> roomById)
 	{
-		return roomId switch
+		if (!roomById.TryGetValue(roomId, out var room))
 		{
-			"helm" => new Color(0.45f, 0.65f, 0.95f),
-			"cannons" => new Color(0.95f, 0.45f, 0.45f),
-			"thread" => new Color(0.55f, 0.35f, 0.75f),
-			"crowsnest" => new Color(0.9f, 0.8f, 0.35f),
-			"doctor" => new Color(0.35f, 0.8f, 0.55f),
+			return new Color(0.6f, 0.6f, 0.6f);
+		}
+
+		return room.SystemType switch
+		{
+			"HelmRigging" => new Color(0.45f, 0.65f, 0.95f),
+			"Cannons" => new Color(0.95f, 0.45f, 0.45f),
+			"ThreadChamber" => new Color(0.55f, 0.35f, 0.75f),
+			"CrowsNest" => new Color(0.9f, 0.8f, 0.35f),
+			"DoctorsQuarters" => new Color(0.35f, 0.8f, 0.55f),
 			_ => new Color(0.6f, 0.6f, 0.6f)
 		};
 	}

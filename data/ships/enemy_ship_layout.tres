@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="ShipLayoutDef" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/Data/ShipLayoutDef.cs" id="1_cw4to"]
+[ext_resource type="Script" path="res://scripts/Data/RoomDef.cs" id="2_joktb"]
+
+[sub_resource type="Resource" id="Resource_helm"]
+script = ExtResource("2_joktb")
+RoomId = "helm"
+DisplayName = "Helm / Rigging"
+SystemType = "HelmRigging"
+Tiles = Array[Vector2i]([Vector2i(5, 1), Vector2i(6, 1), Vector2i(5, 2), Vector2i(6, 2)])
+
+[sub_resource type="Resource" id="Resource_cannons"]
+script = ExtResource("2_joktb")
+RoomId = "cannons"
+DisplayName = "Cannons"
+SystemType = "Cannons"
+Tiles = Array[Vector2i]([Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(3, 2)])
+
+[sub_resource type="Resource" id="Resource_thread"]
+script = ExtResource("2_joktb")
+RoomId = "thread"
+DisplayName = "Thread Chamber"
+SystemType = "ThreadChamber"
+Tiles = Array[Vector2i]([Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 4), Vector2i(4, 4)])
+
+[sub_resource type="Resource" id="Resource_crows_nest"]
+script = ExtResource("2_joktb")
+RoomId = "crowsnest"
+DisplayName = "Crow's Nest"
+SystemType = "CrowsNest"
+Tiles = Array[Vector2i]([Vector2i(1, 3), Vector2i(1, 4)])
+
+[sub_resource type="Resource" id="Resource_doctor"]
+script = ExtResource("2_joktb")
+RoomId = "doctor"
+DisplayName = "Doctor's Quarters"
+SystemType = "DoctorsQuarters"
+Tiles = Array[Vector2i]([Vector2i(6, 3), Vector2i(6, 4)])
+
+[resource]
+script = ExtResource("1_cw4to")
+ShipName = "The Black Wake"
+Width = 8
+Height = 6
+Rooms = Array[Resource]([SubResource("Resource_helm"), SubResource("Resource_cannons"), SubResource("Resource_thread"), SubResource("Resource_crows_nest"), SubResource("Resource_doctor")])

@@ -1,7 +1,9 @@
-[gd_scene format=3 uid="uid://qyrwm2kwqerr"]
+[gd_scene format=3 uid="uid://qyrwm2kwqerr" load_steps=4]
 
 [ext_resource type="PackedScene" uid="uid://bc5bieea6alyo" path="res://scenes/ships/ship_grid_view.tscn" id="1_3hov6"]
 [ext_resource type="Script" uid="uid://cyy8auci877q7" path="res://scripts/Battle/BattleScene.cs" id="1_6iigb"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="2_3p2xu"]
+[ext_resource type="Resource" path="res://data/ships/enemy_ship_layout.tres" id="3_1o3v1"]
 
 [node name="BattleScene" type="Control" unique_id=171627533]
 layout_mode = 3
@@ -11,6 +13,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_6iigb")
+PlayerLayout = ExtResource("2_3p2xu")
+EnemyLayout = ExtResource("3_1o3v1")
 
 [node name="Background" type="ColorRect" parent="." unique_id=567774482]
 layout_mode = 1

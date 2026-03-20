@@ -1,15 +1,23 @@
-using Godot;
-using System;
+using TidesOfTime.Data;
+using TidesOfTime.Ships;
 
-public partial class BattleState : Node
+namespace TidesOfTime.Battle;
+
+public class BattleState
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
+	public ShipState PlayerShip { get; }
+	public ShipState EnemyShip { get; }
+
+	public BattleState(ShipState playerShip, ShipState enemyShip)
 	{
+		PlayerShip = playerShip;
+		EnemyShip = enemyShip;
 	}
 
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
+	public static BattleState Create(ShipLayoutDef playerLayout, ShipLayoutDef enemyLayout)
 	{
+		return new BattleState(
+			ShipState.FromLayout(playerLayout),
+			ShipState.FromLayout(enemyLayout));
 	}
 }

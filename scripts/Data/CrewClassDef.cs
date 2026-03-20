@@ -1,15 +1,11 @@
 using Godot;
-using System;
 
-public partial class CrewClassDef : Node
+namespace TidesOfTime.Data;
+
+[GlobalClass]
+public partial class CrewClassDef : Resource
 {
-	// Called when the node enters the scene tree for the first time.
-	public override void _Ready()
-	{
-	}
-
-	// Called every frame. 'delta' is the elapsed time since the previous frame.
-	public override void _Process(double delta)
-	{
-	}
+	[Export] public string CrewClassId { get; set; } = "";
+	[Export] public string DisplayName { get; set; } = "";
+	[Export] public Godot.Collections.Array<AbilityDef> StartingAbilities { get; set; } = new();
 }

@@ -13,7 +13,7 @@ public static class ShipStateFactory
 		{
 			for (int x = 0; x < layout.Width; x++)
 			{
-				gridState.Tiles.Add(new ShipTileState(x, y)
+				gridState.AddTile(new ShipTileState(x, y)
 				{
 					Walkable = false,
 					RoomId = ""
@@ -35,11 +35,19 @@ public static class ShipStateFactory
 				roomState.Tiles.Add(tilePos);
 
 				var tile = gridState.GetTile(tilePos.X, tilePos.Y);
-				if (tile != null)
+				if (tile == null)
 				{
-					tile.Walkable = true;
-					tile.RoomId = roomDef.RoomId;
+					GD.PushWarning($"Ship layout '{layout.ShipName}' has out-of-bounds tile {tilePos} in room '{roomDef.RoomId}'.");
+					continue;
 				}
+
+				if (tile.Walkable && !string.IsNullOrEmpty(tile.RoomId))
+				{
+					GD.PushWarning($"Ship layout '{layout.ShipName}' assigns tile {tilePos} to multiple rooms.");
+				}
+
+				tile.Walkable = true;
+				tile.RoomId = roomDef.RoomId;
 			}
 
 			gridState.Rooms.Add(roomState);
