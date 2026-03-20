@@ -12,6 +12,7 @@ public partial class ShipGridView : PanelContainer
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
 	private GridContainer _grid = null!;
+	private ShipState? _shipState;
 
 	public override void _Ready()
 	{
@@ -32,6 +33,7 @@ public partial class ShipGridView : PanelContainer
 
 	public void Render(ShipState shipState)
 	{
+		_shipState = shipState;
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
 
@@ -51,15 +53,19 @@ public partial class ShipGridView : PanelContainer
 
 			tileNode.Text = "";
 			tileNode.CustomMinimumSize = new Vector2(36, 36);
+			tileNode.FocusMode = Control.FocusModeEnum.None;
+			tileNode.Pressed += () => OnTilePressed(tile.X, tile.Y);
 
 			if (tile.Walkable)
 			{
-				var color = GetRoomColor(tile.RoomId, roomById);
-				tileNode.Modulate = color;
+				var room = roomById.GetValueOrDefault(tile.RoomId);
+				var color = GetRoomColor(room);
+				var isSelected = room?.RoomId == shipState.SelectedRoomId;
+				ApplyTileStyle(tileNode, color, isSelected);
 			}
 			else
 			{
-				tileNode.Modulate = new Color(0.15f, 0.15f, 0.15f);
+				ApplyTileStyle(tileNode, new Color(0.15f, 0.15f, 0.15f), false);
 				tileNode.Disabled = true;
 			}
 
@@ -86,9 +92,44 @@ public partial class ShipGridView : PanelContainer
 		}
 	}
 
-	private Color GetRoomColor(string roomId, IReadOnlyDictionary<string, ShipRoomState> roomById)
+	private void OnTilePressed(int x, int y)
 	{
-		if (!roomById.TryGetValue(roomId, out var room))
+		if (_shipState == null)
+		{
+			return;
+		}
+
+		_shipState.SelectRoomAt(x, y);
+		Render(_shipState);
+	}
+
+	private static void ApplyTileStyle(Button tileNode, Color fillColor, bool isSelected)
+	{
+		var style = new StyleBoxFlat
+		{
+			BgColor = fillColor,
+			BorderWidthLeft = isSelected ? 3 : 1,
+			BorderWidthTop = isSelected ? 3 : 1,
+			BorderWidthRight = isSelected ? 3 : 1,
+			BorderWidthBottom = isSelected ? 3 : 1,
+			BorderColor = isSelected
+				? new Color(0.98f, 0.98f, 0.92f)
+				: fillColor.Darkened(0.35f),
+			CornerRadiusTopLeft = 2,
+			CornerRadiusTopRight = 2,
+			CornerRadiusBottomRight = 2,
+			CornerRadiusBottomLeft = 2
+		};
+
+		tileNode.AddThemeStyleboxOverride("normal", style);
+		tileNode.AddThemeStyleboxOverride("hover", style);
+		tileNode.AddThemeStyleboxOverride("pressed", style);
+		tileNode.AddThemeStyleboxOverride("disabled", style);
+	}
+
+	private Color GetRoomColor(ShipRoomState? room)
+	{
+		if (room == null)
 		{
 			return new Color(0.6f, 0.6f, 0.6f);
 		}
