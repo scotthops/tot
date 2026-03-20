@@ -19,10 +19,6 @@ public partial class BattleScene : Control
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Label _actionStatusLabel = null!;
-	private string? _currentSelectionSource;
-	private ShipState? _currentSelectedShip;
-	private ShipRoomState? _currentSelectedRoom;
-	private BattleActionIntent? _lastActionIntent;
 
 	public override void _Ready()
 	{
@@ -49,121 +45,100 @@ public partial class BattleScene : Control
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
 		_playerShipView.RoomSelected += (ship, room) => OnRoomSelected("Player", ship, room);
 		_enemyShipView.RoomSelected += (ship, room) => OnRoomSelected("Enemy", ship, room);
-		ShowSelectionState("None", null, null);
+		ShowSelectionState(_battleState.CurrentSelection);
 	}
 
 	private void OnRoomSelected(string shipSource, ShipState ship, ShipRoomState? room)
 	{
-		_currentSelectionSource = shipSource;
-		_currentSelectedShip = ship;
-		_currentSelectedRoom = room;
-		ClearOtherShipSelection(ship);
-		ShowSelectionState(shipSource, ship, room);
+		_battleState.SetSelection(shipSource, ship, room);
+		_playerShipView.Render(_battleState.PlayerShip);
+		_enemyShipView.Render(_battleState.EnemyShip);
+		ShowSelectionState(_battleState.CurrentSelection);
 	}
 
-	private void ClearOtherShipSelection(ShipState selectedShip)
+	private void ShowSelectionState(BattleSelection? selection)
 	{
-		if (selectedShip == _battleState.PlayerShip)
-		{
-			_battleState.EnemyShip.ClearSelection();
-			_enemyShipView.Render(_battleState.EnemyShip);
-			return;
-		}
-
-		if (selectedShip == _battleState.EnemyShip)
-		{
-			_battleState.PlayerShip.ClearSelection();
-			_playerShipView.Render(_battleState.PlayerShip);
-		}
+		_selectionSourceLabel.Text = selection == null
+			? "Ship: None"
+			: $"Ship: {selection.ShipSource} ({selection.Ship.Name})";
+		_selectionRoomLabel.Text = $"Room: {selection?.Room.DisplayName ?? "None"}";
+		_selectionSystemLabel.Text = $"System: {selection?.Room.SystemType ?? "None"}";
+		UpdateActionArea(selection);
 	}
 
-	private void ShowSelectionState(string shipSource, ShipState? ship, ShipRoomState? room)
+	private void UpdateActionArea(BattleSelection? selection)
 	{
-		_selectionSourceLabel.Text = $"Ship: {shipSource}{(ship != null ? $" ({ship.Name})" : "")}";
-		_selectionRoomLabel.Text = $"Room: {room?.DisplayName ?? "None"}";
-		_selectionSystemLabel.Text = $"System: {room?.SystemType ?? "None"}";
-		UpdateActionArea(shipSource, ship, room);
-	}
-
-	private void UpdateActionArea(string shipSource, ShipState? ship, ShipRoomState? room)
-	{
-		if (ship == null || room == null)
+		if (selection == null)
 		{
-			_primaryActionButton.Text = "Action 1";
-			_secondaryActionButton.Text = "Action 2";
-			_primaryActionButton.Disabled = true;
-			_secondaryActionButton.Disabled = true;
-			_lastActionIntent = null;
+			ConfigureActionButton(_primaryActionButton, "Action 1", null);
+			ConfigureActionButton(_secondaryActionButton, "Action 2", null);
+			_battleState.SetLastIssuedIntent(null);
 			_actionStatusLabel.Text = "Select a room to see actions.";
 			return;
 		}
 
-		if (shipSource == "Enemy")
+		if (selection.ShipSource == "Enemy")
 		{
-			_primaryActionButton.Text = "Target System";
-			_secondaryActionButton.Text = "Board Room";
+			ConfigureActionButton(_primaryActionButton, "Target System", BattleActionKind.TargetSystem);
+			ConfigureActionButton(_secondaryActionButton, "Board Room", BattleActionKind.BoardRoom);
 		}
 		else
 		{
-			_primaryActionButton.Text = "Repair / Assign";
-			_secondaryActionButton.Text = "Inspect System";
+			ConfigureActionButton(_primaryActionButton, "Repair / Assign", BattleActionKind.RepairOrAssign);
+			ConfigureActionButton(_secondaryActionButton, "Inspect System", BattleActionKind.InspectSystem);
 		}
 
-		_primaryActionButton.Disabled = false;
-		_secondaryActionButton.Disabled = false;
-		_actionStatusLabel.Text = $"Ready: {room.DisplayName} on {ship.Name}";
+		_actionStatusLabel.Text = $"Ready: {selection.Room.DisplayName} on {selection.Ship.Name}";
 	}
 
 	private void OnPrimaryActionPressed()
 	{
-		RunPrototypeAction(_primaryActionButton.Text);
+		RunPrototypeAction(_primaryActionButton);
 	}
 
 	private void OnSecondaryActionPressed()
 	{
-		RunPrototypeAction(_secondaryActionButton.Text);
+		RunPrototypeAction(_secondaryActionButton);
 	}
 
-	private void RunPrototypeAction(string actionName)
+	private void RunPrototypeAction(Button actionButton)
 	{
-		var actionIntent = CreateActionIntent(actionName);
+		var actionKind = GetActionKind(actionButton);
+		var actionIntent = actionKind == null
+			? null
+			: _battleState.CreateActionIntent(actionKind.Value);
+
 		if (actionIntent == null)
 		{
 			_actionStatusLabel.Text = "Select a room first.";
 			return;
 		}
 
-		_lastActionIntent = actionIntent;
+		_battleState.SetLastIssuedIntent(actionIntent);
 		_actionStatusLabel.Text = actionIntent.ToStatusText();
 	}
 
-	private BattleActionIntent? CreateActionIntent(string actionName)
+	private static void ConfigureActionButton(Button button, string text, BattleActionKind? actionKind)
 	{
-		if (_currentSelectedShip == null || _currentSelectedRoom == null || string.IsNullOrEmpty(_currentSelectionSource))
+		button.Text = text;
+		button.Disabled = actionKind == null;
+
+		if (actionKind == null)
+		{
+			button.RemoveMeta("action_kind");
+			return;
+		}
+
+		button.SetMeta("action_kind", (int)actionKind.Value);
+	}
+
+	private static BattleActionKind? GetActionKind(Button button)
+	{
+		if (!button.HasMeta("action_kind"))
 		{
 			return null;
 		}
 
-		var kind = actionName switch
-		{
-			"Target System" => BattleActionKind.TargetSystem,
-			"Board Room" => BattleActionKind.BoardRoom,
-			"Repair / Assign" => BattleActionKind.RepairOrAssign,
-			"Inspect System" => BattleActionKind.InspectSystem,
-			_ => (BattleActionKind?)null
-		};
-
-		if (kind == null)
-		{
-			return null;
-		}
-
-		return new BattleActionIntent(
-			kind.Value,
-			_currentSelectionSource,
-			_currentSelectedShip.Name,
-			_currentSelectedRoom.RoomId,
-			_currentSelectedRoom.DisplayName,
-			_currentSelectedRoom.SystemType);
+		return (BattleActionKind)(int)button.GetMeta("action_kind");
 	}
 }
