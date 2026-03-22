@@ -14,17 +14,17 @@ public static class ShipReachability
 		Vector2I.Down
 	];
 
-	public static bool CanReachTile(ShipState ship, CrewState crew, int destinationX, int destinationY)
+	public static ShipMoveValidationResult EvaluateMove(ShipState ship, CrewState crew, int destinationX, int destinationY)
 	{
 		var destinationTile = ship.Grid.GetTile(destinationX, destinationY);
 		if (destinationTile == null || !destinationTile.Walkable)
 		{
-			return false;
+			return ShipMoveValidationResult.InvalidDestination;
 		}
 
 		if (ship.IsTileOccupied(destinationX, destinationY))
 		{
-			return false;
+			return ShipMoveValidationResult.TileOccupied;
 		}
 
 		var start = new Vector2I(crew.Position.TileX, crew.Position.TileY);
@@ -38,7 +38,7 @@ public static class ShipReachability
 			var current = frontier.Dequeue();
 			if (current == destination)
 			{
-				return true;
+				return ShipMoveValidationResult.Reachable;
 			}
 
 			foreach (var direction in OrthogonalDirections)
@@ -53,7 +53,7 @@ public static class ShipReachability
 			}
 		}
 
-		return false;
+		return ShipMoveValidationResult.Unreachable;
 	}
 
 	private static bool IsTraversableForCrew(ShipState ship, CrewState crew, Vector2I tilePosition)

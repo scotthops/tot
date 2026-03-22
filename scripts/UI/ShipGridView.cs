@@ -12,6 +12,7 @@ public partial class ShipGridView : PanelContainer
 	[Export] public PackedScene? TileViewScene { get; set; }
 
 	public event Action<ShipState, int, int>? TilePressed;
+	public event Action<ShipState>? BackgroundPressed;
 	public event Action<ShipState, CrewState>? CrewSelected;
 
 	private Label _shipNameLabel = null!;
@@ -49,6 +50,16 @@ public partial class ShipGridView : PanelContainer
 
 		var renderRevision = ++_boardRenderRevision;
 		Callable.From(() => RebuildBoardDeferred(renderRevision)).CallDeferred();
+	}
+
+	public override void _GuiInput(InputEvent @event)
+	{
+		if (_shipState == null || @event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+		{
+			return;
+		}
+
+		BackgroundPressed?.Invoke(_shipState);
 	}
 
 	private static Dictionary<string, ShipRoomState> BuildRoomIndex(ShipGridState gridState)

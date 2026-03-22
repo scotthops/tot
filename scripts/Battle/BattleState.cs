@@ -23,6 +23,7 @@ public class BattleState
 	public ShipState EnemyShip { get; }
 	public BattleSelection? CurrentSelection { get; private set; }
 	public BattleActionIntent? LastIssuedIntent { get; private set; }
+	public BattleMovementFeedback? LastMovementFeedback { get; private set; }
 
 	public BattleState(ShipState playerShip, ShipState enemyShip)
 	{
@@ -56,6 +57,7 @@ public class BattleState
 			? null
 			: BattleSelection.ForRoom(shipSource, ship, room);
 		LastIssuedIntent = null;
+		LastMovementFeedback = null;
 	}
 
 	public void SetCrewSelection(string shipSource, ShipState ship, CrewState? crew)
@@ -73,6 +75,7 @@ public class BattleState
 		var room = ship.GetRoomAt(crew.Position.TileX, crew.Position.TileY);
 		CurrentSelection = BattleSelection.ForCrew(shipSource, ship, crew, room);
 		LastIssuedIntent = null;
+		LastMovementFeedback = null;
 	}
 
 	public void HandleTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
@@ -84,6 +87,15 @@ public class BattleState
 
 		ship.SelectRoomAt(tileX, tileY);
 		SetSelection(shipSource, ship, ship.GetSelectedRoom());
+	}
+
+	public void ClearSelection()
+	{
+		PlayerShip.ClearSelection();
+		EnemyShip.ClearSelection();
+		CurrentSelection = null;
+		LastIssuedIntent = null;
+		LastMovementFeedback = null;
 	}
 
 	public BattleActionIntent? CreateActionIntent(BattleActionKind kind)
@@ -105,6 +117,7 @@ public class BattleState
 	public void SetLastIssuedIntent(BattleActionIntent? actionIntent)
 	{
 		LastIssuedIntent = actionIntent;
+		LastMovementFeedback = null;
 	}
 
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
@@ -134,20 +147,26 @@ public class BattleState
 
 		if (CurrentSelection.Ship != ship)
 		{
-			return true;
+			return false;
 		}
 
-		if (!ShipReachability.CanReachTile(ship, selectedCrew, tileX, tileY))
+		var moveValidationResult = ShipReachability.EvaluateMove(ship, selectedCrew, tileX, tileY);
+		if (moveValidationResult != ShipMoveValidationResult.Reachable)
 		{
-			return true;
+			return false;
 		}
 
 		if (!ship.TryMoveCrewTo(selectedCrew, tileX, tileY))
 		{
-			return true;
+			return false;
 		}
 
 		SetCrewSelection(shipSource, ship, selectedCrew);
+		LastMovementFeedback = new BattleMovementFeedback(
+			BattleMovementFeedbackKind.Succeeded,
+			selectedCrew.DisplayName,
+			tileX,
+			tileY);
 		return true;
 	}
 

@@ -15,6 +15,8 @@ public partial class BattleScene : Control
 	private BattleState _battleState = null!;
 	private ShipGridView _playerShipView = null!;
 	private ShipGridView _enemyShipView = null!;
+	private Control _background = null!;
+	private Control _selectionPanel = null!;
 	private Label _selectionSourceLabel = null!;
 	private Label _selectionRoomLabel = null!;
 	private Label _selectionSystemLabel = null!;
@@ -26,6 +28,8 @@ public partial class BattleScene : Control
 	{
 		_playerShipView = GetNode<ShipGridView>("MarginContainer/VBoxContainer/HBoxContainer/PlayerShipGridView");
 		_enemyShipView = GetNode<ShipGridView>("MarginContainer/VBoxContainer/HBoxContainer/EnemyShipGridView");
+		_background = GetNode<Control>("Background");
+		_selectionPanel = GetNode<Control>("MarginContainer/VBoxContainer/SelectionPanel");
 		_selectionSourceLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionSourceLabel");
 		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionRoomLabel");
 		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionSystemLabel");
@@ -45,11 +49,23 @@ public partial class BattleScene : Control
 
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
+		_background.GuiInput += OnBackgroundGuiInput;
+		_selectionPanel.GuiInput += OnBackgroundGuiInput;
 		_playerShipView.TilePressed += (ship, x, y) => OnTilePressed("Player", ship, x, y);
+		_playerShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_playerShipView.CrewSelected += (ship, crew) => OnCrewSelected("Player", ship, crew);
 		_enemyShipView.TilePressed += (ship, x, y) => OnTilePressed("Enemy", ship, x, y);
+		_enemyShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
 		ShowSelectionState(_battleState.CurrentSelection);
+	}
+
+	public override void _UnhandledInput(InputEvent @event)
+	{
+		if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+		{
+			ClearCurrentSelection();
+		}
 	}
 
 	private void OnTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
@@ -64,6 +80,21 @@ public partial class BattleScene : Control
 		_battleState.SetCrewSelection(shipSource, ship, crew);
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
+	}
+
+	private void OnBoardBackgroundPressed(ShipState _)
+	{
+		ClearCurrentSelection();
+	}
+
+	private void OnBackgroundGuiInput(InputEvent @event)
+	{
+		if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+		{
+			return;
+		}
+
+		ClearCurrentSelection();
 	}
 
 	private void ShowSelectionState(BattleSelection? selection)
@@ -96,6 +127,13 @@ public partial class BattleScene : Control
 
 	private void UpdateActionArea(BattleSelection? selection)
 	{
+		if (_battleState.LastMovementFeedback != null)
+		{
+			ConfigureActionButtons([]);
+			_actionStatusLabel.Text = _battleState.LastMovementFeedback.ToStatusText();
+			return;
+		}
+
 		if (selection == null || selection.Kind != BattleSelectionKind.Room)
 		{
 			ConfigureActionButtons([]);
@@ -187,5 +225,12 @@ public partial class BattleScene : Control
 		}
 
 		return (BattleActionKind)(int)button.GetMeta("action_kind");
+	}
+
+	private void ClearCurrentSelection()
+	{
+		_battleState.ClearSelection();
+		RenderBattleViews();
+		ShowSelectionState(_battleState.CurrentSelection);
 	}
 }
