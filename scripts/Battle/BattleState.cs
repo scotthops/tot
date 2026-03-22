@@ -54,13 +54,30 @@ public class BattleState
 
 		CurrentSelection = room == null
 			? null
-			: new BattleSelection(shipSource, ship, room);
+			: BattleSelection.ForRoom(shipSource, ship, room);
+		LastIssuedIntent = null;
+	}
+
+	public void SetCrewSelection(string shipSource, ShipState ship, CrewState? crew)
+	{
+		PlayerShip.ClearSelection();
+		EnemyShip.ClearSelection();
+
+		if (crew == null)
+		{
+			CurrentSelection = null;
+			LastIssuedIntent = null;
+			return;
+		}
+
+		var room = ship.GetRoomAt(crew.Position.TileX, crew.Position.TileY);
+		CurrentSelection = BattleSelection.ForCrew(shipSource, ship, crew, room);
 		LastIssuedIntent = null;
 	}
 
 	public BattleActionIntent? CreateActionIntent(BattleActionKind kind)
 	{
-		if (CurrentSelection == null)
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
 		{
 			return null;
 		}
@@ -81,7 +98,7 @@ public class BattleState
 
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
 	{
-		if (CurrentSelection == null)
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room)
 		{
 			return [];
 		}

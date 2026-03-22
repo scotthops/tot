@@ -12,12 +12,14 @@ public partial class ShipGridView : PanelContainer
 	[Export] public PackedScene? TileViewScene { get; set; }
 
 	public event Action<ShipState, ShipRoomState?>? RoomSelected;
+	public event Action<ShipState, CrewState>? CrewSelected;
 
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
 	private Control _grid = null!;
 	private Control _crewOverlay = null!;
 	private ShipState? _shipState;
+	private string? _selectedCrewId;
 	private int _boardRenderRevision;
 
 	public override void _Ready()
@@ -38,9 +40,10 @@ public partial class ShipGridView : PanelContainer
 		Render(ShipState.FromLayout(layout));
 	}
 
-	public void Render(ShipState shipState)
+	public void Render(ShipState shipState, string? selectedCrewId = null)
 	{
 		_shipState = shipState;
+		_selectedCrewId = selectedCrewId;
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
 
@@ -82,7 +85,6 @@ public partial class ShipGridView : PanelContainer
 		_shipState.SelectRoomAt(x, y);
 		var selectedRoom = _shipState.GetSelectedRoom();
 		RoomSelected?.Invoke(_shipState, selectedRoom);
-		Render(_shipState);
 	}
 
 	private static void ApplyTileStyle(Button tileNode, Color fillColor, bool isSelected)
@@ -172,7 +174,12 @@ public partial class ShipGridView : PanelContainer
 
 		foreach (var crew in _shipState.GetCrewOnBoard())
 		{
-			var marker = CreateCrewMarker(crew);
+			var marker = CreateCrewMarker(crew, crew.Id == _selectedCrewId);
+			if (marker is Button markerButton)
+			{
+				markerButton.Pressed += () => OnCrewPressed(crew);
+			}
+
 			var tilePosition = GetTilePosition(layout, crew.Position.TileX, crew.Position.TileY);
 			var tileSize = new Vector2(layout.TileSize, layout.TileSize);
 			marker.Position = tilePosition + (tileSize - marker.Size) * 0.5f;
@@ -199,46 +206,48 @@ public partial class ShipGridView : PanelContainer
 		return layout.Origin + new Vector2(tileX * layout.TileSize, tileY * layout.TileSize);
 	}
 
-	private static Control CreateCrewMarker(CrewState crew)
+	private void OnCrewPressed(CrewState crew)
 	{
-		var marker = new PanelContainer
+		if (_shipState == null)
+		{
+			return;
+		}
+
+		CrewSelected?.Invoke(_shipState, crew);
+	}
+
+	private static Control CreateCrewMarker(CrewState crew, bool isSelected)
+	{
+		var marker = new Button
 		{
 			CustomMinimumSize = new Vector2(24, 24),
 			Size = new Vector2(24, 24),
-			MouseFilter = Control.MouseFilterEnum.Ignore
+			MouseFilter = Control.MouseFilterEnum.Stop,
+			FocusMode = Control.FocusModeEnum.None,
+			Text = crew.ShortLabel
 		};
 
 		var style = new StyleBoxFlat
 		{
 			BgColor = GetCrewMarkerFillColor(crew),
-			BorderColor = GetCrewMarkerBorderColor(crew),
-			BorderWidthLeft = 2,
-			BorderWidthTop = 2,
-			BorderWidthRight = 2,
-			BorderWidthBottom = 2,
+			BorderColor = GetCrewMarkerBorderColor(crew, isSelected),
+			BorderWidthLeft = isSelected ? 4 : 2,
+			BorderWidthTop = isSelected ? 4 : 2,
+			BorderWidthRight = isSelected ? 4 : 2,
+			BorderWidthBottom = isSelected ? 4 : 2,
 			CornerRadiusTopLeft = 12,
 			CornerRadiusTopRight = 12,
 			CornerRadiusBottomRight = 12,
 			CornerRadiusBottomLeft = 12
 		};
-		marker.AddThemeStyleboxOverride("panel", style);
+		marker.AddThemeStyleboxOverride("normal", style);
+		marker.AddThemeStyleboxOverride("hover", style);
+		marker.AddThemeStyleboxOverride("pressed", style);
+		marker.AddThemeColorOverride("font_color", GetCrewMarkerTextColor(crew));
+		marker.AddThemeColorOverride("font_outline_color", new Color(0.04f, 0.04f, 0.08f, 0.95f));
+		marker.AddThemeConstantOverride("outline_size", 2);
+		marker.AddThemeFontSizeOverride("font_size", 14);
 
-		var label = new Label
-		{
-			Text = crew.ShortLabel,
-			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-			SizeFlagsVertical = Control.SizeFlags.ExpandFill
-		};
-
-		label.AddThemeColorOverride("font_color", GetCrewMarkerTextColor(crew));
-		label.AddThemeColorOverride("font_outline_color", new Color(0.04f, 0.04f, 0.08f, 0.95f));
-		label.AddThemeConstantOverride("outline_size", 2);
-		label.AddThemeFontSizeOverride("font_size", 14);
-
-		marker.AddChild(label);
 		return marker;
 	}
 
@@ -252,8 +261,13 @@ public partial class ShipGridView : PanelContainer
 		};
 	}
 
-	private static Color GetCrewMarkerBorderColor(CrewState crew)
+	private static Color GetCrewMarkerBorderColor(CrewState crew, bool isSelected)
 	{
+		if (isSelected)
+		{
+			return new Color(1.0f, 0.98f, 0.86f);
+		}
+
 		return crew.Allegiance switch
 		{
 			CrewAllegiance.Player => new Color(0.78f, 0.9f, 1.0f),

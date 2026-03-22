@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using TidesOfTime.Crew;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
 using TidesOfTime.UI;
@@ -45,40 +46,83 @@ public partial class BattleScene : Control
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
 		_playerShipView.RoomSelected += (ship, room) => OnRoomSelected("Player", ship, room);
+		_playerShipView.CrewSelected += (ship, crew) => OnCrewSelected("Player", ship, crew);
 		_enemyShipView.RoomSelected += (ship, room) => OnRoomSelected("Enemy", ship, room);
+		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
 		ShowSelectionState(_battleState.CurrentSelection);
 	}
 
 	private void OnRoomSelected(string shipSource, ShipState ship, ShipRoomState? room)
 	{
 		_battleState.SetSelection(shipSource, ship, room);
-		_playerShipView.Render(_battleState.PlayerShip);
-		_enemyShipView.Render(_battleState.EnemyShip);
+		RenderBattleViews();
+		ShowSelectionState(_battleState.CurrentSelection);
+	}
+
+	private void OnCrewSelected(string shipSource, ShipState ship, CrewState crew)
+	{
+		_battleState.SetCrewSelection(shipSource, ship, crew);
+		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
 	}
 
 	private void ShowSelectionState(BattleSelection? selection)
 	{
-		_selectionSourceLabel.Text = selection == null
-			? "Ship: None"
-			: $"Ship: {selection.ShipSource} ({selection.Ship.Name})";
-		_selectionRoomLabel.Text = $"Room: {selection?.Room.DisplayName ?? "None"}";
-		_selectionSystemLabel.Text = $"System: {selection?.Room.SystemType ?? "None"}";
+		if (selection == null)
+		{
+			_selectionSourceLabel.Text = "Ship: None";
+			_selectionRoomLabel.Text = "Room: None";
+			_selectionSystemLabel.Text = "System: None";
+			UpdateActionArea(selection);
+			return;
+		}
+
+		_selectionSourceLabel.Text = $"Ship: {selection.ShipSource} ({selection.Ship.Name})";
+
+		if (selection.Kind == BattleSelectionKind.Crew && selection.Crew != null)
+		{
+			_selectionRoomLabel.Text = $"Crew: {selection.Crew.DisplayName} [{selection.Crew.ShortLabel}]";
+			_selectionSystemLabel.Text =
+				$"Role: {selection.Crew.CrewClass} | Allegiance: {selection.Crew.Allegiance} | Room: {selection.Room?.DisplayName ?? "Deck"}";
+		}
+		else
+		{
+			_selectionRoomLabel.Text = $"Room: {selection.Room?.DisplayName ?? "None"}";
+			_selectionSystemLabel.Text = $"System: {selection.Room?.SystemType ?? "None"}";
+		}
+
 		UpdateActionArea(selection);
 	}
 
 	private void UpdateActionArea(BattleSelection? selection)
 	{
-		if (selection == null)
+		if (selection == null || selection.Kind != BattleSelectionKind.Room)
 		{
 			ConfigureActionButtons([]);
 			_battleState.SetLastIssuedIntent(null);
-			_actionStatusLabel.Text = "Select a room to see actions.";
+			_actionStatusLabel.Text = selection?.Kind == BattleSelectionKind.Crew
+				? "Crew selected. No direct crew actions yet."
+				: "Select a room to see actions.";
 			return;
 		}
 
 		ConfigureActionButtons(_battleState.GetAvailableActions());
-		_actionStatusLabel.Text = $"Ready: {selection.Room.DisplayName} on {selection.Ship.Name}";
+		_actionStatusLabel.Text = $"Ready: {selection.Room!.DisplayName} on {selection.Ship.Name}";
+	}
+
+	private void RenderBattleViews()
+	{
+		var selectedCrewId = _battleState.CurrentSelection?.Kind == BattleSelectionKind.Crew
+			? _battleState.CurrentSelection.Crew?.Id
+			: null;
+
+		var playerSelectedCrewId =
+			_battleState.CurrentSelection?.Ship == _battleState.PlayerShip ? selectedCrewId : null;
+		var enemySelectedCrewId =
+			_battleState.CurrentSelection?.Ship == _battleState.EnemyShip ? selectedCrewId : null;
+
+		_playerShipView.Render(_battleState.PlayerShip, playerSelectedCrewId);
+		_enemyShipView.Render(_battleState.EnemyShip, enemySelectedCrewId);
 	}
 
 	private void OnPrimaryActionPressed()
