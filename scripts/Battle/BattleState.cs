@@ -75,6 +75,17 @@ public class BattleState
 		LastIssuedIntent = null;
 	}
 
+	public void HandleTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
+	{
+		if (TryHandleCrewMovement(shipSource, ship, tileX, tileY))
+		{
+			return;
+		}
+
+		ship.SelectRoomAt(tileX, tileY);
+		SetSelection(shipSource, ship, ship.GetSelectedRoom());
+	}
+
 	public BattleActionIntent? CreateActionIntent(BattleActionKind kind)
 	{
 		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
@@ -106,6 +117,38 @@ public class BattleState
 		return CurrentSelection.ShipSource == "Enemy"
 			? EnemyRoomActions
 			: PlayerRoomActions;
+	}
+
+	private bool TryHandleCrewMovement(string shipSource, ShipState ship, int tileX, int tileY)
+	{
+		if (CurrentSelection?.Kind != BattleSelectionKind.Crew || CurrentSelection.Crew == null)
+		{
+			return false;
+		}
+
+		var selectedCrew = CurrentSelection.Crew;
+		if (selectedCrew.Allegiance != CrewAllegiance.Player)
+		{
+			return false;
+		}
+
+		if (CurrentSelection.Ship != ship)
+		{
+			return true;
+		}
+
+		if (!ShipReachability.CanReachTile(ship, selectedCrew, tileX, tileY))
+		{
+			return true;
+		}
+
+		if (!ship.TryMoveCrewTo(selectedCrew, tileX, tileY))
+		{
+			return true;
+		}
+
+		SetCrewSelection(shipSource, ship, selectedCrew);
+		return true;
 	}
 
 	private static void SeedPrototypeCrew(ShipState ship, ShipSide currentShipSide, CrewAllegiance allegiance)

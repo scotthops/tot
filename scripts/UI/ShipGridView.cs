@@ -11,7 +11,7 @@ public partial class ShipGridView : PanelContainer
 {
 	[Export] public PackedScene? TileViewScene { get; set; }
 
-	public event Action<ShipState, ShipRoomState?>? RoomSelected;
+	public event Action<ShipState, int, int>? TilePressed;
 	public event Action<ShipState, CrewState>? CrewSelected;
 
 	private Label _shipNameLabel = null!;
@@ -82,9 +82,7 @@ public partial class ShipGridView : PanelContainer
 			return;
 		}
 
-		_shipState.SelectRoomAt(x, y);
-		var selectedRoom = _shipState.GetSelectedRoom();
-		RoomSelected?.Invoke(_shipState, selectedRoom);
+		TilePressed?.Invoke(_shipState, x, y);
 	}
 
 	private static void ApplyTileStyle(Button tileNode, Color fillColor, bool isSelected)

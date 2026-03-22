@@ -45,16 +45,16 @@ public partial class BattleScene : Control
 
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
-		_playerShipView.RoomSelected += (ship, room) => OnRoomSelected("Player", ship, room);
+		_playerShipView.TilePressed += (ship, x, y) => OnTilePressed("Player", ship, x, y);
 		_playerShipView.CrewSelected += (ship, crew) => OnCrewSelected("Player", ship, crew);
-		_enemyShipView.RoomSelected += (ship, room) => OnRoomSelected("Enemy", ship, room);
+		_enemyShipView.TilePressed += (ship, x, y) => OnTilePressed("Enemy", ship, x, y);
 		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
 		ShowSelectionState(_battleState.CurrentSelection);
 	}
 
-	private void OnRoomSelected(string shipSource, ShipState ship, ShipRoomState? room)
+	private void OnTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
 	{
-		_battleState.SetSelection(shipSource, ship, room);
+		_battleState.HandleTilePressed(shipSource, ship, tileX, tileY);
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
 	}

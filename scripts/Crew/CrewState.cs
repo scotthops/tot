@@ -36,4 +36,9 @@ public sealed class CrewState
 		Allegiance = allegiance;
 		Position = position;
 	}
+
+	public void MoveTo(CrewPosition destination)
+	{
+		Position = new CrewPosition(destination.CurrentShipSide, destination.TileX, destination.TileY);
+	}
 }

@@ -66,6 +66,28 @@ public class ShipState
 		return GetCrewAtTile(x, y) != null;
 	}
 
+	public bool TryMoveCrewTo(CrewState crew, int destinationX, int destinationY)
+	{
+		if (!Crew.Contains(crew))
+		{
+			return false;
+		}
+
+		var destinationTile = Grid.GetTile(destinationX, destinationY);
+		if (destinationTile == null || !destinationTile.Walkable)
+		{
+			return false;
+		}
+
+		if (IsTileOccupied(destinationX, destinationY))
+		{
+			return false;
+		}
+
+		crew.MoveTo(new CrewPosition(crew.Position.CurrentShipSide, destinationX, destinationY));
+		return true;
+	}
+
 	private ShipRoomState? GetRoomById(string? roomId)
 	{
 		if (string.IsNullOrEmpty(roomId))
