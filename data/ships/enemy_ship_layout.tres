@@ -8,14 +8,14 @@ script = ExtResource("2_joktb")
 RoomId = "helm"
 DisplayName = "Helm / Rigging"
 SystemType = "HelmRigging"
-Tiles = Array[Vector2i]([Vector2i(5, 1), Vector2i(6, 1), Vector2i(5, 2), Vector2i(6, 2)])
+Tiles = Array[Vector2i]([Vector2i(5, 1), Vector2i(6, 1), Vector2i(4, 2), Vector2i(5, 2), Vector2i(6, 2)])
 
 [sub_resource type="Resource" id="Resource_cannons"]
 script = ExtResource("2_joktb")
 RoomId = "cannons"
 DisplayName = "Cannons"
 SystemType = "Cannons"
-Tiles = Array[Vector2i]([Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(3, 2)])
+Tiles = Array[Vector2i]([Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 3)])
 
 [sub_resource type="Resource" id="Resource_thread"]
 script = ExtResource("2_joktb")

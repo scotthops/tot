@@ -53,6 +53,8 @@ public static class ShipStateFactory
 			gridState.Rooms.Add(roomState);
 		}
 
+		ShipLayoutTopologyValidator.ValidateOrThrow(layout.ShipName, gridState);
+
 		return gridState;
 	}
 }

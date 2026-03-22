@@ -8,7 +8,7 @@ script = ExtResource("2_0vnnp")
 RoomId = "helm"
 DisplayName = "Helm / Rigging"
 SystemType = "HelmRigging"
-Tiles = Array[Vector2i]([Vector2i(1, 1), Vector2i(2, 1), Vector2i(1, 2), Vector2i(2, 2)])
+Tiles = Array[Vector2i]([Vector2i(1, 1), Vector2i(2, 1), Vector2i(1, 2), Vector2i(2, 2), Vector2i(3, 2)])
 
 [sub_resource type="Resource" id="Resource_cannons"]
 script = ExtResource("2_0vnnp")
