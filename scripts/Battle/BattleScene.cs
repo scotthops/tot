@@ -113,12 +113,19 @@ public partial class BattleScene : Control
 		if (selection.Kind == BattleSelectionKind.Crew && selection.Crew != null)
 		{
 			_selectionRoomLabel.Text = $"Crew: {selection.Crew.DisplayName} [{selection.Crew.ShortLabel}]";
-			_selectionSystemLabel.Text = BuildCrewSelectionSummary(selection.Ship, selection.Crew, selection.Room);
+			_selectionSystemLabel.Text = BuildCrewSelectionSummary(
+				selection.Ship,
+				GetShipCrewAllegiance(selection.Ship),
+				selection.Crew,
+				selection.Room);
 		}
 		else
 		{
 			_selectionRoomLabel.Text = $"Room: {selection.Room?.DisplayName ?? "None"}";
-			_selectionSystemLabel.Text = BuildRoomSelectionSummary(selection.Ship, selection.Room);
+			_selectionSystemLabel.Text = BuildRoomSelectionSummary(
+				selection.Ship,
+				GetShipCrewAllegiance(selection.Ship),
+				selection.Room);
 		}
 
 		UpdateActionArea(selection);
@@ -226,27 +233,51 @@ public partial class BattleScene : Control
 		return (BattleActionKind)(int)button.GetMeta("action_kind");
 	}
 
-	private static string BuildRoomSelectionSummary(ShipState ship, ShipRoomState? room)
+	private CrewAllegiance GetShipCrewAllegiance(ShipState ship)
+	{
+		return ship == _battleState.PlayerShip
+			? CrewAllegiance.Player
+			: CrewAllegiance.Enemy;
+	}
+
+	private static string BuildRoomSelectionSummary(ShipState ship, CrewAllegiance shipAllegiance, ShipRoomState? room)
 	{
 		if (room == null)
 		{
 			return "System: None";
 		}
 
-		return $"System: {room.SystemType}\nOccupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
+		var systemSummary = string.IsNullOrEmpty(room.SystemType)
+			? "System: None"
+			: $"System: {room.SystemType} ({GetManningText(ship, room, shipAllegiance)})";
+
+		return $"{systemSummary}\nOccupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
 	}
 
-	private static string BuildCrewSelectionSummary(ShipState ship, CrewState crew, ShipRoomState? room)
+	private static string BuildCrewSelectionSummary(
+		ShipState ship,
+		CrewAllegiance shipAllegiance,
+		CrewState crew,
+		ShipRoomState? room)
 	{
 		var roomName = room?.DisplayName ?? "Deck";
 		var companions = room == null
 			? []
 			: FilterCrew(ship.GetCrewInRoom(room), crew.Id);
+		var manningSummary = room == null || string.IsNullOrEmpty(room.SystemType)
+			? "System Manning: None"
+			: $"System Manning: {GetManningText(ship, room, shipAllegiance)}";
 
 		return
 			$"Role: {crew.CrewClass} | Allegiance: {crew.Allegiance}\n" +
 			$"Room: {roomName}\n" +
+			$"{manningSummary}\n" +
 			$"Crew Here: {FormatCrewList(companions, emptyText: "Alone")}";
+	}
+
+	private static string GetManningText(ShipState ship, ShipRoomState room, CrewAllegiance shipAllegiance)
+	{
+		return ship.IsRoomManned(room, shipAllegiance) ? "Manned" : "Unmanned";
 	}
 
 	private static IReadOnlyList<CrewState> FilterCrew(IReadOnlyList<CrewState> crewMembers, string excludedCrewId)

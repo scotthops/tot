@@ -63,6 +63,11 @@ public class ShipState
 
 	public IReadOnlyList<CrewState> GetCrewInRoom(ShipRoomState? room)
 	{
+		return GetCrewInRoom(room, null);
+	}
+
+	public IReadOnlyList<CrewState> GetCrewInRoom(ShipRoomState? room, CrewAllegiance? allegiance)
+	{
 		if (room == null)
 		{
 			return [];
@@ -71,13 +76,30 @@ public class ShipState
 		var occupants = new List<CrewState>();
 		foreach (var crew in Crew)
 		{
-			if (GetRoomForCrew(crew)?.RoomId == room.RoomId)
+			if (GetRoomForCrew(crew)?.RoomId != room.RoomId)
 			{
-				occupants.Add(crew);
+				continue;
 			}
+
+			if (allegiance != null && crew.Allegiance != allegiance.Value)
+			{
+				continue;
+			}
+
+			occupants.Add(crew);
 		}
 
 		return occupants;
+	}
+
+	public bool IsRoomManned(ShipRoomState? room, CrewAllegiance allegiance)
+	{
+		if (room == null || string.IsNullOrEmpty(room.SystemType))
+		{
+			return false;
+		}
+
+		return GetCrewInRoom(room, allegiance).Count > 0;
 	}
 
 	public CrewState? GetCrewAtTile(int x, int y)
