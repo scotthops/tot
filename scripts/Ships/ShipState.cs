@@ -40,6 +40,11 @@ public class ShipState
 		return GetRoomById(tile.RoomId);
 	}
 
+	public ShipRoomState? GetRoomForCrew(CrewState crew)
+	{
+		return GetRoomAt(crew.Position.TileX, crew.Position.TileY);
+	}
+
 	public void SelectRoomAt(int x, int y)
 	{
 		var room = GetRoomAt(x, y);
@@ -54,6 +59,25 @@ public class ShipState
 	public IReadOnlyList<CrewState> GetCrewOnBoard()
 	{
 		return Crew;
+	}
+
+	public IReadOnlyList<CrewState> GetCrewInRoom(ShipRoomState? room)
+	{
+		if (room == null)
+		{
+			return [];
+		}
+
+		var occupants = new List<CrewState>();
+		foreach (var crew in Crew)
+		{
+			if (GetRoomForCrew(crew)?.RoomId == room.RoomId)
+			{
+				occupants.Add(crew);
+			}
+		}
+
+		return occupants;
 	}
 
 	public CrewState? GetCrewAtTile(int x, int y)

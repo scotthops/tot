@@ -113,13 +113,12 @@ public partial class BattleScene : Control
 		if (selection.Kind == BattleSelectionKind.Crew && selection.Crew != null)
 		{
 			_selectionRoomLabel.Text = $"Crew: {selection.Crew.DisplayName} [{selection.Crew.ShortLabel}]";
-			_selectionSystemLabel.Text =
-				$"Role: {selection.Crew.CrewClass} | Allegiance: {selection.Crew.Allegiance} | Room: {selection.Room?.DisplayName ?? "Deck"}";
+			_selectionSystemLabel.Text = BuildCrewSelectionSummary(selection.Ship, selection.Crew, selection.Room);
 		}
 		else
 		{
 			_selectionRoomLabel.Text = $"Room: {selection.Room?.DisplayName ?? "None"}";
-			_selectionSystemLabel.Text = $"System: {selection.Room?.SystemType ?? "None"}";
+			_selectionSystemLabel.Text = BuildRoomSelectionSummary(selection.Ship, selection.Room);
 		}
 
 		UpdateActionArea(selection);
@@ -225,6 +224,59 @@ public partial class BattleScene : Control
 		}
 
 		return (BattleActionKind)(int)button.GetMeta("action_kind");
+	}
+
+	private static string BuildRoomSelectionSummary(ShipState ship, ShipRoomState? room)
+	{
+		if (room == null)
+		{
+			return "System: None";
+		}
+
+		return $"System: {room.SystemType}\nOccupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
+	}
+
+	private static string BuildCrewSelectionSummary(ShipState ship, CrewState crew, ShipRoomState? room)
+	{
+		var roomName = room?.DisplayName ?? "Deck";
+		var companions = room == null
+			? []
+			: FilterCrew(ship.GetCrewInRoom(room), crew.Id);
+
+		return
+			$"Role: {crew.CrewClass} | Allegiance: {crew.Allegiance}\n" +
+			$"Room: {roomName}\n" +
+			$"Crew Here: {FormatCrewList(companions, emptyText: "Alone")}";
+	}
+
+	private static IReadOnlyList<CrewState> FilterCrew(IReadOnlyList<CrewState> crewMembers, string excludedCrewId)
+	{
+		var filteredCrew = new List<CrewState>();
+		foreach (var crew in crewMembers)
+		{
+			if (crew.Id != excludedCrewId)
+			{
+				filteredCrew.Add(crew);
+			}
+		}
+
+		return filteredCrew;
+	}
+
+	private static string FormatCrewList(IReadOnlyList<CrewState> crewMembers, string emptyText = "None")
+	{
+		if (crewMembers.Count == 0)
+		{
+			return emptyText;
+		}
+
+		var labels = new List<string>();
+		foreach (var crew in crewMembers)
+		{
+			labels.Add($"{crew.DisplayName} [{crew.ShortLabel}]");
+		}
+
+		return string.Join(", ", labels);
 	}
 
 	private void ClearCurrentSelection()
