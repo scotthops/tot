@@ -42,6 +42,7 @@ layout_mode = 2
 theme_override_constants/separation = 16
 
 [node name="SelectionPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 196)
 layout_mode = 2
 size_flags_horizontal = 1
 
@@ -60,17 +61,30 @@ theme_override_constants/separation = 4
 layout_mode = 2
 text = "Selection"
 
-[node name="SelectionSourceLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+[node name="SelectionDetailsScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 88)
+layout_mode = 2
+vertical_scroll_mode = 1
+
+[node name="SelectionDetailsContent" type="VBoxContainer" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="SelectionSourceLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent"]
 layout_mode = 2
 text = "Ship: None"
+autowrap_mode = 3
 
-[node name="SelectionRoomLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+[node name="SelectionRoomLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent"]
 layout_mode = 2
 text = "Room: None"
+autowrap_mode = 3
 
-[node name="SelectionSystemLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
+[node name="SelectionSystemLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent"]
 layout_mode = 2
 text = "System: None"
+autowrap_mode = 3
 
 [node name="ActionSpacer" type="HSeparator" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -96,6 +110,7 @@ disabled = true
 [node name="ActionStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Select a room to see actions."
+autowrap_mode = 3
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=847151303]
 layout_mode = 2
