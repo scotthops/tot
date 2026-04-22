@@ -152,7 +152,9 @@ public partial class BattleScene : Control
 
 		ConfigureActionButtons(_battleState.GetAvailableActions());
 		_actionStatusLabel.Text = selection.Room!.Disabled
-			? $"{selection.Room.DisplayName} is disabled."
+			? selection.Ship == _battleState.PlayerShip
+				? $"{selection.Room.DisplayName} is disabled. Crew inside can repair it."
+				: $"{selection.Room.DisplayName} is disabled."
 			: $"Ready: {selection.Room.DisplayName} on {selection.Ship.Name}";
 	}
 

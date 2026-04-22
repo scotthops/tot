@@ -26,4 +26,15 @@ public class ShipRoomState
 		Integrity = Mathf.Clamp(Integrity - amount, 0, MaxIntegrity);
 		Disabled = Integrity <= 0;
 	}
+
+	public void ApplyRepair(int amount)
+	{
+		if (amount <= 0)
+		{
+			return;
+		}
+
+		Integrity = Mathf.Clamp(Integrity + amount, 0, MaxIntegrity);
+		Disabled = Integrity <= 0;
+	}
 }

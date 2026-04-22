@@ -9,6 +9,7 @@ public class BattleState
 {
 	private const string OffensiveSystemType = "Cannons";
 	private const int TargetSystemDamage = 40;
+	private const int RepairAmount = 35;
 
 	private static readonly BattleAvailableAction[] PlayerRoomActions =
 	[
@@ -143,7 +144,7 @@ public class BattleState
 			return [];
 		}
 
-		if (CurrentSelection.Room.Disabled)
+		if (CurrentSelection.Room.Disabled && CurrentSelection.ShipSource == "Enemy")
 		{
 			return [];
 		}
@@ -236,19 +237,35 @@ public class BattleState
 			return new BattleActionResolution(false, "Repair / Assign only applies to your ship.");
 		}
 
-		if (room.Disabled)
+		if (PlayerShip.GetCrewInRoom(room, CrewAllegiance.Player).Count == 0)
 		{
 			return new BattleActionResolution(
 				false,
-				$"{room.DisplayName} is disabled in this slice. Repairs are not implemented yet.");
+				$"{room.DisplayName} needs a crew member present before repairs can begin.");
 		}
 
-		if (PlayerShip.IsRoomManned(room, CrewAllegiance.Player))
+		if (room.Integrity >= ShipRoomState.MaxIntegrity)
 		{
-			return new BattleActionResolution(true, $"{room.DisplayName} is manned and operational.");
+			return new BattleActionResolution(true, $"{room.DisplayName} is fully repaired and operational.");
 		}
 
-		return new BattleActionResolution(true, $"Move a crew member into {room.DisplayName} to man that system.");
+		var wasDisabled = room.Disabled;
+		var integrityBeforeRepair = room.Integrity;
+		room.ApplyRepair(RepairAmount);
+		var amountRepaired = room.Integrity - integrityBeforeRepair;
+		var repairSummary = $"{room.DisplayName} repaired for {amountRepaired}. Integrity is now {room.Integrity}/{ShipRoomState.MaxIntegrity}.";
+
+		if (wasDisabled && room.IsOperational)
+		{
+			return new BattleActionResolution(true, $"{repairSummary} {room.DisplayName} is back online.");
+		}
+
+		if (!room.IsDamaged)
+		{
+			return new BattleActionResolution(true, $"{repairSummary} {room.DisplayName} is fully restored.");
+		}
+
+		return new BattleActionResolution(true, repairSummary);
 	}
 
 	private BattleActionResolution ExecuteInspectSystemAction()
