@@ -210,14 +210,18 @@ public class BattleState
 
 		if (targetRoom.Disabled)
 		{
-			return new BattleActionResolution(
+			var retaliationResult = CreateEnemyRetaliationResult();
+			return BuildResolutionWithRetaliation(
 				true,
-				$"{damageSummary} {targetRoom.DisplayName} is now disabled and no longer counts as an operational system.");
+				$"{damageSummary} {targetRoom.DisplayName} is now disabled and no longer counts as an operational system.",
+				retaliationResult);
 		}
 
-		return new BattleActionResolution(
+		var successfulAttackResult = CreateEnemyRetaliationResult();
+		return BuildResolutionWithRetaliation(
 			true,
-			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.");
+			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.",
+			successfulAttackResult);
 	}
 
 	private BattleActionResolution ExecuteRepairOrAssignAction()
@@ -289,6 +293,76 @@ public class BattleState
 		return new BattleActionResolution(
 			true,
 			$"{room.DisplayName}: {statusText}, integrity {room.Integrity}/{ShipRoomState.MaxIntegrity}.");
+	}
+
+	private BattleActionResolution CreateEnemyRetaliationResult()
+	{
+		var offensiveRoom = EnemyShip.GetRoomBySystemType(OffensiveSystemType);
+		if (offensiveRoom == null)
+		{
+			return new BattleActionResolution(false, "Enemy has no cannons room to retaliate from.");
+		}
+
+		if (!EnemyShip.IsRoomOperational(offensiveRoom))
+		{
+			return new BattleActionResolution(false, $"Enemy {offensiveRoom.DisplayName} is offline and cannot retaliate.");
+		}
+
+		if (!EnemyShip.IsRoomManned(offensiveRoom, CrewAllegiance.Enemy))
+		{
+			return new BattleActionResolution(false, $"Enemy {offensiveRoom.DisplayName} is unmanned and cannot retaliate.");
+		}
+
+		var targetRoom = SelectEnemyRetaliationTargetRoom();
+		if (targetRoom == null)
+		{
+			return new BattleActionResolution(false, "Enemy finds no operational player system to target.");
+		}
+
+		var integrityBeforeHit = targetRoom.Integrity;
+		targetRoom.ApplyDamage(TargetSystemDamage);
+		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
+		var damageSummary = $"Enemy {offensiveRoom.DisplayName} hits your {targetRoom.DisplayName} for {damageApplied} system damage.";
+
+		if (targetRoom.Disabled)
+		{
+			return new BattleActionResolution(
+				true,
+				$"{damageSummary} {targetRoom.DisplayName} is now disabled and offline.");
+		}
+
+		return new BattleActionResolution(
+			true,
+			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.");
+	}
+
+	private ShipRoomState? SelectEnemyRetaliationTargetRoom()
+	{
+		var playerCannons = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
+		if (PlayerShip.IsRoomOperational(playerCannons))
+		{
+			return playerCannons;
+		}
+
+		foreach (var room in PlayerShip.Grid.Rooms)
+		{
+			if (PlayerShip.IsRoomOperational(room))
+			{
+				return room;
+			}
+		}
+
+		return null;
+	}
+
+	private static BattleActionResolution BuildResolutionWithRetaliation(
+		bool playerActionSucceeded,
+		string playerActionStatus,
+		BattleActionResolution retaliationResult)
+	{
+		return new BattleActionResolution(
+			playerActionSucceeded,
+			$"{playerActionStatus}\n{retaliationResult.StatusText}");
 	}
 
 	private bool TryHandleCrewMovement(string shipSource, ShipState ship, int tileX, int tileY)
