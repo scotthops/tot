@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TidesOfTime.Crew;
 using TidesOfTime.Data;
@@ -8,8 +9,10 @@ namespace TidesOfTime.Battle;
 public class BattleState
 {
 	private const string OffensiveSystemType = "Cannons";
+	private const string HelmSystemType = "HelmRigging";
 	private const int TargetSystemDamage = 40;
 	private const int RepairAmount = 35;
+	private const double HelmDodgeChance = 0.2;
 
 	private static readonly BattleAvailableAction[] PlayerRoomActions =
 	[
@@ -203,6 +206,12 @@ public class BattleState
 
 		SetLastIssuedIntent(actionIntent);
 
+		if (TryEvadeTargetSystemAttack(EnemyShip, CrewAllegiance.Enemy, targetRoom, out var dodgeStatus))
+		{
+			var retaliationAfterDodge = CreateEnemyRetaliationResult();
+			return BuildResolutionWithRetaliation(true, dodgeStatus, retaliationAfterDodge);
+		}
+
 		var integrityBeforeHit = targetRoom.Integrity;
 		targetRoom.ApplyDamage(TargetSystemDamage);
 		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
@@ -319,6 +328,11 @@ public class BattleState
 			return new BattleActionResolution(false, "Enemy finds no operational player system to target.");
 		}
 
+		if (TryEvadeTargetSystemAttack(PlayerShip, CrewAllegiance.Player, targetRoom, out var dodgeStatus))
+		{
+			return new BattleActionResolution(true, dodgeStatus);
+		}
+
 		var integrityBeforeHit = targetRoom.Integrity;
 		targetRoom.ApplyDamage(TargetSystemDamage);
 		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
@@ -334,6 +348,29 @@ public class BattleState
 		return new BattleActionResolution(
 			true,
 			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.");
+	}
+
+	private bool TryEvadeTargetSystemAttack(
+		ShipState defendingShip,
+		CrewAllegiance defendingAllegiance,
+		ShipRoomState targetRoom,
+		out string statusText)
+	{
+		statusText = string.Empty;
+
+		var helmRoom = defendingShip.GetRoomBySystemType(HelmSystemType);
+		if (!defendingShip.IsRoomManned(helmRoom, defendingAllegiance))
+		{
+			return false;
+		}
+
+		if (Random.Shared.NextDouble() >= HelmDodgeChance)
+		{
+			return false;
+		}
+
+		statusText = $"{defendingShip.Name}'s {helmRoom!.DisplayName} evades the shot aimed at {targetRoom.DisplayName}.";
+		return true;
 	}
 
 	private ShipRoomState? SelectEnemyRetaliationTargetRoom()
