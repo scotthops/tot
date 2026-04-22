@@ -8,9 +8,11 @@ namespace TidesOfTime.Battle;
 
 public class BattleState
 {
+	private const int StartingHull = 100;
 	private const string OffensiveSystemType = "Cannons";
 	private const string HelmSystemType = "HelmRigging";
 	private const int TargetSystemDamage = 40;
+	private const int TargetHullDamage = 8;
 	private const int RepairAmount = 35;
 	private const double HelmDodgeChance = 0.2;
 
@@ -30,6 +32,8 @@ public class BattleState
 	public BattleSelection? CurrentSelection { get; private set; }
 	public BattleActionIntent? LastIssuedIntent { get; private set; }
 	public BattleMovementFeedback? LastMovementFeedback { get; private set; }
+	public bool IsBattleOver { get; private set; }
+	public string? BattleOverStatusText { get; private set; }
 
 	public BattleState(ShipState playerShip, ShipState enemyShip)
 	{
@@ -39,8 +43,8 @@ public class BattleState
 
 	public static BattleState Create(ShipLayoutDef playerLayout, ShipLayoutDef enemyLayout)
 	{
-		var playerShip = ShipState.FromLayout(playerLayout);
-		var enemyShip = ShipState.FromLayout(enemyLayout);
+		var playerShip = ShipState.FromLayout(playerLayout, StartingHull);
+		var enemyShip = ShipState.FromLayout(enemyLayout, StartingHull);
 
 		SeedPrototypeCrew(playerShip, ShipSide.Player, CrewAllegiance.Player);
 		SeedPrototypeCrew(enemyShip, ShipSide.Enemy, CrewAllegiance.Enemy);
@@ -50,6 +54,11 @@ public class BattleState
 
 	public void SetSelection(string shipSource, ShipState ship, ShipRoomState? room)
 	{
+		if (IsBattleOver)
+		{
+			return;
+		}
+
 		if (ship == PlayerShip)
 		{
 			EnemyShip.ClearSelection();
@@ -68,6 +77,11 @@ public class BattleState
 
 	public void SetCrewSelection(string shipSource, ShipState ship, CrewState? crew)
 	{
+		if (IsBattleOver)
+		{
+			return;
+		}
+
 		PlayerShip.ClearSelection();
 		EnemyShip.ClearSelection();
 
@@ -86,6 +100,11 @@ public class BattleState
 
 	public void HandleTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
 	{
+		if (IsBattleOver)
+		{
+			return;
+		}
+
 		if (TryHandleCrewMovement(shipSource, ship, tileX, tileY))
 		{
 			return;
@@ -130,6 +149,11 @@ public class BattleState
 	{
 		LastMovementFeedback = null;
 
+		if (IsBattleOver)
+		{
+			return new BattleActionResolution(false, BattleOverStatusText ?? "Battle is over.");
+		}
+
 		return kind switch
 		{
 			BattleActionKind.TargetSystem => ExecuteTargetSystemAction(),
@@ -142,6 +166,11 @@ public class BattleState
 
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
 	{
+		if (IsBattleOver)
+		{
+			return [];
+		}
+
 		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
 		{
 			return [];
@@ -209,28 +238,23 @@ public class BattleState
 		if (TryEvadeTargetSystemAttack(EnemyShip, CrewAllegiance.Enemy, targetRoom, out var dodgeStatus))
 		{
 			var retaliationAfterDodge = CreateEnemyRetaliationResult();
-			return BuildResolutionWithRetaliation(true, dodgeStatus, retaliationAfterDodge);
+			return BuildResolutionWithRetaliation(
+				new BattleActionResolution(true, dodgeStatus),
+				retaliationAfterDodge);
 		}
 
-		var integrityBeforeHit = targetRoom.Integrity;
-		targetRoom.ApplyDamage(TargetSystemDamage);
-		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
-		var damageSummary = $"{offensiveRoom.DisplayName} hit {targetRoom.DisplayName} for {damageApplied} system damage.";
-
-		if (targetRoom.Disabled)
+		var hitResolution = ResolveTargetSystemHit(
+			defendingShip: EnemyShip,
+			targetRoom: targetRoom,
+			damageSummaryPrefix: $"{offensiveRoom.DisplayName} hit {targetRoom.DisplayName} for ",
+			disabledSummary: $"{targetRoom.DisplayName} is now disabled and no longer counts as an operational system.");
+		if (IsBattleOver)
 		{
-			var retaliationResult = CreateEnemyRetaliationResult();
-			return BuildResolutionWithRetaliation(
-				true,
-				$"{damageSummary} {targetRoom.DisplayName} is now disabled and no longer counts as an operational system.",
-				retaliationResult);
+			return hitResolution;
 		}
 
 		var successfulAttackResult = CreateEnemyRetaliationResult();
-		return BuildResolutionWithRetaliation(
-			true,
-			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.",
-			successfulAttackResult);
+		return BuildResolutionWithRetaliation(hitResolution, successfulAttackResult);
 	}
 
 	private BattleActionResolution ExecuteRepairOrAssignAction()
@@ -333,21 +357,11 @@ public class BattleState
 			return new BattleActionResolution(true, dodgeStatus);
 		}
 
-		var integrityBeforeHit = targetRoom.Integrity;
-		targetRoom.ApplyDamage(TargetSystemDamage);
-		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
-		var damageSummary = $"Enemy {offensiveRoom.DisplayName} hits your {targetRoom.DisplayName} for {damageApplied} system damage.";
-
-		if (targetRoom.Disabled)
-		{
-			return new BattleActionResolution(
-				true,
-				$"{damageSummary} {targetRoom.DisplayName} is now disabled and offline.");
-		}
-
-		return new BattleActionResolution(
-			true,
-			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.");
+		return ResolveTargetSystemHit(
+			defendingShip: PlayerShip,
+			targetRoom: targetRoom,
+			damageSummaryPrefix: $"Enemy {offensiveRoom.DisplayName} hits your {targetRoom.DisplayName} for ",
+			disabledSummary: $"{targetRoom.DisplayName} is now disabled and offline.");
 	}
 
 	private bool TryEvadeTargetSystemAttack(
@@ -392,14 +406,64 @@ public class BattleState
 		return null;
 	}
 
+	private BattleActionResolution ResolveTargetSystemHit(
+		ShipState defendingShip,
+		ShipRoomState targetRoom,
+		string damageSummaryPrefix,
+		string disabledSummary)
+	{
+		var integrityBeforeHit = targetRoom.Integrity;
+		targetRoom.ApplyDamage(TargetSystemDamage);
+		var systemDamageApplied = integrityBeforeHit - targetRoom.Integrity;
+
+		var roomStatusText = targetRoom.Disabled
+			? $"{damageSummaryPrefix}{systemDamageApplied} system damage. {disabledSummary}"
+			: $"{damageSummaryPrefix}{systemDamageApplied} system damage. Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.";
+
+		var hullDamageApplied = ApplyHullDamage(defendingShip, TargetHullDamage);
+		var hullStatusText =
+			$"{defendingShip.Name} hull takes {hullDamageApplied} damage and is now {defendingShip.Hull}/{StartingHull}.";
+
+		if (TrySetBattleOver(defendingShip, out var battleOverStatusText))
+		{
+			return new BattleActionResolution(
+				true,
+				$"{roomStatusText} {hullStatusText} {battleOverStatusText}");
+		}
+
+		return new BattleActionResolution(true, $"{roomStatusText} {hullStatusText}");
+	}
+
+	private static int ApplyHullDamage(ShipState defendingShip, int amount)
+	{
+		var hullBeforeHit = defendingShip.Hull;
+		defendingShip.Hull = Math.Max(0, defendingShip.Hull - amount);
+		return hullBeforeHit - defendingShip.Hull;
+	}
+
+	private bool TrySetBattleOver(ShipState destroyedShip, out string battleOverStatusText)
+	{
+		battleOverStatusText = string.Empty;
+		if (destroyedShip.Hull > 0)
+		{
+			return false;
+		}
+
+		IsBattleOver = true;
+		BattleOverStatusText = destroyedShip == EnemyShip
+			? $"Battle Over: Victory! {destroyedShip.Name} has been reduced to 0 hull."
+			: $"Battle Over: Defeat! {destroyedShip.Name} has been reduced to 0 hull.";
+		battleOverStatusText = BattleOverStatusText;
+		return true;
+	}
+
 	private static BattleActionResolution BuildResolutionWithRetaliation(
-		bool playerActionSucceeded,
-		string playerActionStatus,
+		BattleActionResolution playerActionResult,
 		BattleActionResolution retaliationResult)
 	{
 		return new BattleActionResolution(
-			playerActionSucceeded,
-			$"{playerActionStatus}\n{retaliationResult.StatusText}");
+			playerActionResult.Succeeded,
+			$"{playerActionResult.StatusText}\n{retaliationResult.StatusText}");
 	}
 
 	private bool TryHandleCrewMovement(string shipSource, ShipState ship, int tileX, int tileY)

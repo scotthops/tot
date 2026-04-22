@@ -133,6 +133,13 @@ public partial class BattleScene : Control
 
 	private void UpdateActionArea(BattleSelection? selection)
 	{
+		if (_battleState.IsBattleOver)
+		{
+			ConfigureActionButtons([]);
+			_actionStatusLabel.Text = _battleState.BattleOverStatusText ?? "Battle is over.";
+			return;
+		}
+
 		if (_battleState.LastMovementFeedback != null)
 		{
 			ConfigureActionButtons([]);
