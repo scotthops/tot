@@ -7,6 +7,9 @@ namespace TidesOfTime.Battle;
 
 public class BattleState
 {
+	private const string OffensiveSystemType = "Cannons";
+	private const int TargetSystemDamage = 40;
+
 	private static readonly BattleAvailableAction[] PlayerRoomActions =
 	[
 		new(BattleActionKind.RepairOrAssign, BattleActionIntent.ToDisplayLabel(BattleActionKind.RepairOrAssign)),
@@ -15,8 +18,7 @@ public class BattleState
 
 	private static readonly BattleAvailableAction[] EnemyRoomActions =
 	[
-		new(BattleActionKind.TargetSystem, BattleActionIntent.ToDisplayLabel(BattleActionKind.TargetSystem)),
-		new(BattleActionKind.BoardRoom, BattleActionIntent.ToDisplayLabel(BattleActionKind.BoardRoom))
+		new(BattleActionKind.TargetSystem, BattleActionIntent.ToDisplayLabel(BattleActionKind.TargetSystem))
 	];
 
 	public ShipState PlayerShip { get; }
@@ -120,9 +122,28 @@ public class BattleState
 		LastMovementFeedback = null;
 	}
 
+	public BattleActionResolution ExecuteAction(BattleActionKind kind)
+	{
+		LastMovementFeedback = null;
+
+		return kind switch
+		{
+			BattleActionKind.TargetSystem => ExecuteTargetSystemAction(),
+			BattleActionKind.RepairOrAssign => ExecuteRepairOrAssignAction(),
+			BattleActionKind.InspectSystem => ExecuteInspectSystemAction(),
+			BattleActionKind.BoardRoom => new BattleActionResolution(false, "Boarding is not part of this slice yet."),
+			_ => new BattleActionResolution(false, "That action is unavailable.")
+		};
+	}
+
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
 	{
-		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room)
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
+		{
+			return [];
+		}
+
+		if (CurrentSelection.Room.Disabled)
 		{
 			return [];
 		}
@@ -130,6 +151,127 @@ public class BattleState
 		return CurrentSelection.ShipSource == "Enemy"
 			? EnemyRoomActions
 			: PlayerRoomActions;
+	}
+
+	private BattleActionResolution ExecuteTargetSystemAction()
+	{
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Select an enemy room to target.");
+		}
+
+		if (CurrentSelection.Ship != EnemyShip)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Target System requires selecting a room on the enemy ship.");
+		}
+
+		var targetRoom = CurrentSelection.Room;
+		if (targetRoom.Disabled)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, $"{targetRoom.DisplayName} is already disabled.");
+		}
+
+		var offensiveRoom = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
+		if (offensiveRoom == null)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Your ship has no cannons room to fire from.");
+		}
+
+		if (!PlayerShip.IsRoomOperational(offensiveRoom))
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, $"{offensiveRoom.DisplayName} is disabled and cannot fire.");
+		}
+
+		if (!PlayerShip.IsRoomManned(offensiveRoom, CrewAllegiance.Player))
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, $"{offensiveRoom.DisplayName} must be manned before it can fire.");
+		}
+
+		var actionIntent = CreateActionIntent(BattleActionKind.TargetSystem);
+		if (actionIntent == null)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Select an enemy room to target.");
+		}
+
+		SetLastIssuedIntent(actionIntent);
+
+		var integrityBeforeHit = targetRoom.Integrity;
+		targetRoom.ApplyDamage(TargetSystemDamage);
+		var damageApplied = integrityBeforeHit - targetRoom.Integrity;
+		var damageSummary = $"{offensiveRoom.DisplayName} hit {targetRoom.DisplayName} for {damageApplied} system damage.";
+
+		if (targetRoom.Disabled)
+		{
+			return new BattleActionResolution(
+				true,
+				$"{damageSummary} {targetRoom.DisplayName} is now disabled and no longer counts as an operational system.");
+		}
+
+		return new BattleActionResolution(
+			true,
+			$"{damageSummary} Integrity is now {targetRoom.Integrity}/{ShipRoomState.MaxIntegrity}.");
+	}
+
+	private BattleActionResolution ExecuteRepairOrAssignAction()
+	{
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Select one of your rooms first.");
+		}
+
+		var actionIntent = CreateActionIntent(BattleActionKind.RepairOrAssign);
+		SetLastIssuedIntent(actionIntent);
+
+		var room = CurrentSelection.Room;
+		if (CurrentSelection.Ship != PlayerShip)
+		{
+			return new BattleActionResolution(false, "Repair / Assign only applies to your ship.");
+		}
+
+		if (room.Disabled)
+		{
+			return new BattleActionResolution(
+				false,
+				$"{room.DisplayName} is disabled in this slice. Repairs are not implemented yet.");
+		}
+
+		if (PlayerShip.IsRoomManned(room, CrewAllegiance.Player))
+		{
+			return new BattleActionResolution(true, $"{room.DisplayName} is manned and operational.");
+		}
+
+		return new BattleActionResolution(true, $"Move a crew member into {room.DisplayName} to man that system.");
+	}
+
+	private BattleActionResolution ExecuteInspectSystemAction()
+	{
+		if (CurrentSelection == null || CurrentSelection.Kind != BattleSelectionKind.Room || CurrentSelection.Room == null)
+		{
+			SetLastIssuedIntent(null);
+			return new BattleActionResolution(false, "Select a room to inspect.");
+		}
+
+		var actionIntent = CreateActionIntent(BattleActionKind.InspectSystem);
+		SetLastIssuedIntent(actionIntent);
+
+		var room = CurrentSelection.Room;
+		var statusText = room.Disabled
+			? "Disabled"
+			: room.IsDamaged
+				? "Damaged"
+				: "Operational";
+
+		return new BattleActionResolution(
+			true,
+			$"{room.DisplayName}: {statusText}, integrity {room.Integrity}/{ShipRoomState.MaxIntegrity}.");
 	}
 
 	private bool TryHandleCrewMovement(string shipSource, ShipState ship, int tileX, int tileY)

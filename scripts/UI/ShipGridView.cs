@@ -127,7 +127,12 @@ public partial class ShipGridView : PanelContainer
 			return new Color(0.6f, 0.6f, 0.6f);
 		}
 
-		return room.SystemType switch
+		if (room.Disabled)
+		{
+			return new Color(0.27f, 0.18f, 0.18f);
+		}
+
+		var baseColor = room.SystemType switch
 		{
 			"HelmRigging" => new Color(0.45f, 0.65f, 0.95f),
 			"Cannons" => new Color(0.95f, 0.45f, 0.45f),
@@ -136,6 +141,14 @@ public partial class ShipGridView : PanelContainer
 			"DoctorsQuarters" => new Color(0.35f, 0.8f, 0.55f),
 			_ => new Color(0.6f, 0.6f, 0.6f)
 		};
+
+		if (!room.IsDamaged)
+		{
+			return baseColor;
+		}
+
+		var damageRatio = 1.0f - (float)room.Integrity / ShipRoomState.MaxIntegrity;
+		return baseColor.Darkened(0.2f + damageRatio * 0.35f);
 	}
 
 	private void RebuildBoardDeferred(int renderRevision)

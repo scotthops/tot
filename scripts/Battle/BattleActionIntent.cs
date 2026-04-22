@@ -29,7 +29,7 @@ public sealed record BattleActionIntent(
 	{
 		return kind switch
 		{
-			BattleActionKind.TargetSystem => "Target System",
+			BattleActionKind.TargetSystem => "Fire On Target",
 			BattleActionKind.BoardRoom => "Board Room",
 			BattleActionKind.RepairOrAssign => "Repair / Assign",
 			BattleActionKind.InspectSystem => "Inspect System",
@@ -37,3 +37,7 @@ public sealed record BattleActionIntent(
 		};
 	}
 }
+
+public sealed record BattleActionResolution(
+	bool Succeeded,
+	string StatusText);

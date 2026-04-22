@@ -45,6 +45,11 @@ public class ShipState
 		return GetRoomAt(crew.Position.TileX, crew.Position.TileY);
 	}
 
+	public ShipRoomState? GetRoomBySystemType(string systemType)
+	{
+		return Grid.Rooms.Find(room => room.SystemType == systemType);
+	}
+
 	public void SelectRoomAt(int x, int y)
 	{
 		var room = GetRoomAt(x, y);
@@ -92,9 +97,14 @@ public class ShipState
 		return occupants;
 	}
 
+	public bool IsRoomOperational(ShipRoomState? room)
+	{
+		return room?.IsOperational == true;
+	}
+
 	public bool IsRoomManned(ShipRoomState? room, CrewAllegiance allegiance)
 	{
-		if (room == null || string.IsNullOrEmpty(room.SystemType))
+		if (room == null || string.IsNullOrEmpty(room.SystemType) || !IsRoomOperational(room))
 		{
 			return false;
 		}

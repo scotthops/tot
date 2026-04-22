@@ -151,7 +151,9 @@ public partial class BattleScene : Control
 		}
 
 		ConfigureActionButtons(_battleState.GetAvailableActions());
-		_actionStatusLabel.Text = $"Ready: {selection.Room!.DisplayName} on {selection.Ship.Name}";
+		_actionStatusLabel.Text = selection.Room!.Disabled
+			? $"{selection.Room.DisplayName} is disabled."
+			: $"Ready: {selection.Room.DisplayName} on {selection.Ship.Name}";
 	}
 
 	private void RenderBattleViews()
@@ -182,18 +184,16 @@ public partial class BattleScene : Control
 	private void RunPrototypeAction(Button actionButton)
 	{
 		var actionKind = GetActionKind(actionButton);
-		var actionIntent = actionKind == null
-			? null
-			: _battleState.CreateActionIntent(actionKind.Value);
-
-		if (actionIntent == null)
+		if (actionKind == null)
 		{
 			_actionStatusLabel.Text = "Select a room first.";
 			return;
 		}
 
-		_battleState.SetLastIssuedIntent(actionIntent);
-		_actionStatusLabel.Text = actionIntent.ToStatusText();
+		var actionResult = _battleState.ExecuteAction(actionKind.Value);
+		RenderBattleViews();
+		ShowSelectionState(_battleState.CurrentSelection);
+		_actionStatusLabel.Text = actionResult.StatusText;
 	}
 
 	private static void ConfigureActionButton(Button button, string text, BattleActionKind? actionKind)
@@ -251,7 +251,10 @@ public partial class BattleScene : Control
 			? "System: None"
 			: $"System: {room.SystemType} ({GetManningText(ship, room, shipAllegiance)})";
 
-		return $"{systemSummary}\nOccupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
+		return
+			$"{systemSummary}\n" +
+			$"Integrity: {room.Integrity}/{ShipRoomState.MaxIntegrity} | Status: {GetRoomStatusText(room)}\n" +
+			$"Occupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
 	}
 
 	private static string BuildCrewSelectionSummary(
@@ -267,17 +270,36 @@ public partial class BattleScene : Control
 		var manningSummary = room == null || string.IsNullOrEmpty(room.SystemType)
 			? "System Manning: None"
 			: $"System Manning: {GetManningText(ship, room, shipAllegiance)}";
+		var roomStatusSummary = room == null
+			? "Room Status: None"
+			: $"Room Status: {GetRoomStatusText(room)} ({room.Integrity}/{ShipRoomState.MaxIntegrity})";
 
 		return
 			$"Role: {crew.CrewClass} | Allegiance: {crew.Allegiance}\n" +
 			$"Room: {roomName}\n" +
 			$"{manningSummary}\n" +
+			$"{roomStatusSummary}\n" +
 			$"Crew Here: {FormatCrewList(companions, emptyText: "Alone")}";
 	}
 
 	private static string GetManningText(ShipState ship, ShipRoomState room, CrewAllegiance shipAllegiance)
 	{
+		if (!ship.IsRoomOperational(room))
+		{
+			return "Offline";
+		}
+
 		return ship.IsRoomManned(room, shipAllegiance) ? "Manned" : "Unmanned";
+	}
+
+	private static string GetRoomStatusText(ShipRoomState room)
+	{
+		if (room.Disabled)
+		{
+			return "Disabled";
+		}
+
+		return room.IsDamaged ? "Damaged" : "Operational";
 	}
 
 	private static IReadOnlyList<CrewState> FilterCrew(IReadOnlyList<CrewState> crewMembers, string excludedCrewId)
