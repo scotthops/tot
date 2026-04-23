@@ -45,6 +45,7 @@ theme_override_constants/separation = 12
 custom_minimum_size = Vector2(0, 244)
 layout_mode = 2
 size_flags_horizontal = 1
+clip_contents = true
 
 [node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/SelectionPanel"]
 layout_mode = 2
@@ -60,6 +61,7 @@ theme_override_constants/separation = 2
 [node name="SelectionTitleLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Selection"
+clip_text = true
 
 [node name="SelectionDetailsScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 96)
@@ -105,12 +107,16 @@ custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Select a room to see actions."
 autowrap_mode = 3
+clip_text = true
+max_lines_visible = 2
 
 [node name="CannonStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 text = "Cannons: No Target | Target: None\nAwaiting a target."
 autowrap_mode = 3
+clip_text = true
+max_lines_visible = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=847151303]
 custom_minimum_size = Vector2(0, 600)

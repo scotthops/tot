@@ -73,6 +73,14 @@ public partial class BattleScene : Control
 			return;
 		}
 
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Q })
+		{
+			var slowTimeResult = _battleState.ToggleSlowTime();
+			UpdateTimeControlStatusLabel();
+			_actionStatusLabel.Text = slowTimeResult.StatusText;
+			return;
+		}
+
 		if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
 		{
 			ClearCurrentSelection();
@@ -87,6 +95,7 @@ public partial class BattleScene : Control
 		}
 
 		var updateResult = _battleState.Update(delta);
+		RefreshSelectionDetails(_battleState.CurrentSelection);
 		UpdatePlayerCannonStatusLabel();
 		UpdateTimeControlStatusLabel();
 		if (updateResult == null)
@@ -130,14 +139,19 @@ public partial class BattleScene : Control
 
 	private void ShowSelectionState(BattleSelection? selection)
 	{
+		RefreshSelectionDetails(selection);
+		UpdateActionArea(selection);
+		UpdatePlayerCannonStatusLabel();
+		UpdateTimeControlStatusLabel();
+	}
+
+	private void RefreshSelectionDetails(BattleSelection? selection)
+	{
 		if (selection == null)
 		{
 			_selectionSourceLabel.Text = "Ship: None";
 			_selectionRoomLabel.Text = "Room: None";
 			_selectionSystemLabel.Text = "System: None";
-			UpdateActionArea(selection);
-			UpdatePlayerCannonStatusLabel();
-			UpdateTimeControlStatusLabel();
 			return;
 		}
 
@@ -145,12 +159,13 @@ public partial class BattleScene : Control
 
 		if (selection.Kind == BattleSelectionKind.Crew && selection.Crew != null)
 		{
+			var liveRoom = selection.Ship.GetRoomForCrew(selection.Crew);
 			_selectionRoomLabel.Text = $"Crew: {selection.Crew.DisplayName} [{selection.Crew.ShortLabel}]";
 			_selectionSystemLabel.Text = BuildCrewSelectionSummary(
 				selection.Ship,
 				GetShipCrewAllegiance(selection.Ship),
 				selection.Crew,
-				selection.Room);
+				liveRoom);
 		}
 		else
 		{
@@ -161,9 +176,6 @@ public partial class BattleScene : Control
 				selection.Room);
 		}
 
-		UpdateActionArea(selection);
-		UpdatePlayerCannonStatusLabel();
-		UpdateTimeControlStatusLabel();
 	}
 
 	private void UpdateActionArea(BattleSelection? selection)
@@ -370,7 +382,7 @@ public partial class BattleScene : Control
 			$"Occupants: {FormatCrewList(ship.GetCrewInRoom(room))}";
 	}
 
-	private static string BuildCrewSelectionSummary(
+	private string BuildCrewSelectionSummary(
 		ShipState ship,
 		CrewAllegiance shipAllegiance,
 		CrewState crew,
@@ -392,7 +404,8 @@ public partial class BattleScene : Control
 			$"Room: {roomName}\n" +
 			$"{manningSummary}\n" +
 			$"{roomStatusSummary}\n" +
-			$"Crew Here: {FormatCrewList(companions, emptyText: "Alone")}";
+			$"Crew Here: {FormatCrewList(companions, emptyText: "Alone")}\n" +
+			$"{_battleState.GetCrewTaskStatusText(crew)}";
 	}
 
 	private static string GetManningText(ShipState ship, ShipRoomState room, CrewAllegiance shipAllegiance)

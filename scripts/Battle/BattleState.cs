@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Godot;
 using TidesOfTime.Crew;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
@@ -13,6 +14,9 @@ public class BattleState
 	private const string HelmSystemType = "HelmRigging";
 	private const double CannonChargeDurationSeconds = 7.0;
 	private const double TacticalPauseDurationSeconds = 3.0;
+	private const double SlowTimeScale = 0.5;
+	private const double CrewMoveStepDurationSeconds = 0.35;
+	private const double CrewRepairTickDurationSeconds = 1.0;
 	private const int TargetSystemDamage = 40;
 	private const int TargetHullDamage = 8;
 	private const int RepairAmount = 35;
@@ -41,7 +45,9 @@ public class BattleState
 
 	private readonly CannonBatteryState _playerCannons = new();
 	private readonly CannonBatteryState _enemyCannons = new();
+	private readonly Dictionary<string, CrewTaskState> _playerCrewTasks = new();
 	private BattleTimeControlMode _timeControlMode = BattleTimeControlMode.Normal;
+	private BattleTimeControlMode _nonPausedTimeControlMode = BattleTimeControlMode.Normal;
 	private double _pauseSecondsRemaining = TacticalPauseDurationSeconds;
 
 	public BattleState(ShipState playerShip, ShipState enemyShip)
@@ -112,6 +118,11 @@ public class BattleState
 	public void HandleTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
 	{
 		if (IsBattleOver)
+		{
+			return;
+		}
+
+		if (TryHandleCrewSelectionFromTile(shipSource, ship, tileX, tileY))
 		{
 			return;
 		}
@@ -191,6 +202,7 @@ public class BattleState
 				: new BattleActionResolution(true, string.Join("\n", statusLines));
 		}
 
+		AdvanceFriendlyCrewTasks(simulationDeltaSeconds, statusLines);
 		AdvancePlayerCannons(simulationDeltaSeconds, statusLines);
 		if (IsBattleOver)
 		{
@@ -205,6 +217,33 @@ public class BattleState
 			: new BattleActionResolution(true, string.Join("\n", statusLines));
 	}
 
+	public string GetCrewTaskStatusText(CrewState crew)
+	{
+		if (crew.Allegiance != CrewAllegiance.Player || !_playerCrewTasks.TryGetValue(crew.Id, out var taskState))
+		{
+			return "Task: Idle";
+		}
+
+		if (taskState.Kind == CrewTaskKind.Moving)
+		{
+			var destinationRoom = PlayerShip.GetRoomAt(taskState.DestinationTileX, taskState.DestinationTileY);
+			var destinationLabel = destinationRoom?.DisplayName ?? $"({taskState.DestinationTileX}, {taskState.DestinationTileY})";
+			var nextStep = taskState.PendingPath.Count > 0
+				? taskState.PendingPath.Peek()
+				: new Vector2I(taskState.DestinationTileX, taskState.DestinationTileY);
+
+			return
+				$"Task: Moving to {destinationLabel}\n" +
+				$"Step: ({nextStep.X}, {nextStep.Y}) {taskState.ProgressSeconds:0.0}/{CrewMoveStepDurationSeconds:0.0}s | Steps Left: {taskState.PendingPath.Count}";
+		}
+
+		var targetRoom = FindRoomById(PlayerShip, taskState.TargetRoomId);
+		var roomLabel = targetRoom?.DisplayName ?? "Unknown Room";
+		return
+			$"Task: Repairing {roomLabel}\n" +
+			$"Progress: {taskState.ProgressSeconds:0.0}/{CrewRepairTickDurationSeconds:0.0}s";
+	}
+
 	public BattleActionResolution ToggleTacticalPause()
 	{
 		if (IsBattleOver)
@@ -214,7 +253,7 @@ public class BattleState
 
 		if (_timeControlMode == BattleTimeControlMode.Paused)
 		{
-			_timeControlMode = BattleTimeControlMode.Normal;
+			_timeControlMode = _nonPausedTimeControlMode;
 			return new BattleActionResolution(
 				true,
 				$"Tactical pause released with {_pauseSecondsRemaining:0.0}s remaining.");
@@ -229,6 +268,27 @@ public class BattleState
 		return new BattleActionResolution(
 			true,
 			$"Tactical pause engaged for up to {_pauseSecondsRemaining:0.0}s.");
+	}
+
+	public BattleActionResolution ToggleSlowTime()
+	{
+		if (IsBattleOver)
+		{
+			return new BattleActionResolution(false, BattleOverStatusText ?? "Battle is over.");
+		}
+
+		_nonPausedTimeControlMode = _nonPausedTimeControlMode == BattleTimeControlMode.Slow
+			? BattleTimeControlMode.Normal
+			: BattleTimeControlMode.Slow;
+
+		if (_timeControlMode != BattleTimeControlMode.Paused)
+		{
+			_timeControlMode = _nonPausedTimeControlMode;
+		}
+
+		return _nonPausedTimeControlMode == BattleTimeControlMode.Slow
+			? new BattleActionResolution(true, $"Slow time engaged at {SlowTimeScale:0.0}x.")
+			: new BattleActionResolution(true, "Time returned to normal speed.");
 	}
 
 	public BattleTimeControlStatus GetTimeControlStatus()
@@ -246,11 +306,15 @@ public class BattleState
 				$"Time: Paused ({_pauseSecondsRemaining:0.0}s left)");
 		}
 
-		var detailText = _pauseSecondsRemaining > 0.0
-			? $"Time: Normal ({_pauseSecondsRemaining:0.0}s pause ready)"
-			: "Time: Normal (pause spent)";
+		if (_timeControlMode == BattleTimeControlMode.Slow)
+		{
+			return new BattleTimeControlStatus(
+				"Slow",
+				_pauseSecondsRemaining,
+				$"Time: Slow ({SlowTimeScale:0.0}x)");
+		}
 
-		return new BattleTimeControlStatus("Normal", _pauseSecondsRemaining, detailText);
+		return new BattleTimeControlStatus("Normal", _pauseSecondsRemaining, "Time: Normal");
 	}
 
 	public PlayerCannonStatus GetPlayerCannonStatus()
@@ -394,23 +458,23 @@ public class BattleState
 			return new BattleActionResolution(true, $"{room.DisplayName} is fully repaired and operational.");
 		}
 
-		var wasDisabled = room.Disabled;
-		var integrityBeforeRepair = room.Integrity;
-		room.ApplyRepair(RepairAmount);
-		var amountRepaired = room.Integrity - integrityBeforeRepair;
-		var repairSummary = $"{room.DisplayName} repaired for {amountRepaired}. Integrity is now {room.Integrity}/{ShipRoomState.MaxIntegrity}.";
-
-		if (wasDisabled && room.IsOperational)
+		var repairCrew = FindRepairCrew(room);
+		if (repairCrew == null)
 		{
-			return new BattleActionResolution(true, $"{repairSummary} {room.DisplayName} is back online.");
+			return new BattleActionResolution(
+				false,
+				$"{room.DisplayName} needs an idle crew member present before repairs can begin.");
 		}
 
-		if (!room.IsDamaged)
+		if (_playerCrewTasks.TryGetValue(repairCrew.Id, out var existingTask) &&
+			existingTask.Kind == CrewTaskKind.Repairing &&
+			existingTask.TargetRoomId == room.RoomId)
 		{
-			return new BattleActionResolution(true, $"{repairSummary} {room.DisplayName} is fully restored.");
+			return new BattleActionResolution(true, $"{repairCrew.DisplayName} is already repairing {room.DisplayName}.");
 		}
 
-		return new BattleActionResolution(true, repairSummary);
+		_playerCrewTasks[repairCrew.Id] = CrewTaskState.ForRepair(room.RoomId);
+		return new BattleActionResolution(true, $"{repairCrew.DisplayName} begins repairing {room.DisplayName}.");
 	}
 
 	private BattleActionResolution ExecuteInspectSystemAction()
@@ -474,8 +538,11 @@ public class BattleState
 
 		var remainingRealDelta = Math.Max(0.0, realDeltaSeconds - _pauseSecondsRemaining);
 		_pauseSecondsRemaining = 0.0;
-		_timeControlMode = BattleTimeControlMode.Normal;
-		statusLines.Add("Tactical pause expires. Battle resumes.");
+		_timeControlMode = _nonPausedTimeControlMode;
+		var resumedModeText = _nonPausedTimeControlMode == BattleTimeControlMode.Slow
+			? $"slow time ({SlowTimeScale:0.0}x)"
+			: "normal speed";
+		statusLines.Add($"Tactical pause expires. Battle resumes at {resumedModeText}.");
 		return remainingRealDelta * GetSimulationTimeScale();
 	}
 
@@ -484,6 +551,7 @@ public class BattleState
 		return _timeControlMode switch
 		{
 			BattleTimeControlMode.Normal => 1.0,
+			BattleTimeControlMode.Slow => SlowTimeScale,
 			BattleTimeControlMode.Paused => 0.0,
 			_ => 1.0
 		};
@@ -514,6 +582,153 @@ public class BattleState
 			deltaSeconds: deltaSeconds,
 			statusLines: statusLines,
 			isEnemySource: false);
+	}
+
+	private void AdvanceFriendlyCrewTasks(double deltaSeconds, List<string> statusLines)
+	{
+		if (_playerCrewTasks.Count == 0)
+		{
+			return;
+		}
+
+		var completedCrewIds = new List<string>();
+		foreach (var crew in PlayerShip.Crew)
+		{
+			if (crew.Allegiance != CrewAllegiance.Player || !_playerCrewTasks.TryGetValue(crew.Id, out var taskState))
+			{
+				continue;
+			}
+
+			AdvanceCrewTask(crew, taskState, deltaSeconds, statusLines, completedCrewIds);
+		}
+
+		foreach (var crewId in completedCrewIds)
+		{
+			_playerCrewTasks.Remove(crewId);
+		}
+	}
+
+	private void AdvanceCrewTask(
+		CrewState crew,
+		CrewTaskState taskState,
+		double deltaSeconds,
+		List<string> statusLines,
+		List<string> completedCrewIds)
+	{
+		var remainingDeltaSeconds = deltaSeconds;
+		while (remainingDeltaSeconds > 0.0)
+		{
+			switch (taskState.Kind)
+			{
+				case CrewTaskKind.Moving:
+					if (!AdvanceCrewMovement(crew, taskState, ref remainingDeltaSeconds, statusLines, completedCrewIds))
+					{
+						return;
+					}
+					break;
+
+				case CrewTaskKind.Repairing:
+					if (!AdvanceCrewRepair(crew, taskState, ref remainingDeltaSeconds, statusLines, completedCrewIds))
+					{
+						return;
+					}
+					break;
+
+				default:
+					completedCrewIds.Add(crew.Id);
+					return;
+			}
+		}
+	}
+
+	private bool AdvanceCrewMovement(
+		CrewState crew,
+		CrewTaskState taskState,
+		ref double remainingDeltaSeconds,
+		List<string> statusLines,
+		List<string> completedCrewIds)
+	{
+		if (taskState.PendingPath.Count == 0)
+		{
+			completedCrewIds.Add(crew.Id);
+			return false;
+		}
+
+		var stepTimeRemaining = CrewMoveStepDurationSeconds - taskState.ProgressSeconds;
+		var appliedDeltaSeconds = Math.Min(remainingDeltaSeconds, stepTimeRemaining);
+		taskState.ProgressSeconds += appliedDeltaSeconds;
+		remainingDeltaSeconds -= appliedDeltaSeconds;
+
+		if (taskState.ProgressSeconds < CrewMoveStepDurationSeconds)
+		{
+			return false;
+		}
+
+		var nextStep = taskState.PendingPath.Dequeue();
+		taskState.ProgressSeconds = 0.0;
+		if (!PlayerShip.TryMoveCrewTo(crew, nextStep.X, nextStep.Y))
+		{
+			completedCrewIds.Add(crew.Id);
+			statusLines.Add($"{crew.DisplayName} stops moving because the path is blocked.");
+			return false;
+		}
+
+		var currentRoom = PlayerShip.GetRoomForCrew(crew);
+		statusLines.Add($"{crew.DisplayName} moves to ({nextStep.X}, {nextStep.Y}).");
+		if (taskState.PendingPath.Count > 0)
+		{
+			return true;
+		}
+
+		completedCrewIds.Add(crew.Id);
+		if (currentRoom != null)
+		{
+			statusLines.Add($"{crew.DisplayName} arrives in {currentRoom.DisplayName}.");
+		}
+
+		return false;
+	}
+
+	private bool AdvanceCrewRepair(
+		CrewState crew,
+		CrewTaskState taskState,
+		ref double remainingDeltaSeconds,
+		List<string> statusLines,
+		List<string> completedCrewIds)
+	{
+		var targetRoom = FindRoomById(PlayerShip, taskState.TargetRoomId);
+		if (targetRoom == null || PlayerShip.GetRoomForCrew(crew)?.RoomId != targetRoom.RoomId)
+		{
+			completedCrewIds.Add(crew.Id);
+			statusLines.Add($"{crew.DisplayName} stops repairing.");
+			return false;
+		}
+
+		if (!targetRoom.IsDamaged)
+		{
+			completedCrewIds.Add(crew.Id);
+			return false;
+		}
+
+		var repairTimeRemaining = CrewRepairTickDurationSeconds - taskState.ProgressSeconds;
+		var appliedDeltaSeconds = Math.Min(remainingDeltaSeconds, repairTimeRemaining);
+		taskState.ProgressSeconds += appliedDeltaSeconds;
+		remainingDeltaSeconds -= appliedDeltaSeconds;
+
+		if (taskState.ProgressSeconds < CrewRepairTickDurationSeconds)
+		{
+			return false;
+		}
+
+		taskState.ProgressSeconds = 0.0;
+		statusLines.Add(ApplyTimedRepairTick(targetRoom, crew.DisplayName));
+		if (!targetRoom.IsDamaged)
+		{
+			completedCrewIds.Add(crew.Id);
+			return false;
+		}
+
+		return true;
 	}
 
 	private void AdvanceEnemyCannons(double deltaSeconds, List<string> statusLines)
@@ -706,27 +921,126 @@ public class BattleState
 
 		if (CurrentSelection.Ship != ship)
 		{
-			return false;
+			LastMovementFeedback = new BattleMovementFeedback(
+				BattleMovementFeedbackKind.WrongShip,
+				selectedCrew.DisplayName,
+				tileX,
+				tileY);
+			return true;
 		}
 
 		var moveValidationResult = ShipReachability.EvaluateMove(ship, selectedCrew, tileX, tileY);
 		if (moveValidationResult != ShipMoveValidationResult.Reachable)
 		{
-			return false;
+			LastMovementFeedback = new BattleMovementFeedback(
+				MapMoveValidationFeedback(moveValidationResult),
+				selectedCrew.DisplayName,
+				tileX,
+				tileY);
+			return true;
 		}
 
-		if (!ship.TryMoveCrewTo(selectedCrew, tileX, tileY))
+		if (!ShipReachability.TryBuildPath(ship, selectedCrew, tileX, tileY, out var path) || path.Count == 0)
 		{
-			return false;
+			LastMovementFeedback = new BattleMovementFeedback(
+				BattleMovementFeedbackKind.InvalidDestination,
+				selectedCrew.DisplayName,
+				tileX,
+				tileY);
+			return true;
 		}
 
+		_playerCrewTasks[selectedCrew.Id] = CrewTaskState.ForMovement(path);
 		SetCrewSelection(shipSource, ship, selectedCrew);
 		LastMovementFeedback = new BattleMovementFeedback(
-			BattleMovementFeedbackKind.Succeeded,
+			BattleMovementFeedbackKind.Queued,
 			selectedCrew.DisplayName,
 			tileX,
 			tileY);
 		return true;
+	}
+
+	private bool TryHandleCrewSelectionFromTile(string shipSource, ShipState ship, int tileX, int tileY)
+	{
+		var clickedCrew = ship.GetCrewAtTile(tileX, tileY);
+		if (clickedCrew == null)
+		{
+			return false;
+		}
+
+		if (CurrentSelection?.Kind == BattleSelectionKind.Crew && CurrentSelection.Crew?.Id == clickedCrew.Id)
+		{
+			SetCrewSelection(shipSource, ship, clickedCrew);
+			return true;
+		}
+
+		SetCrewSelection(shipSource, ship, clickedCrew);
+		return true;
+	}
+
+	private CrewState? FindRepairCrew(ShipRoomState room)
+	{
+		if (CurrentSelection?.Kind == BattleSelectionKind.Crew &&
+			CurrentSelection.Crew?.Allegiance == CrewAllegiance.Player &&
+			PlayerShip.GetRoomForCrew(CurrentSelection.Crew)?.RoomId == room.RoomId &&
+			IsCrewAvailableForRepair(CurrentSelection.Crew))
+		{
+			return CurrentSelection.Crew;
+		}
+
+		foreach (var crew in PlayerShip.GetCrewInRoom(room, CrewAllegiance.Player))
+		{
+			if (IsCrewAvailableForRepair(crew))
+			{
+				return crew;
+			}
+		}
+
+		return null;
+	}
+
+	private bool IsCrewAvailableForRepair(CrewState crew)
+	{
+		if (!_playerCrewTasks.TryGetValue(crew.Id, out var taskState))
+		{
+			return true;
+		}
+
+		return taskState.Kind == CrewTaskKind.Repairing &&
+			taskState.TargetRoomId == PlayerShip.GetRoomForCrew(crew)?.RoomId;
+	}
+
+	private static BattleMovementFeedbackKind MapMoveValidationFeedback(ShipMoveValidationResult validationResult)
+	{
+		return validationResult switch
+		{
+			ShipMoveValidationResult.TileOccupied => BattleMovementFeedbackKind.TileOccupied,
+			ShipMoveValidationResult.Unreachable => BattleMovementFeedbackKind.Unreachable,
+			ShipMoveValidationResult.InvalidDestination => BattleMovementFeedbackKind.InvalidDestination,
+			_ => BattleMovementFeedbackKind.NoMovableCrewSelected
+		};
+	}
+
+	private static string ApplyTimedRepairTick(ShipRoomState room, string crewName)
+	{
+		var wasDisabled = room.Disabled;
+		var integrityBeforeRepair = room.Integrity;
+		room.ApplyRepair(RepairAmount);
+		var amountRepaired = room.Integrity - integrityBeforeRepair;
+		var repairSummary =
+			$"{crewName} repairs {room.DisplayName} for {amountRepaired}. Integrity is now {room.Integrity}/{ShipRoomState.MaxIntegrity}.";
+
+		if (wasDisabled && room.IsOperational)
+		{
+			return $"{repairSummary} {room.DisplayName} is back online.";
+		}
+
+		if (!room.IsDamaged)
+		{
+			return $"{repairSummary} {room.DisplayName} is fully restored.";
+		}
+
+		return repairSummary;
 	}
 
 	private static void SeedPrototypeCrew(ShipState ship, ShipSide currentShipSide, CrewAllegiance allegiance)
@@ -841,6 +1155,42 @@ public class BattleState
 		public string? TargetRoomId { get; set; }
 		public double ChargeSeconds { get; set; }
 	}
+
+	private sealed class CrewTaskState
+	{
+		public CrewTaskKind Kind { get; private set; }
+		public Queue<Vector2I> PendingPath { get; } = new();
+		public int DestinationTileX { get; private set; }
+		public int DestinationTileY { get; private set; }
+		public string? TargetRoomId { get; private set; }
+		public double ProgressSeconds { get; set; }
+
+		public static CrewTaskState ForMovement(IReadOnlyList<Vector2I> path)
+		{
+			var movementTask = new CrewTaskState
+			{
+				Kind = CrewTaskKind.Moving,
+				DestinationTileX = path[^1].X,
+				DestinationTileY = path[^1].Y
+			};
+
+			foreach (var step in path)
+			{
+				movementTask.PendingPath.Enqueue(step);
+			}
+
+			return movementTask;
+		}
+
+		public static CrewTaskState ForRepair(string roomId)
+		{
+			return new CrewTaskState
+			{
+				Kind = CrewTaskKind.Repairing,
+				TargetRoomId = roomId
+			};
+		}
+	}
 }
 
 public sealed record PlayerCannonStatus(
@@ -856,5 +1206,12 @@ public sealed record BattleTimeControlStatus(
 public enum BattleTimeControlMode
 {
 	Normal,
+	Slow,
 	Paused
+}
+
+public enum CrewTaskKind
+{
+	Moving,
+	Repairing
 }

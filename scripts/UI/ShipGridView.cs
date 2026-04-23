@@ -176,7 +176,7 @@ public partial class ShipGridView : PanelContainer
 			tileNode.Size = new Vector2(layout.TileSize, layout.TileSize);
 			tileNode.CustomMinimumSize = tileNode.Size;
 			tileNode.FocusMode = Control.FocusModeEnum.None;
-			tileNode.Pressed += () => OnTilePressed(tile.X, tile.Y);
+			tileNode.ButtonDown += () => OnTilePressed(tile.X, tile.Y);
 
 			if (tile.Walkable)
 			{
@@ -199,7 +199,7 @@ public partial class ShipGridView : PanelContainer
 			var marker = CreateCrewMarker(crew, crew.Id == _selectedCrewId);
 			if (marker is Button markerButton)
 			{
-				markerButton.Pressed += () => OnCrewPressed(crew);
+				markerButton.ButtonDown += () => OnCrewPressed(crew);
 			}
 
 			var tilePosition = GetTilePosition(layout, crew.Position.TileX, crew.Position.TileY);

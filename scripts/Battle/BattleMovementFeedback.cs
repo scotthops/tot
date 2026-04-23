@@ -2,6 +2,7 @@ namespace TidesOfTime.Battle;
 
 public enum BattleMovementFeedbackKind
 {
+	Queued,
 	Succeeded,
 	TileOccupied,
 	Unreachable,
@@ -20,6 +21,7 @@ public sealed record BattleMovementFeedback(
 	{
 		return Kind switch
 		{
+			BattleMovementFeedbackKind.Queued => $"{CrewName} is moving to ({TileX}, {TileY}).",
 			BattleMovementFeedbackKind.Succeeded => $"{CrewName} moved to ({TileX}, {TileY}).",
 			BattleMovementFeedbackKind.TileOccupied => $"Can't move {CrewName}: tile ({TileX}, {TileY}) is occupied.",
 			BattleMovementFeedbackKind.Unreachable => $"Can't move {CrewName}: tile ({TileX}, {TileY}) is unreachable.",
