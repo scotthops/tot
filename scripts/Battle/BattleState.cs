@@ -194,6 +194,63 @@ public class BattleState
 			: new BattleActionResolution(true, string.Join("\n", statusLines));
 	}
 
+	public PlayerCannonStatus GetPlayerCannonStatus()
+	{
+		var cannonsRoom = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
+		var targetRoom = FindRoomById(EnemyShip, _playerCannons.TargetRoomId);
+		var targetLabel = targetRoom?.DisplayName ?? "None";
+
+		if (IsBattleOver)
+		{
+			return new PlayerCannonStatus(
+				targetLabel,
+				"Battle Over",
+				BattleOverStatusText ?? "Battle is over.");
+		}
+
+		if (cannonsRoom == null)
+		{
+			return new PlayerCannonStatus(
+				targetLabel,
+				"Unavailable",
+				"No cannons system is present.");
+		}
+
+		if (targetRoom == null)
+		{
+			return new PlayerCannonStatus(
+				"None",
+				"No Target",
+				$"{cannonsRoom.DisplayName} are awaiting a target.");
+		}
+
+		if (!PlayerShip.IsRoomOperational(cannonsRoom))
+		{
+			return new PlayerCannonStatus(
+				targetLabel,
+				"Offline",
+				$"{cannonsRoom.DisplayName} are offline.");
+		}
+
+		if (!PlayerShip.IsRoomManned(cannonsRoom, CrewAllegiance.Player))
+		{
+			return new PlayerCannonStatus(
+				targetLabel,
+				"Unmanned",
+				$"{cannonsRoom.DisplayName} need crew to charge.");
+		}
+
+		var chargeSeconds = Math.Min(_playerCannons.ChargeSeconds, CannonChargeDurationSeconds);
+		var stateLabel = chargeSeconds >= CannonChargeDurationSeconds - 1.0
+			? "Ready Soon"
+			: "Charging";
+
+		return new PlayerCannonStatus(
+			targetLabel,
+			stateLabel,
+			$"Charge: {chargeSeconds:0.0} / {CannonChargeDurationSeconds:0.0}s");
+	}
+
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
 	{
 		if (IsBattleOver)
@@ -696,3 +753,8 @@ public class BattleState
 		public double ChargeSeconds { get; set; }
 	}
 }
+
+public sealed record PlayerCannonStatus(
+	string TargetLabel,
+	string StateLabel,
+	string DetailText);

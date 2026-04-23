@@ -26,6 +26,7 @@ public partial class BattleScene : Control
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Label _actionStatusLabel = null!;
+	private Label _cannonStatusLabel = null!;
 
 	public override void _Ready()
 	{
@@ -39,6 +40,7 @@ public partial class BattleScene : Control
 		_primaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/PrimaryActionButton");
 		_secondaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/SecondaryActionButton");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
+		_cannonStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/CannonStatusLabel");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
@@ -75,6 +77,7 @@ public partial class BattleScene : Control
 		}
 
 		var updateResult = _battleState.Update(delta);
+		UpdatePlayerCannonStatusLabel();
 		if (updateResult == null)
 		{
 			return;
@@ -146,6 +149,7 @@ public partial class BattleScene : Control
 		}
 
 		UpdateActionArea(selection);
+		UpdatePlayerCannonStatusLabel();
 	}
 
 	private void UpdateActionArea(BattleSelection? selection)
@@ -241,6 +245,17 @@ public partial class BattleScene : Control
 		{
 			_actionStatusLabel.Text = resolvedStatusText;
 		}
+
+		UpdatePlayerCannonStatusLabel();
+	}
+
+	private void UpdatePlayerCannonStatusLabel()
+	{
+		var cannonStatus = _battleState.GetPlayerCannonStatus();
+		_cannonStatusLabel.Text =
+			$"Cannons: {cannonStatus.StateLabel}\n" +
+			$"Target: {cannonStatus.TargetLabel}\n" +
+			$"{cannonStatus.DetailText}";
 	}
 
 	private bool TryRunSpecialAction(Button actionButton)
