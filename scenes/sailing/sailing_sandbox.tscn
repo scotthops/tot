@@ -1,0 +1,159 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Sailing/SailingSandbox.cs" id="1_sandbox"]
+[ext_resource type="Script" path="res://scripts/Sailing/PlayerBoatController.cs" id="2_boat"]
+[ext_resource type="Script" path="res://scripts/Sailing/SailingChaseCamera.cs" id="3_camera"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sailing"]
+sky_top_color = Color(0.14, 0.43, 0.64, 1)
+sky_horizon_color = Color(0.72, 0.88, 0.92, 1)
+ground_bottom_color = Color(0.03, 0.16, 0.2, 1)
+ground_horizon_color = Color(0.16, 0.34, 0.39, 1)
+
+[sub_resource type="Sky" id="Sky_sailing"]
+sky_material = SubResource("ProceduralSkyMaterial_sailing")
+
+[sub_resource type="Environment" id="Environment_sailing"]
+background_mode = 2
+sky = SubResource("Sky_sailing")
+ambient_light_source = 2
+ambient_light_color = Color(0.72, 0.82, 0.86, 1)
+ambient_light_energy = 0.55
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_water"]
+albedo_color = Color(0.025, 0.24, 0.34, 1)
+roughness = 0.78
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
+size = Vector2(260, 260)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hull"]
+albedo_color = Color(0.34, 0.17, 0.08, 1)
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull"]
+size = Vector3(1.8, 0.55, 4.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_deck"]
+albedo_color = Color(0.62, 0.39, 0.18, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="BoxMesh_deck"]
+size = Vector3(1.45, 0.18, 3.15)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mast"]
+albedo_color = Color(0.22, 0.12, 0.05, 1)
+roughness = 0.64
+
+[sub_resource type="BoxMesh" id="BoxMesh_mast"]
+size = Vector3(0.13, 2.35, 0.13)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sail"]
+albedo_color = Color(0.94, 0.86, 0.65, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_sail"]
+size = Vector3(1.35, 1.35, 0.06)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_marker"]
+albedo_color = Color(0.94, 0.46, 0.12, 1)
+roughness = 0.55
+
+[sub_resource type="BoxMesh" id="BoxMesh_marker"]
+size = Vector3(1.0, 0.45, 1.0)
+
+[node name="SailingSandbox" type="Node3D"]
+script = ExtResource("1_sandbox")
+PlayerBoatPath = NodePath("PlayerBoat")
+HudLabelPath = NodePath("HUD/PanelContainer/MarginContainer/InfoLabel")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sailing")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.872665, -0.610865, 0)
+light_energy = 2.2
+shadow_enabled = true
+
+[node name="Water" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_water")
+surface_material_override/0 = SubResource("StandardMaterial3D_water")
+
+[node name="ReferenceMarkers" type="Node3D" parent="."]
+
+[node name="MarkerNorth" type="MeshInstance3D" parent="ReferenceMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -28)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_marker")
+
+[node name="MarkerEast" type="MeshInstance3D" parent="ReferenceMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 0.25, 0)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_marker")
+
+[node name="MarkerSouth" type="MeshInstance3D" parent="ReferenceMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 28)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_marker")
+
+[node name="MarkerWest" type="MeshInstance3D" parent="ReferenceMarkers"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 0.25, 0)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_marker")
+
+[node name="PlayerBoat" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
+script = ExtResource("2_boat")
+
+[node name="Hull" type="MeshInstance3D" parent="PlayerBoat"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
+mesh = SubResource("BoxMesh_hull")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="Deck" type="MeshInstance3D" parent="PlayerBoat"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0.1)
+mesh = SubResource("BoxMesh_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="Mast" type="MeshInstance3D" parent="PlayerBoat"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.35)
+mesh = SubResource("BoxMesh_mast")
+surface_material_override/0 = SubResource("StandardMaterial3D_mast")
+
+[node name="Sail" type="MeshInstance3D" parent="PlayerBoat"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.65, -0.18)
+mesh = SubResource("BoxMesh_sail")
+surface_material_override/0 = SubResource("StandardMaterial3D_sail")
+
+[node name="Cabin" type="MeshInstance3D" parent="PlayerBoat"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 1.1)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="ChaseCamera" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 5.2, 10)
+current = true
+fov = 62.0
+script = ExtResource("3_camera")
+TargetPath = NodePath("../PlayerBoat")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 330.0
+offset_bottom = 182.0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="InfoLabel" type="Label" parent="HUD/PanelContainer/MarginContainer"]
+layout_mode = 2
+text = "Sailing Sandbox"
