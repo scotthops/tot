@@ -23,9 +23,11 @@ ambient_light_energy = 0.55
 tonemap_mode = 2
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_water"]
-albedo_color = Color(0.025, 0.24, 0.34, 1)
-roughness = 0.78
+[sub_resource type="Shader" id="Shader_water"]
+code = "shader_type spatial;\nrender_mode cull_disabled;\nuniform vec4 deep_color : source_color = vec4(0.018, 0.18, 0.28, 1.0);\nuniform vec4 surface_color : source_color = vec4(0.055, 0.34, 0.42, 1.0);\nuniform vec4 glint_color : source_color = vec4(0.38, 0.78, 0.82, 1.0);\nuniform float color_variation = 0.18;\nuniform float glint_strength = 0.045;\nvoid fragment() {\n	float swell_a = sin((UV.x * 7.0) + (UV.y * 11.0) + (TIME * 0.28));\n	float swell_b = sin((UV.x * -13.0) + (UV.y * 9.0) - (TIME * 0.19));\n	float ripple = sin((UV.x * 23.0) + (UV.y * 19.0) + (TIME * 0.42));\n	float variation = clamp(0.5 + (swell_a * 0.24) + (swell_b * 0.16) + (ripple * 0.06), 0.0, 1.0);\n	float glint = pow(clamp((swell_a * 0.5 + 0.5) * (ripple * 0.5 + 0.5), 0.0, 1.0), 5.0);\n	vec3 water_color = mix(deep_color.rgb, surface_color.rgb, variation * color_variation);\n	ALBEDO = mix(water_color, glint_color.rgb, glint * glint_strength);\n	ROUGHNESS = 0.86;\n	SPECULAR = 0.32;\n}"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+shader = SubResource("Shader_water")
 
 [sub_resource type="PlaneMesh" id="PlaneMesh_water"]
 size = Vector2(260, 260)
@@ -123,7 +125,7 @@ shadow_enabled = true
 
 [node name="Water" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_water")
-surface_material_override/0 = SubResource("StandardMaterial3D_water")
+surface_material_override/0 = SubResource("ShaderMaterial_water")
 
 [node name="Course" type="Node3D" parent="."]
 
@@ -239,28 +241,31 @@ surface_material_override/0 = SubResource("StandardMaterial3D_marker")
 [node name="PlayerBoat" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
 script = ExtResource("2_boat")
+VisualRootPath = NodePath("Visuals")
 
-[node name="Hull" type="MeshInstance3D" parent="PlayerBoat"]
+[node name="Visuals" type="Node3D" parent="PlayerBoat"]
+
+[node name="Hull" type="MeshInstance3D" parent="PlayerBoat/Visuals"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
 mesh = SubResource("BoxMesh_hull")
 surface_material_override/0 = SubResource("StandardMaterial3D_hull")
 
-[node name="Deck" type="MeshInstance3D" parent="PlayerBoat"]
+[node name="Deck" type="MeshInstance3D" parent="PlayerBoat/Visuals"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0.1)
 mesh = SubResource("BoxMesh_deck")
 surface_material_override/0 = SubResource("StandardMaterial3D_deck")
 
-[node name="Mast" type="MeshInstance3D" parent="PlayerBoat"]
+[node name="Mast" type="MeshInstance3D" parent="PlayerBoat/Visuals"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.35)
 mesh = SubResource("BoxMesh_mast")
 surface_material_override/0 = SubResource("StandardMaterial3D_mast")
 
-[node name="Sail" type="MeshInstance3D" parent="PlayerBoat"]
+[node name="Sail" type="MeshInstance3D" parent="PlayerBoat/Visuals"]
 transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.65, -0.18)
 mesh = SubResource("BoxMesh_sail")
 surface_material_override/0 = SubResource("StandardMaterial3D_sail")
 
-[node name="Cabin" type="MeshInstance3D" parent="PlayerBoat"]
+[node name="Cabin" type="MeshInstance3D" parent="PlayerBoat/Visuals"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 1.1)
 mesh = SubResource("BoxMesh_marker")
 surface_material_override/0 = SubResource("StandardMaterial3D_deck")
