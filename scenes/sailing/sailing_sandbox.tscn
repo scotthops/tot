@@ -82,6 +82,16 @@ top_radius = 0.32
 bottom_radius = 0.32
 height = 0.9
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_checkpoint"]
+transparency = 1
+albedo_color = Color(0.35, 0.78, 1, 0.36)
+roughness = 0.62
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_checkpoint"]
+top_radius = 3.8
+bottom_radius = 3.8
+height = 0.04
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rock"]
 albedo_color = Color(0.31, 0.34, 0.34, 1)
 roughness = 0.82
@@ -101,6 +111,7 @@ size = Vector2(1, 1)
 script = ExtResource("1_sandbox")
 PlayerBoatPath = NodePath("PlayerBoat")
 HudLabelPath = NodePath("HUD/PanelContainer/MarginContainer/InfoLabel")
+CheckpointsRootPath = NodePath("Course/Checkpoints")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_sailing")
@@ -115,6 +126,43 @@ mesh = SubResource("PlaneMesh_water")
 surface_material_override/0 = SubResource("StandardMaterial3D_water")
 
 [node name="Course" type="Node3D" parent="."]
+
+[node name="Checkpoints" type="Node3D" parent="Course"]
+
+[node name="Start Gate" type="Node3D" parent="Course/Checkpoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -10)
+
+[node name="Marker" type="MeshInstance3D" parent="Course/Checkpoints/Start Gate"]
+mesh = SubResource("CylinderMesh_checkpoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_checkpoint")
+
+[node name="Slalom Left" type="Node3D" parent="Course/Checkpoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0.05, -23)
+
+[node name="Marker" type="MeshInstance3D" parent="Course/Checkpoints/Slalom Left"]
+mesh = SubResource("CylinderMesh_checkpoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_checkpoint")
+
+[node name="Slalom Right" type="Node3D" parent="Course/Checkpoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.05, -36)
+
+[node name="Marker" type="MeshInstance3D" parent="Course/Checkpoints/Slalom Right"]
+mesh = SubResource("CylinderMesh_checkpoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_checkpoint")
+
+[node name="Final Left" type="Node3D" parent="Course/Checkpoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 0.05, -50)
+
+[node name="Marker" type="MeshInstance3D" parent="Course/Checkpoints/Final Left"]
+mesh = SubResource("CylinderMesh_checkpoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_checkpoint")
+
+[node name="Turn Gate" type="Node3D" parent="Course/Checkpoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.05, -65)
+
+[node name="Marker" type="MeshInstance3D" parent="Course/Checkpoints/Turn Gate"]
+mesh = SubResource("CylinderMesh_checkpoint")
+surface_material_override/0 = SubResource("StandardMaterial3D_checkpoint")
 
 [node name="StartGatePort" type="MeshInstance3D" parent="Course"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.45, -10)
