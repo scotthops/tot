@@ -42,7 +42,7 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="SelectionPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 244)
+custom_minimum_size = Vector2(0, 196)
 layout_mode = 2
 size_flags_horizontal = 1
 clip_contents = true
@@ -106,14 +106,6 @@ disabled = true
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Select a room to see actions."
-autowrap_mode = 3
-clip_text = true
-max_lines_visible = 2
-
-[node name="CannonStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-text = "Cannons: No Target | Target: None\nAwaiting a target."
 autowrap_mode = 3
 clip_text = true
 max_lines_visible = 2

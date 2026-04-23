@@ -27,7 +27,6 @@ public partial class BattleScene : Control
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Label _actionStatusLabel = null!;
-	private Label _cannonStatusLabel = null!;
 
 	public override void _Ready()
 	{
@@ -42,7 +41,6 @@ public partial class BattleScene : Control
 		_primaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/PrimaryActionButton");
 		_secondaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/SecondaryActionButton");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
-		_cannonStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/CannonStatusLabel");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
@@ -52,6 +50,8 @@ public partial class BattleScene : Control
 
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
+		_playerShipView.UsePlayerCannonBarPalette = true;
+		_enemyShipView.UsePlayerCannonBarPalette = false;
 		_background.GuiInput += OnBackgroundGuiInput;
 		_selectionPanel.GuiInput += OnBackgroundGuiInput;
 		_playerShipView.TilePressed += (ship, x, y) => OnTilePressed("Player", ship, x, y);
@@ -96,7 +96,7 @@ public partial class BattleScene : Control
 
 		var updateResult = _battleState.Update(delta);
 		RefreshSelectionDetails(_battleState.CurrentSelection);
-		UpdatePlayerCannonStatusLabel();
+		UpdateCannonChargeBars();
 		UpdateTimeControlStatusLabel();
 		if (updateResult == null)
 		{
@@ -141,7 +141,7 @@ public partial class BattleScene : Control
 	{
 		RefreshSelectionDetails(selection);
 		UpdateActionArea(selection);
-		UpdatePlayerCannonStatusLabel();
+		UpdateCannonChargeBars();
 		UpdateTimeControlStatusLabel();
 	}
 
@@ -272,16 +272,14 @@ public partial class BattleScene : Control
 			_actionStatusLabel.Text = resolvedStatusText;
 		}
 
-		UpdatePlayerCannonStatusLabel();
+		UpdateCannonChargeBars();
 		UpdateTimeControlStatusLabel();
 	}
 
-	private void UpdatePlayerCannonStatusLabel()
+	private void UpdateCannonChargeBars()
 	{
-		var cannonStatus = _battleState.GetPlayerCannonStatus();
-		_cannonStatusLabel.Text =
-			$"Cannons: {cannonStatus.StateLabel} | Target: {cannonStatus.TargetLabel}\n" +
-			$"{cannonStatus.DetailText}";
+		_playerShipView.SetCannonChargeBar(_battleState.GetPlayerCannonChargeBarState());
+		_enemyShipView.SetCannonChargeBar(_battleState.GetEnemyCannonChargeBarState());
 	}
 
 	private void UpdateTimeControlStatusLabel()

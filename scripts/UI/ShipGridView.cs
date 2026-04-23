@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using TidesOfTime.Battle;
 using TidesOfTime.Crew;
 using TidesOfTime.Data;
 using TidesOfTime.Ships;
@@ -10,6 +11,7 @@ namespace TidesOfTime.UI;
 public partial class ShipGridView : PanelContainer
 {
 	[Export] public PackedScene? TileViewScene { get; set; }
+	[Export] public bool UsePlayerCannonBarPalette { get; set; }
 
 	public event Action<ShipState, int, int>? TilePressed;
 	public event Action<ShipState>? BackgroundPressed;
@@ -18,9 +20,12 @@ public partial class ShipGridView : PanelContainer
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
 	private Control _grid = null!;
+	private Control _roomOverlay = null!;
 	private Control _crewOverlay = null!;
+	private ProgressBar _cannonChargeBar = null!;
 	private ShipState? _shipState;
 	private string? _selectedCrewId;
+	private CannonChargeBarState _cannonChargeBarState = new(null, 0.0, false, false);
 	private int _boardRenderRevision;
 
 	public override void _Ready()
@@ -28,12 +33,16 @@ public partial class ShipGridView : PanelContainer
 		_shipNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/HeaderBar/ShipNameLabel");
 		_hullBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/HullBar");
 		_grid = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/Grid");
+		_roomOverlay = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/RoomOverlay");
 		_crewOverlay = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/CrewOverlay");
 
 		if (TileViewScene == null)
 		{
 			GD.PushError("ShipGridView: TileViewScene is not assigned.");
 		}
+
+		_cannonChargeBar = CreateRoomChargeBar();
+		_roomOverlay.AddChild(_cannonChargeBar);
 	}
 
 	public void RenderFromLayout(ShipLayoutDef layout)
@@ -47,9 +56,16 @@ public partial class ShipGridView : PanelContainer
 		_selectedCrewId = selectedCrewId;
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
+		RefreshCannonChargeBar();
 
 		var renderRevision = ++_boardRenderRevision;
 		Callable.From(() => RebuildBoardDeferred(renderRevision)).CallDeferred();
+	}
+
+	public void SetCannonChargeBar(CannonChargeBarState chargeBarState)
+	{
+		_cannonChargeBarState = chargeBarState;
+		RefreshCannonChargeBar();
 	}
 
 	public override void _GuiInput(InputEvent @event)
@@ -207,6 +223,8 @@ public partial class ShipGridView : PanelContainer
 			marker.Position = tilePosition + (tileSize - marker.Size) * 0.5f;
 			_crewOverlay.AddChild(marker);
 		}
+
+		RefreshCannonChargeBar(layout);
 	}
 
 	private BoardLayout CalculateBoardLayout(int gridWidth, int gridHeight)
@@ -226,6 +244,78 @@ public partial class ShipGridView : PanelContainer
 	private static Vector2 GetTilePosition(BoardLayout layout, int tileX, int tileY)
 	{
 		return layout.Origin + new Vector2(tileX * layout.TileSize, tileY * layout.TileSize);
+	}
+
+	private void RefreshCannonChargeBar()
+	{
+		if (_shipState == null)
+		{
+			return;
+		}
+
+		var layout = CalculateBoardLayout(_shipState.Grid.Width, _shipState.Grid.Height);
+		RefreshCannonChargeBar(layout);
+	}
+
+	private void RefreshCannonChargeBar(BoardLayout layout)
+	{
+		if (_shipState == null)
+		{
+			return;
+		}
+
+		if (!_cannonChargeBarState.IsVisible || string.IsNullOrEmpty(_cannonChargeBarState.RoomId))
+		{
+			_cannonChargeBar.Visible = false;
+			return;
+		}
+
+		var room = _shipState.Grid.Rooms.Find(candidate => candidate.RoomId == _cannonChargeBarState.RoomId);
+		if (room == null || room.Tiles.Count == 0)
+		{
+			_cannonChargeBar.Visible = false;
+			return;
+		}
+
+		var roomBounds = GetRoomBounds(layout, room);
+		var barWidth = Mathf.Max(roomBounds.Size.X - 8.0f, 28.0f);
+		var barSize = new Vector2(barWidth, 10.0f);
+		var maxBoardX = layout.Origin.X + (_shipState.Grid.Width * layout.TileSize) - barSize.X;
+		var barX = Mathf.Clamp(
+			roomBounds.Position.X + (roomBounds.Size.X - barSize.X) * 0.5f,
+			layout.Origin.X,
+			maxBoardX);
+		var barY = Mathf.Max(layout.Origin.Y - 2.0f, roomBounds.Position.Y - barSize.Y - 6.0f);
+
+		_cannonChargeBar.Position = new Vector2(barX, barY);
+		_cannonChargeBar.Size = barSize;
+		_cannonChargeBar.CustomMinimumSize = barSize;
+		_cannonChargeBar.Value = _cannonChargeBarState.ProgressRatio;
+		ApplyRoomChargeBarStyle(_cannonChargeBar, _cannonChargeBarState.IsActive, UsePlayerCannonBarPalette);
+		_cannonChargeBar.Visible = true;
+	}
+
+	private static Rect2 GetRoomBounds(BoardLayout layout, ShipRoomState room)
+	{
+		var minTileX = room.Tiles[0].X;
+		var maxTileX = room.Tiles[0].X;
+		var minTileY = room.Tiles[0].Y;
+		var maxTileY = room.Tiles[0].Y;
+
+		foreach (var tile in room.Tiles)
+		{
+			minTileX = Mathf.Min(minTileX, tile.X);
+			maxTileX = Mathf.Max(maxTileX, tile.X);
+			minTileY = Mathf.Min(minTileY, tile.Y);
+			maxTileY = Mathf.Max(maxTileY, tile.Y);
+		}
+
+		var topLeft = GetTilePosition(layout, minTileX, minTileY);
+		var size = new Vector2(
+			(maxTileX - minTileX + 1) * layout.TileSize,
+			(maxTileY - minTileY + 1) * layout.TileSize);
+
+		return new Rect2(topLeft, size);
 	}
 
 	private void OnCrewPressed(CrewState crew)
@@ -271,6 +361,61 @@ public partial class ShipGridView : PanelContainer
 		marker.AddThemeFontSizeOverride("font_size", 14);
 
 		return marker;
+	}
+
+	private static ProgressBar CreateRoomChargeBar()
+	{
+		return new ProgressBar
+		{
+			MinValue = 0.0,
+			MaxValue = 1.0,
+			ShowPercentage = false,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			FocusMode = Control.FocusModeEnum.None,
+			Step = 0.0,
+			Visible = false
+		};
+	}
+
+	private static void ApplyRoomChargeBarStyle(ProgressBar bar, bool isActive, bool usePlayerPalette)
+	{
+		var backgroundStyle = new StyleBoxFlat
+		{
+			BgColor = isActive
+				? usePlayerPalette
+					? new Color(0.08f, 0.14f, 0.1f, 0.92f)
+					: new Color(0.15f, 0.1f, 0.1f, 0.92f)
+				: new Color(0.18f, 0.18f, 0.18f, 0.72f),
+			BorderColor = isActive
+				? usePlayerPalette
+					? new Color(0.2f, 0.5f, 0.28f, 0.95f)
+					: new Color(0.55f, 0.25f, 0.2f, 0.95f)
+				: new Color(0.34f, 0.34f, 0.34f, 0.85f),
+			BorderWidthLeft = 1,
+			BorderWidthTop = 1,
+			BorderWidthRight = 1,
+			BorderWidthBottom = 1,
+			CornerRadiusTopLeft = 3,
+			CornerRadiusTopRight = 3,
+			CornerRadiusBottomRight = 3,
+			CornerRadiusBottomLeft = 3
+		};
+
+		var fillStyle = new StyleBoxFlat
+		{
+			BgColor = isActive
+				? usePlayerPalette
+					? new Color(0.48f, 0.88f, 0.52f, 0.98f)
+					: new Color(0.98f, 0.6f, 0.34f, 0.98f)
+				: new Color(0.42f, 0.42f, 0.42f, 0.55f),
+			CornerRadiusTopLeft = 2,
+			CornerRadiusTopRight = 2,
+			CornerRadiusBottomRight = 2,
+			CornerRadiusBottomLeft = 2
+		};
+
+		bar.AddThemeStyleboxOverride("background", backgroundStyle);
+		bar.AddThemeStyleboxOverride("fill", fillStyle);
 	}
 
 	private static Color GetCrewMarkerFillColor(CrewState crew)
