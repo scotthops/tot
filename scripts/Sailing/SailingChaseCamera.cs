@@ -6,12 +6,12 @@ namespace TidesOfTime.Sailing;
 public partial class SailingChaseCamera : Camera3D
 {
 	[Export] public NodePath TargetPath { get; set; } = new("");
-	[Export] public float FollowDistance { get; set; } = 10.0f;
-	[Export] public float FollowHeight { get; set; } = 5.2f;
+	[Export] public float FollowDistance { get; set; } = 11.0f;
+	[Export] public float FollowHeight { get; set; } = 5.6f;
 	[Export] public float LookHeight { get; set; } = 1.0f;
-	[Export] public float LookAheadDistance { get; set; } = 4.5f;
-	[Export] public float PositionResponsiveness { get; set; } = 6.5f;
-	[Export] public float LookResponsiveness { get; set; } = 9.0f;
+	[Export] public float LookAheadDistance { get; set; } = 5.2f;
+	[Export] public float PositionResponsiveness { get; set; } = 5.8f;
+	[Export] public float LookResponsiveness { get; set; } = 8.5f;
 
 	private Node3D? _target;
 	private Vector3 _smoothedLookTarget;

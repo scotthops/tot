@@ -47,6 +47,7 @@ public partial class SailingSandbox : Node3D
 			: $"Speed: {_playerBoat.Speed:0.0}";
 
 		_hudLabel.Text = "Sailing Sandbox\n"
+			+ "Goal: weave through the buoy course\n"
 			+ "W / Up: accelerate\n"
 			+ "S / Down: brake or reverse\n"
 			+ "A/D or Left/Right: turn\n"

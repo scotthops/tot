@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/Sailing/SailingSandbox.cs" id="1_sandbox"]
 [ext_resource type="Script" path="res://scripts/Sailing/PlayerBoatController.cs" id="2_boat"]
 [ext_resource type="Script" path="res://scripts/Sailing/SailingChaseCamera.cs" id="3_camera"]
+[ext_resource type="Script" path="res://scripts/Sailing/SailingWakeView.cs" id="4_wake"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sailing"]
 sky_top_color = Color(0.14, 0.43, 0.64, 1)
@@ -64,6 +65,38 @@ roughness = 0.55
 [sub_resource type="BoxMesh" id="BoxMesh_marker"]
 size = Vector3(1.0, 0.45, 1.0)
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_buoy_red"]
+albedo_color = Color(0.86, 0.08, 0.05, 1)
+roughness = 0.48
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_buoy_green"]
+albedo_color = Color(0.08, 0.68, 0.38, 1)
+roughness = 0.5
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_buoy_yellow"]
+albedo_color = Color(1, 0.76, 0.18, 1)
+roughness = 0.5
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_buoy"]
+top_radius = 0.32
+bottom_radius = 0.32
+height = 0.9
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rock"]
+albedo_color = Color(0.31, 0.34, 0.34, 1)
+roughness = 0.82
+
+[sub_resource type="BoxMesh" id="BoxMesh_rock"]
+size = Vector3(1.8, 0.9, 1.6)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wake"]
+transparency = 1
+albedo_color = Color(0.72, 0.95, 0.95, 0.42)
+roughness = 0.9
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_wake"]
+size = Vector2(1, 1)
+
 [node name="SailingSandbox" type="Node3D"]
 script = ExtResource("1_sandbox")
 PlayerBoatPath = NodePath("PlayerBoat")
@@ -80,6 +113,58 @@ shadow_enabled = true
 [node name="Water" type="MeshInstance3D" parent="."]
 mesh = SubResource("PlaneMesh_water")
 surface_material_override/0 = SubResource("StandardMaterial3D_water")
+
+[node name="Course" type="Node3D" parent="."]
+
+[node name="StartGatePort" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 0.45, -10)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_red")
+
+[node name="StartGateStarboard" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0.45, -10)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_green")
+
+[node name="SlalomBuoy1" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 0.45, -23)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_yellow")
+
+[node name="SlalomBuoy2" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.8, 0.45, -36)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_yellow")
+
+[node name="SlalomBuoy3" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 0.45, -50)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_yellow")
+
+[node name="TurnGatePort" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8, 0.45, -65)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_red")
+
+[node name="TurnGateStarboard" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8, 0.45, -65)
+mesh = SubResource("CylinderMesh_buoy")
+surface_material_override/0 = SubResource("StandardMaterial3D_buoy_green")
+
+[node name="RockClusterA" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, 13, 0.32, -28)
+mesh = SubResource("BoxMesh_rock")
+surface_material_override/0 = SubResource("StandardMaterial3D_rock")
+
+[node name="RockClusterB" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1.15, 0, 0.707107, 0, 0.707107, -12, 0.4, -42)
+mesh = SubResource("BoxMesh_rock")
+surface_material_override/0 = SubResource("StandardMaterial3D_rock")
+
+[node name="RockClusterC" type="MeshInstance3D" parent="Course"]
+transform = Transform3D(0.866025, 0, 0.5, 0, 0.8, 0, -0.5, 0, 0.866025, 11, 0.28, -58)
+mesh = SubResource("BoxMesh_rock")
+surface_material_override/0 = SubResource("StandardMaterial3D_rock")
 
 [node name="ReferenceMarkers" type="Node3D" parent="."]
 
@@ -131,6 +216,20 @@ surface_material_override/0 = SubResource("StandardMaterial3D_sail")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 1.1)
 mesh = SubResource("BoxMesh_marker")
 surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="WakeView" type="Node3D" parent="."]
+script = ExtResource("4_wake")
+BoatPath = NodePath("../PlayerBoat")
+
+[node name="PortWake" type="MeshInstance3D" parent="WakeView"]
+visible = false
+mesh = SubResource("PlaneMesh_wake")
+surface_material_override/0 = SubResource("StandardMaterial3D_wake")
+
+[node name="StarboardWake" type="MeshInstance3D" parent="WakeView"]
+visible = false
+mesh = SubResource("PlaneMesh_wake")
+surface_material_override/0 = SubResource("StandardMaterial3D_wake")
 
 [node name="ChaseCamera" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 5.2, 10)
