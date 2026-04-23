@@ -20,7 +20,6 @@ public class BattleState
 	private const int TargetSystemDamage = 40;
 	private const int TargetHullDamage = 8;
 	private const int RepairAmount = 35;
-	private const int OpeningCrisisDamage = 35;
 	private const double HelmDodgeChance = 0.2;
 
 	private static readonly BattleAvailableAction[] PlayerRoomActions =
@@ -65,7 +64,7 @@ public class BattleState
 		SeedPrototypeCrew(enemyShip, ShipSide.Enemy, CrewAllegiance.Enemy);
 
 		var battleState = new BattleState(playerShip, enemyShip);
-		battleState.OpeningStatusText = ApplyOpeningCrisis(playerShip, enemyShip);
+		battleState.OpeningStatusText = BuildOpeningStatusText(enemyShip);
 		return battleState;
 	}
 
@@ -1092,22 +1091,12 @@ public class BattleState
 		return spawnTiles;
 	}
 
-	private static string? ApplyOpeningCrisis(ShipState playerShip, ShipState enemyShip)
+	private static string? BuildOpeningStatusText(ShipState enemyShip)
 	{
-		var damagedPlayerRoom = playerShip.GetRoomBySystemType(OffensiveSystemType);
-		if (damagedPlayerRoom == null)
-		{
-			return null;
-		}
-
-		damagedPlayerRoom.ApplyDamage(OpeningCrisisDamage);
-
 		var enemyCannons = enemyShip.GetRoomBySystemType(OffensiveSystemType);
-		var enemyPressureText = enemyCannons == null
+		return enemyCannons == null
 			? "Enemy pressure is mounting."
 			: $"Enemy {enemyCannons.DisplayName} are ready to fire.";
-
-		return $"{playerShip.Name} starts with damaged {damagedPlayerRoom.DisplayName}. {enemyPressureText}";
 	}
 
 	private string BuildPlayerCannonTargetStatus(ShipRoomState targetRoom)

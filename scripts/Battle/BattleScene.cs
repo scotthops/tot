@@ -27,6 +27,11 @@ public partial class BattleScene : Control
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Label _actionStatusLabel = null!;
+	private Control _pauseOverlay = null!;
+	private Button _resumeButton = null!;
+	private Button _restartButton = null!;
+	private Button _quitGameButton = null!;
+	private bool _isPauseMenuOpen;
 
 	public override void _Ready()
 	{
@@ -41,6 +46,10 @@ public partial class BattleScene : Control
 		_primaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/PrimaryActionButton");
 		_secondaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionButtonRow/SecondaryActionButton");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
+		_pauseOverlay = GetNode<Control>("PauseOverlay");
+		_resumeButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeButton");
+		_restartButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
+		_quitGameButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
@@ -50,6 +59,9 @@ public partial class BattleScene : Control
 
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
+		_resumeButton.Pressed += OnResumePressed;
+		_restartButton.Pressed += OnRestartPressed;
+		_quitGameButton.Pressed += OnQuitGamePressed;
 		_playerShipView.UsePlayerCannonBarPalette = true;
 		_enemyShipView.UsePlayerCannonBarPalette = false;
 		_background.GuiInput += OnBackgroundGuiInput;
@@ -60,11 +72,24 @@ public partial class BattleScene : Control
 		_enemyShipView.TilePressed += (ship, x, y) => OnTilePressed("Enemy", ship, x, y);
 		_enemyShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
+		SetPauseMenuOpen(false);
 		ResetBattleState();
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+		{
+			SetPauseMenuOpen(!_isPauseMenuOpen);
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Space })
 		{
 			var pauseResult = _battleState.ToggleTacticalPause();
@@ -89,7 +114,7 @@ public partial class BattleScene : Control
 
 	public override void _Process(double delta)
 	{
-		if (_battleState == null)
+		if (_battleState == null || _isPauseMenuOpen)
 		{
 			return;
 		}
@@ -110,6 +135,11 @@ public partial class BattleScene : Control
 
 	private void OnTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		_battleState.HandleTilePressed(shipSource, ship, tileX, tileY);
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
@@ -117,6 +147,11 @@ public partial class BattleScene : Control
 
 	private void OnCrewSelected(string shipSource, ShipState ship, CrewState crew)
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		_battleState.SetCrewSelection(shipSource, ship, crew);
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
@@ -124,11 +159,21 @@ public partial class BattleScene : Control
 
 	private void OnBoardBackgroundPressed(ShipState _)
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		ClearCurrentSelection();
 	}
 
 	private void OnBackgroundGuiInput(InputEvent @event)
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
 		{
 			return;
@@ -229,11 +274,21 @@ public partial class BattleScene : Control
 
 	private void OnPrimaryActionPressed()
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		RunPrototypeAction(_primaryActionButton);
 	}
 
 	private void OnSecondaryActionPressed()
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		RunPrototypeAction(_secondaryActionButton);
 	}
 
@@ -274,6 +329,23 @@ public partial class BattleScene : Control
 
 		UpdateCannonChargeBars();
 		UpdateTimeControlStatusLabel();
+	}
+
+	private void OnResumePressed()
+	{
+		SetPauseMenuOpen(false);
+	}
+
+	private void OnRestartPressed()
+	{
+		SetPauseMenuOpen(false);
+		ResetBattleState();
+	}
+
+	private void OnQuitGamePressed()
+	{
+		SetPauseMenuOpen(false);
+		GetTree().Quit();
 	}
 
 	private void UpdateCannonChargeBars()
@@ -461,5 +533,15 @@ public partial class BattleScene : Control
 		_battleState.ClearSelection();
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
+	}
+
+	private void SetPauseMenuOpen(bool isOpen)
+	{
+		_isPauseMenuOpen = isOpen;
+		_pauseOverlay.Visible = isOpen;
+		if (isOpen)
+		{
+			_resumeButton.GrabFocus();
+		}
 	}
 }

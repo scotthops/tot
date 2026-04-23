@@ -120,3 +120,70 @@ layout_mode = 2
 
 [node name="EnemyShipGridView" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1423426248 instance=ExtResource("1_3hov6")]
 layout_mode = 2
+
+[node name="PauseOverlay" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Background" type="ColorRect" parent="PauseOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.0431373, 0.054902, 0.0901961, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="PauseOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -170.0
+offset_right = 220.0
+offset_bottom = 170.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PauseOverlay/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="TitleLabel" type="Label" parent="PauseOverlay/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="ButtonStack" type="VBoxContainer" parent="PauseOverlay/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResumeButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Resume"
+
+[node name="RestartButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Restart"
+
+[node name="QuitGameButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Quit Game"
