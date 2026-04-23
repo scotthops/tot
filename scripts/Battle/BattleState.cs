@@ -12,6 +12,7 @@ public class BattleState
 	private const string OffensiveSystemType = "Cannons";
 	private const string HelmSystemType = "HelmRigging";
 	private const double CannonChargeDurationSeconds = 7.0;
+	private const double TacticalPauseDurationSeconds = 3.0;
 	private const int TargetSystemDamage = 40;
 	private const int TargetHullDamage = 8;
 	private const int RepairAmount = 35;
@@ -40,6 +41,8 @@ public class BattleState
 
 	private readonly CannonBatteryState _playerCannons = new();
 	private readonly CannonBatteryState _enemyCannons = new();
+	private BattleTimeControlMode _timeControlMode = BattleTimeControlMode.Normal;
+	private double _pauseSecondsRemaining = TacticalPauseDurationSeconds;
 
 	public BattleState(ShipState playerShip, ShipState enemyShip)
 	{
@@ -180,7 +183,15 @@ public class BattleState
 		}
 
 		var statusLines = new List<string>();
-		AdvancePlayerCannons(deltaSeconds, statusLines);
+		var simulationDeltaSeconds = AdvanceTimeControl(deltaSeconds, statusLines);
+		if (simulationDeltaSeconds <= 0.0)
+		{
+			return statusLines.Count == 0
+				? null
+				: new BattleActionResolution(true, string.Join("\n", statusLines));
+		}
+
+		AdvancePlayerCannons(simulationDeltaSeconds, statusLines);
 		if (IsBattleOver)
 		{
 			return statusLines.Count == 0
@@ -188,10 +199,58 @@ public class BattleState
 				: new BattleActionResolution(true, string.Join("\n", statusLines));
 		}
 
-		AdvanceEnemyCannons(deltaSeconds, statusLines);
+		AdvanceEnemyCannons(simulationDeltaSeconds, statusLines);
 		return statusLines.Count == 0
 			? null
 			: new BattleActionResolution(true, string.Join("\n", statusLines));
+	}
+
+	public BattleActionResolution ToggleTacticalPause()
+	{
+		if (IsBattleOver)
+		{
+			return new BattleActionResolution(false, BattleOverStatusText ?? "Battle is over.");
+		}
+
+		if (_timeControlMode == BattleTimeControlMode.Paused)
+		{
+			_timeControlMode = BattleTimeControlMode.Normal;
+			return new BattleActionResolution(
+				true,
+				$"Tactical pause released with {_pauseSecondsRemaining:0.0}s remaining.");
+		}
+
+		if (_pauseSecondsRemaining <= 0.0)
+		{
+			return new BattleActionResolution(false, "Tactical pause is spent for this battle.");
+		}
+
+		_timeControlMode = BattleTimeControlMode.Paused;
+		return new BattleActionResolution(
+			true,
+			$"Tactical pause engaged for up to {_pauseSecondsRemaining:0.0}s.");
+	}
+
+	public BattleTimeControlStatus GetTimeControlStatus()
+	{
+		if (IsBattleOver)
+		{
+			return new BattleTimeControlStatus("Battle Over", 0.0, "Time: Battle Over");
+		}
+
+		if (_timeControlMode == BattleTimeControlMode.Paused)
+		{
+			return new BattleTimeControlStatus(
+				"Paused",
+				_pauseSecondsRemaining,
+				$"Time: Paused ({_pauseSecondsRemaining:0.0}s left)");
+		}
+
+		var detailText = _pauseSecondsRemaining > 0.0
+			? $"Time: Normal ({_pauseSecondsRemaining:0.0}s pause ready)"
+			: "Time: Normal (pause spent)";
+
+		return new BattleTimeControlStatus("Normal", _pauseSecondsRemaining, detailText);
 	}
 
 	public PlayerCannonStatus GetPlayerCannonStatus()
@@ -398,6 +457,36 @@ public class BattleState
 
 		statusText = $"{defendingShip.Name}'s {helmRoom!.DisplayName} evades the shot aimed at {targetRoom.DisplayName}.";
 		return true;
+	}
+
+	private double AdvanceTimeControl(double realDeltaSeconds, List<string> statusLines)
+	{
+		if (_timeControlMode != BattleTimeControlMode.Paused)
+		{
+			return realDeltaSeconds * GetSimulationTimeScale();
+		}
+
+		if (_pauseSecondsRemaining > realDeltaSeconds)
+		{
+			_pauseSecondsRemaining -= realDeltaSeconds;
+			return 0.0;
+		}
+
+		var remainingRealDelta = Math.Max(0.0, realDeltaSeconds - _pauseSecondsRemaining);
+		_pauseSecondsRemaining = 0.0;
+		_timeControlMode = BattleTimeControlMode.Normal;
+		statusLines.Add("Tactical pause expires. Battle resumes.");
+		return remainingRealDelta * GetSimulationTimeScale();
+	}
+
+	private double GetSimulationTimeScale()
+	{
+		return _timeControlMode switch
+		{
+			BattleTimeControlMode.Normal => 1.0,
+			BattleTimeControlMode.Paused => 0.0,
+			_ => 1.0
+		};
 	}
 
 	private void AdvancePlayerCannons(double deltaSeconds, List<string> statusLines)
@@ -758,3 +847,14 @@ public sealed record PlayerCannonStatus(
 	string TargetLabel,
 	string StateLabel,
 	string DetailText);
+
+public sealed record BattleTimeControlStatus(
+	string ModeLabel,
+	double RemainingPauseSeconds,
+	string DisplayText);
+
+public enum BattleTimeControlMode
+{
+	Normal,
+	Paused
+}

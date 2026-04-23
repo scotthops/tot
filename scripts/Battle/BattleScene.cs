@@ -20,6 +20,7 @@ public partial class BattleScene : Control
 	private ShipGridView _enemyShipView = null!;
 	private Control _background = null!;
 	private Control _selectionPanel = null!;
+	private Label _selectionTitleLabel = null!;
 	private Label _selectionSourceLabel = null!;
 	private Label _selectionRoomLabel = null!;
 	private Label _selectionSystemLabel = null!;
@@ -34,6 +35,7 @@ public partial class BattleScene : Control
 		_enemyShipView = GetNode<ShipGridView>("MarginContainer/VBoxContainer/HBoxContainer/EnemyShipGridView");
 		_background = GetNode<Control>("Background");
 		_selectionPanel = GetNode<Control>("MarginContainer/VBoxContainer/SelectionPanel");
+		_selectionTitleLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionTitleLabel");
 		_selectionSourceLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent/SelectionSourceLabel");
 		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent/SelectionRoomLabel");
 		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/SelectionDetailsScroll/SelectionDetailsContent/SelectionSystemLabel");
@@ -63,6 +65,14 @@ public partial class BattleScene : Control
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Space })
+		{
+			var pauseResult = _battleState.ToggleTacticalPause();
+			UpdateTimeControlStatusLabel();
+			_actionStatusLabel.Text = pauseResult.StatusText;
+			return;
+		}
+
 		if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
 		{
 			ClearCurrentSelection();
@@ -78,6 +88,7 @@ public partial class BattleScene : Control
 
 		var updateResult = _battleState.Update(delta);
 		UpdatePlayerCannonStatusLabel();
+		UpdateTimeControlStatusLabel();
 		if (updateResult == null)
 		{
 			return;
@@ -125,6 +136,8 @@ public partial class BattleScene : Control
 			_selectionRoomLabel.Text = "Room: None";
 			_selectionSystemLabel.Text = "System: None";
 			UpdateActionArea(selection);
+			UpdatePlayerCannonStatusLabel();
+			UpdateTimeControlStatusLabel();
 			return;
 		}
 
@@ -150,6 +163,7 @@ public partial class BattleScene : Control
 
 		UpdateActionArea(selection);
 		UpdatePlayerCannonStatusLabel();
+		UpdateTimeControlStatusLabel();
 	}
 
 	private void UpdateActionArea(BattleSelection? selection)
@@ -247,6 +261,7 @@ public partial class BattleScene : Control
 		}
 
 		UpdatePlayerCannonStatusLabel();
+		UpdateTimeControlStatusLabel();
 	}
 
 	private void UpdatePlayerCannonStatusLabel()
@@ -255,6 +270,11 @@ public partial class BattleScene : Control
 		_cannonStatusLabel.Text =
 			$"Cannons: {cannonStatus.StateLabel} | Target: {cannonStatus.TargetLabel}\n" +
 			$"{cannonStatus.DetailText}";
+	}
+
+	private void UpdateTimeControlStatusLabel()
+	{
+		_selectionTitleLabel.Text = $"Selection | {_battleState.GetTimeControlStatus().DisplayText}";
 	}
 
 	private bool TryRunSpecialAction(Button actionButton)
