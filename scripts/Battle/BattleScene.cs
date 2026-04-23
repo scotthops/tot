@@ -215,9 +215,13 @@ public partial class BattleScene : Control
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
 
-		if (!string.IsNullOrEmpty(statusText))
+		var resolvedStatusText = string.IsNullOrEmpty(statusText)
+			? _battleState.OpeningStatusText
+			: statusText;
+
+		if (!string.IsNullOrEmpty(resolvedStatusText))
 		{
-			_actionStatusLabel.Text = statusText;
+			_actionStatusLabel.Text = resolvedStatusText;
 		}
 	}
 
@@ -234,7 +238,7 @@ public partial class BattleScene : Control
 			return false;
 		}
 
-		ResetBattleState("Battle reset. Select a room to begin again.");
+		ResetBattleState();
 		return true;
 	}
 
