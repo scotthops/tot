@@ -29,7 +29,7 @@ public sealed record BattleActionIntent(
 	{
 		return kind switch
 		{
-			BattleActionKind.TargetSystem => "Fire On Target",
+			BattleActionKind.TargetSystem => "Set Target",
 			BattleActionKind.BoardRoom => "Board Room",
 			BattleActionKind.RepairOrAssign => "Repair / Assign",
 			BattleActionKind.InspectSystem => "Inspect System",

@@ -67,6 +67,24 @@ public partial class BattleScene : Control
 		}
 	}
 
+	public override void _Process(double delta)
+	{
+		if (_battleState == null)
+		{
+			return;
+		}
+
+		var updateResult = _battleState.Update(delta);
+		if (updateResult == null)
+		{
+			return;
+		}
+
+		RenderBattleViews();
+		ShowSelectionState(_battleState.CurrentSelection);
+		_actionStatusLabel.Text = updateResult.StatusText;
+	}
+
 	private void OnTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
 	{
 		_battleState.HandleTilePressed(shipSource, ship, tileX, tileY);

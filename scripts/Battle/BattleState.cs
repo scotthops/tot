@@ -11,6 +11,7 @@ public class BattleState
 	private const int StartingHull = 100;
 	private const string OffensiveSystemType = "Cannons";
 	private const string HelmSystemType = "HelmRigging";
+	private const double CannonChargeDurationSeconds = 7.0;
 	private const int TargetSystemDamage = 40;
 	private const int TargetHullDamage = 8;
 	private const int RepairAmount = 35;
@@ -36,6 +37,9 @@ public class BattleState
 	public bool IsBattleOver { get; private set; }
 	public string? BattleOverStatusText { get; private set; }
 	public string? OpeningStatusText { get; private set; }
+
+	private readonly CannonBatteryState _playerCannons = new();
+	private readonly CannonBatteryState _enemyCannons = new();
 
 	public BattleState(ShipState playerShip, ShipState enemyShip)
 	{
@@ -168,6 +172,28 @@ public class BattleState
 		};
 	}
 
+	public BattleActionResolution? Update(double deltaSeconds)
+	{
+		if (IsBattleOver || deltaSeconds <= 0.0)
+		{
+			return null;
+		}
+
+		var statusLines = new List<string>();
+		AdvancePlayerCannons(deltaSeconds, statusLines);
+		if (IsBattleOver)
+		{
+			return statusLines.Count == 0
+				? null
+				: new BattleActionResolution(true, string.Join("\n", statusLines));
+		}
+
+		AdvanceEnemyCannons(deltaSeconds, statusLines);
+		return statusLines.Count == 0
+			? null
+			: new BattleActionResolution(true, string.Join("\n", statusLines));
+	}
+
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
 	{
 		if (IsBattleOver)
@@ -211,25 +237,6 @@ public class BattleState
 			return new BattleActionResolution(false, $"{targetRoom.DisplayName} is already disabled.");
 		}
 
-		var offensiveRoom = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
-		if (offensiveRoom == null)
-		{
-			SetLastIssuedIntent(null);
-			return new BattleActionResolution(false, "Your ship has no cannons room to fire from.");
-		}
-
-		if (!PlayerShip.IsRoomOperational(offensiveRoom))
-		{
-			SetLastIssuedIntent(null);
-			return new BattleActionResolution(false, $"{offensiveRoom.DisplayName} is disabled and cannot fire.");
-		}
-
-		if (!PlayerShip.IsRoomManned(offensiveRoom, CrewAllegiance.Player))
-		{
-			SetLastIssuedIntent(null);
-			return new BattleActionResolution(false, $"{offensiveRoom.DisplayName} must be manned before it can fire.");
-		}
-
 		var actionIntent = CreateActionIntent(BattleActionKind.TargetSystem);
 		if (actionIntent == null)
 		{
@@ -238,27 +245,8 @@ public class BattleState
 		}
 
 		SetLastIssuedIntent(actionIntent);
-
-		if (TryEvadeTargetSystemAttack(EnemyShip, CrewAllegiance.Enemy, targetRoom, out var dodgeStatus))
-		{
-			var retaliationAfterDodge = CreateEnemyRetaliationResult();
-			return BuildResolutionWithRetaliation(
-				new BattleActionResolution(true, dodgeStatus),
-				retaliationAfterDodge);
-		}
-
-		var hitResolution = ResolveTargetSystemHit(
-			defendingShip: EnemyShip,
-			targetRoom: targetRoom,
-			damageSummaryPrefix: $"{offensiveRoom.DisplayName} hit {targetRoom.DisplayName} for ",
-			disabledSummary: $"{targetRoom.DisplayName} is now disabled and no longer counts as an operational system.");
-		if (IsBattleOver)
-		{
-			return hitResolution;
-		}
-
-		var successfulAttackResult = CreateEnemyRetaliationResult();
-		return BuildResolutionWithRetaliation(hitResolution, successfulAttackResult);
+		_playerCannons.TargetRoomId = targetRoom.RoomId;
+		return new BattleActionResolution(true, BuildPlayerCannonTargetStatus(targetRoom));
 	}
 
 	private BattleActionResolution ExecuteRepairOrAssignAction()
@@ -332,42 +320,6 @@ public class BattleState
 			$"{room.DisplayName}: {statusText}, integrity {room.Integrity}/{ShipRoomState.MaxIntegrity}.");
 	}
 
-	private BattleActionResolution CreateEnemyRetaliationResult()
-	{
-		var offensiveRoom = EnemyShip.GetRoomBySystemType(OffensiveSystemType);
-		if (offensiveRoom == null)
-		{
-			return new BattleActionResolution(false, "Enemy has no cannons room to retaliate from.");
-		}
-
-		if (!EnemyShip.IsRoomOperational(offensiveRoom))
-		{
-			return new BattleActionResolution(false, $"Enemy {offensiveRoom.DisplayName} is offline and cannot retaliate.");
-		}
-
-		if (!EnemyShip.IsRoomManned(offensiveRoom, CrewAllegiance.Enemy))
-		{
-			return new BattleActionResolution(false, $"Enemy {offensiveRoom.DisplayName} is unmanned and cannot retaliate.");
-		}
-
-		var targetRoom = SelectEnemyRetaliationTargetRoom();
-		if (targetRoom == null)
-		{
-			return new BattleActionResolution(false, "Enemy finds no operational player system to target.");
-		}
-
-		if (TryEvadeTargetSystemAttack(PlayerShip, CrewAllegiance.Player, targetRoom, out var dodgeStatus))
-		{
-			return new BattleActionResolution(true, dodgeStatus);
-		}
-
-		return ResolveTargetSystemHit(
-			defendingShip: PlayerShip,
-			targetRoom: targetRoom,
-			damageSummaryPrefix: $"Enemy {offensiveRoom.DisplayName} hits your {targetRoom.DisplayName} for ",
-			disabledSummary: $"{targetRoom.DisplayName} is now disabled and offline.");
-	}
-
 	private bool TryEvadeTargetSystemAttack(
 		ShipState defendingShip,
 		CrewAllegiance defendingAllegiance,
@@ -391,6 +343,128 @@ public class BattleState
 		return true;
 	}
 
+	private void AdvancePlayerCannons(double deltaSeconds, List<string> statusLines)
+	{
+		var targetRoom = FindRoomById(EnemyShip, _playerCannons.TargetRoomId);
+		if (targetRoom == null)
+		{
+			return;
+		}
+
+		if (!targetRoom.IsOperational)
+		{
+			_playerCannons.TargetRoomId = null;
+			_playerCannons.ChargeSeconds = 0.0;
+			statusLines.Add($"Cannons lose lock on {targetRoom.DisplayName} and stop charging.");
+			return;
+		}
+
+		AdvanceCannons(
+			sourceShip: PlayerShip,
+			sourceAllegiance: CrewAllegiance.Player,
+			targetShip: EnemyShip,
+			targetRoom: targetRoom,
+			batteryState: _playerCannons,
+			deltaSeconds: deltaSeconds,
+			statusLines: statusLines,
+			isEnemySource: false);
+	}
+
+	private void AdvanceEnemyCannons(double deltaSeconds, List<string> statusLines)
+	{
+		var currentTarget = FindRoomById(PlayerShip, _enemyCannons.TargetRoomId);
+		if (currentTarget == null || !currentTarget.IsOperational)
+		{
+			var replacementTarget = SelectEnemyRetaliationTargetRoom();
+			if (replacementTarget?.RoomId != _enemyCannons.TargetRoomId)
+			{
+				_enemyCannons.ChargeSeconds = 0.0;
+			}
+
+			_enemyCannons.TargetRoomId = replacementTarget?.RoomId;
+			currentTarget = replacementTarget;
+		}
+
+		if (currentTarget == null)
+		{
+			return;
+		}
+
+		AdvanceCannons(
+			sourceShip: EnemyShip,
+			sourceAllegiance: CrewAllegiance.Enemy,
+			targetShip: PlayerShip,
+			targetRoom: currentTarget,
+			batteryState: _enemyCannons,
+			deltaSeconds: deltaSeconds,
+			statusLines: statusLines,
+			isEnemySource: true);
+	}
+
+	private void AdvanceCannons(
+		ShipState sourceShip,
+		CrewAllegiance sourceAllegiance,
+		ShipState targetShip,
+		ShipRoomState targetRoom,
+		CannonBatteryState batteryState,
+		double deltaSeconds,
+		List<string> statusLines,
+		bool isEnemySource)
+	{
+		var cannonsRoom = sourceShip.GetRoomBySystemType(OffensiveSystemType);
+		if (!sourceShip.IsRoomOperational(cannonsRoom) || !sourceShip.IsRoomManned(cannonsRoom, sourceAllegiance))
+		{
+			return;
+		}
+
+		batteryState.ChargeSeconds = Math.Min(CannonChargeDurationSeconds, batteryState.ChargeSeconds + deltaSeconds);
+		if (batteryState.ChargeSeconds < CannonChargeDurationSeconds)
+		{
+			return;
+		}
+
+		batteryState.ChargeSeconds = 0.0;
+		var shotResolution = ResolveCannonShot(targetShip, targetRoom, isEnemySource);
+		statusLines.Add(shotResolution.StatusText);
+
+		if (!targetRoom.IsOperational)
+		{
+			batteryState.TargetRoomId = null;
+		}
+	}
+
+	private BattleActionResolution ResolveCannonShot(ShipState targetShip, ShipRoomState targetRoom, bool isEnemySource)
+	{
+		if (isEnemySource)
+		{
+			if (TryEvadeTargetSystemAttack(PlayerShip, CrewAllegiance.Player, targetRoom, out var dodgeStatus))
+			{
+				return new BattleActionResolution(
+					true,
+					$"Enemy Cannons fire on {targetRoom.DisplayName}. {dodgeStatus}");
+			}
+
+			return ResolveTargetSystemHit(
+				defendingShip: PlayerShip,
+				targetRoom: targetRoom,
+				damageSummaryPrefix: $"Enemy Cannons hit your {targetRoom.DisplayName} for ",
+				disabledSummary: $"{targetRoom.DisplayName} is now disabled and offline.");
+		}
+
+		if (TryEvadeTargetSystemAttack(EnemyShip, CrewAllegiance.Enemy, targetRoom, out var playerDodgeStatus))
+		{
+			return new BattleActionResolution(
+				true,
+				$"{PlayerShip.Name} Cannons fire on {targetRoom.DisplayName}. {playerDodgeStatus}");
+		}
+
+		return ResolveTargetSystemHit(
+			defendingShip: targetShip,
+			targetRoom: targetRoom,
+			damageSummaryPrefix: $"{PlayerShip.Name} Cannons hit {targetRoom.DisplayName} for ",
+			disabledSummary: $"{targetRoom.DisplayName} is now disabled and no longer counts as an operational system.");
+	}
+
 	private ShipRoomState? SelectEnemyRetaliationTargetRoom()
 	{
 		var playerCannons = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
@@ -408,6 +482,16 @@ public class BattleState
 		}
 
 		return null;
+	}
+
+	private static ShipRoomState? FindRoomById(ShipState ship, string? roomId)
+	{
+		if (string.IsNullOrEmpty(roomId))
+		{
+			return null;
+		}
+
+		return ship.Grid.Rooms.Find(room => room.RoomId == roomId);
 	}
 
 	private BattleActionResolution ResolveTargetSystemHit(
@@ -459,15 +543,6 @@ public class BattleState
 			: $"Battle Over: Defeat! {destroyedShip.Name} has been reduced to 0 hull.";
 		battleOverStatusText = BattleOverStatusText;
 		return true;
-	}
-
-	private static BattleActionResolution BuildResolutionWithRetaliation(
-		BattleActionResolution playerActionResult,
-		BattleActionResolution retaliationResult)
-	{
-		return new BattleActionResolution(
-			playerActionResult.Succeeded,
-			$"{playerActionResult.StatusText}\n{retaliationResult.StatusText}");
 	}
 
 	private bool TryHandleCrewMovement(string shipSource, ShipState ship, int tileX, int tileY)
@@ -590,5 +665,34 @@ public class BattleState
 			: $"Enemy {enemyCannons.DisplayName} are ready to fire.";
 
 		return $"{playerShip.Name} starts with damaged {damagedPlayerRoom.DisplayName}. {enemyPressureText}";
+	}
+
+	private string BuildPlayerCannonTargetStatus(ShipRoomState targetRoom)
+	{
+		var cannonsRoom = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
+		if (cannonsRoom == null)
+		{
+			return $"Cannons targeting {targetRoom.DisplayName}. No cannons system is available.";
+		}
+
+		if (!PlayerShip.IsRoomOperational(cannonsRoom))
+		{
+			return $"Cannons targeting {targetRoom.DisplayName}. {cannonsRoom.DisplayName} is offline.";
+		}
+
+		if (!PlayerShip.IsRoomManned(cannonsRoom, CrewAllegiance.Player))
+		{
+			return $"Cannons targeting {targetRoom.DisplayName}. Awaiting crew at {cannonsRoom.DisplayName}.";
+		}
+
+		return
+			$"Cannons targeting {targetRoom.DisplayName}. " +
+			$"Charge {_playerCannons.ChargeSeconds:0.0}/{CannonChargeDurationSeconds:0.0}s.";
+	}
+
+	private sealed class CannonBatteryState
+	{
+		public string? TargetRoomId { get; set; }
+		public double ChargeSeconds { get; set; }
 	}
 }
