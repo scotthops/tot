@@ -9,6 +9,9 @@ namespace TidesOfTime.Battle;
 
 public partial class BattleScene : Control
 {
+	private const string SpecialActionMetaKey = "special_action";
+	private const string RematchActionId = "rematch";
+
 	[Export] public ShipLayoutDef PlayerLayout { get; set; } = null!;
 	[Export] public ShipLayoutDef EnemyLayout { get; set; } = null!;
 
@@ -43,10 +46,6 @@ public partial class BattleScene : Control
 			return;
 		}
 
-		_battleState = BattleState.Create(PlayerLayout, EnemyLayout);
-		_playerShipView.Render(_battleState.PlayerShip);
-		_enemyShipView.Render(_battleState.EnemyShip);
-
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
 		_background.GuiInput += OnBackgroundGuiInput;
@@ -57,7 +56,7 @@ public partial class BattleScene : Control
 		_enemyShipView.TilePressed += (ship, x, y) => OnTilePressed("Enemy", ship, x, y);
 		_enemyShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
-		ShowSelectionState(_battleState.CurrentSelection);
+		ResetBattleState();
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -135,7 +134,7 @@ public partial class BattleScene : Control
 	{
 		if (_battleState.IsBattleOver)
 		{
-			ConfigureActionButtons([]);
+			ConfigureRematchActionButtons();
 			_actionStatusLabel.Text = _battleState.BattleOverStatusText ?? "Battle is over.";
 			return;
 		}
@@ -192,6 +191,11 @@ public partial class BattleScene : Control
 
 	private void RunPrototypeAction(Button actionButton)
 	{
+		if (TryRunSpecialAction(actionButton))
+		{
+			return;
+		}
+
 		var actionKind = GetActionKind(actionButton);
 		if (actionKind == null)
 		{
@@ -205,18 +209,56 @@ public partial class BattleScene : Control
 		_actionStatusLabel.Text = actionResult.StatusText;
 	}
 
-	private static void ConfigureActionButton(Button button, string text, BattleActionKind? actionKind)
+	private void ResetBattleState(string? statusText = null)
+	{
+		_battleState = BattleState.Create(PlayerLayout, EnemyLayout);
+		RenderBattleViews();
+		ShowSelectionState(_battleState.CurrentSelection);
+
+		if (!string.IsNullOrEmpty(statusText))
+		{
+			_actionStatusLabel.Text = statusText;
+		}
+	}
+
+	private bool TryRunSpecialAction(Button actionButton)
+	{
+		if (!actionButton.HasMeta(SpecialActionMetaKey))
+		{
+			return false;
+		}
+
+		var specialAction = actionButton.GetMeta(SpecialActionMetaKey).AsString();
+		if (specialAction != RematchActionId)
+		{
+			return false;
+		}
+
+		ResetBattleState("Battle reset. Select a room to begin again.");
+		return true;
+	}
+
+	private static void ConfigureActionButton(
+		Button button,
+		string text,
+		BattleActionKind? actionKind,
+		string? specialAction = null)
 	{
 		button.Text = text;
-		button.Disabled = actionKind == null;
+		button.Disabled = actionKind == null && string.IsNullOrEmpty(specialAction);
+		button.RemoveMeta("action_kind");
+		button.RemoveMeta(SpecialActionMetaKey);
 
-		if (actionKind == null)
+		if (actionKind != null)
 		{
-			button.RemoveMeta("action_kind");
+			button.SetMeta("action_kind", (int)actionKind.Value);
 			return;
 		}
 
-		button.SetMeta("action_kind", (int)actionKind.Value);
+		if (!string.IsNullOrEmpty(specialAction))
+		{
+			button.SetMeta(SpecialActionMetaKey, specialAction);
+		}
 	}
 
 	private void ConfigureActionButtons(IReadOnlyList<BattleAvailableAction> actions)
@@ -230,6 +272,12 @@ public partial class BattleScene : Control
 			_secondaryActionButton,
 			actions.Count > 1 ? actions[1].DisplayLabel : "Action 2",
 			actions.Count > 1 ? actions[1].Kind : null);
+	}
+
+	private void ConfigureRematchActionButtons()
+	{
+		ConfigureActionButton(_primaryActionButton, "Rematch", null, RematchActionId);
+		ConfigureActionButton(_secondaryActionButton, "Action 2", null);
 	}
 
 	private static BattleActionKind? GetActionKind(Button button)
