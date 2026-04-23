@@ -253,8 +253,7 @@ public partial class BattleScene : Control
 	{
 		var cannonStatus = _battleState.GetPlayerCannonStatus();
 		_cannonStatusLabel.Text =
-			$"Cannons: {cannonStatus.StateLabel}\n" +
-			$"Target: {cannonStatus.TargetLabel}\n" +
+			$"Cannons: {cannonStatus.StateLabel} | Target: {cannonStatus.TargetLabel}\n" +
 			$"{cannonStatus.DetailText}";
 	}
 
