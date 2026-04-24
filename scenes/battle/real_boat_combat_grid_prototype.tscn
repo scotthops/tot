@@ -1,0 +1,81 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Battle/RealBoatCombatGridView.cs" id="1_grid"]
+[ext_resource type="PackedScene" path="res://scenes/sailing/player_boat_visual.tscn" id="2_boat"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_layout"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_real_boat_battle"]
+sky_top_color = Color(0.08, 0.12, 0.16, 1)
+sky_horizon_color = Color(0.13, 0.21, 0.24, 1)
+ground_bottom_color = Color(0.025, 0.05, 0.06, 1)
+ground_horizon_color = Color(0.04, 0.12, 0.15, 1)
+
+[sub_resource type="Sky" id="Sky_real_boat_battle"]
+sky_material = SubResource("ProceduralSkyMaterial_real_boat_battle")
+
+[sub_resource type="Environment" id="Environment_real_boat_battle"]
+background_mode = 2
+sky = SubResource("Sky_real_boat_battle")
+ambient_light_source = 2
+ambient_light_color = Color(0.66, 0.72, 0.74, 1)
+ambient_light_energy = 0.62
+tonemap_mode = 2
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_water_reference"]
+albedo_color = Color(0.03, 0.19, 0.24, 1)
+roughness = 0.86
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water_reference"]
+size = Vector2(7.5, 7.5)
+
+[node name="RealBoatCombatGridPrototype" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_real_boat_battle")
+
+[node name="WaterReference" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_water_reference")
+surface_material_override/0 = SubResource("StandardMaterial3D_water_reference")
+
+[node name="BoatAnchor" type="Node3D" parent="."]
+position = Vector3(0, 0.16, 0)
+
+[node name="PlayerBoatVisual" parent="BoatAnchor" instance=ExtResource("2_boat")]
+
+[node name="CombatGrid" type="Node3D" parent="."]
+script = ExtResource("1_grid")
+BoatVisualRootPath = NodePath("../BoatAnchor/PlayerBoatVisual")
+HideTopDownObstructions = true
+TopDownHiddenBoatNodeNames = "Mast,Sail"
+Layout = ExtResource("3_layout")
+UseLayoutDimensions = true
+UseLayoutTilesOnly = true
+GridOrigin = Vector2(0, -0.04)
+GridHeightOffset = 0.86
+GridRotationDegrees = Vector3(0, 90, 0)
+TileSize = 0.38
+TileGap = 0.035
+TilePanelThickness = 0.018
+GridLineWidth = 0.018
+GridLineHeight = 0.018
+TileOpacity = 0.28
+GridLineOpacity = 0.62
+ShowRoomAccents = true
+RoomAccentStrength = 0.42
+
+[node name="KeyLight" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-1.0472, -0.523599, 0)
+light_energy = 2.0
+shadow_enabled = true
+
+[node name="TopFillLight" type="OmniLight3D" parent="."]
+position = Vector3(0, 4, 0)
+light_energy = 0.28
+omni_range = 5.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 7.8, 0.05)
+rotation = Vector3(-1.5708, 0, 0)
+projection = 1
+current = true
+size = 5.0
