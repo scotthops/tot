@@ -1,8 +1,8 @@
 [gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/Battle/RealBoatCombatGridView.cs" id="1_grid"]
-[ext_resource type="PackedScene" path="res://scenes/sailing/player_boat_visual.tscn" id="2_boat"]
-[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_layout"]
+[ext_resource type="PackedScene" path="res://scenes/sailing/player_boat_combat_visual.tscn" id="2_boat"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_real_boat_prototype_layout.tres" id="3_layout"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_real_boat_battle"]
 sky_top_color = Color(0.08, 0.12, 0.16, 1)
@@ -40,28 +40,69 @@ surface_material_override/0 = SubResource("StandardMaterial3D_water_reference")
 [node name="BoatAnchor" type="Node3D" parent="."]
 position = Vector3(0, 0.16, 0)
 
-[node name="PlayerBoatVisual" parent="BoatAnchor" instance=ExtResource("2_boat")]
+[node name="PlayerBoatCombatVisual" parent="BoatAnchor" instance=ExtResource("2_boat")]
 
 [node name="CombatGrid" type="Node3D" parent="."]
 script = ExtResource("1_grid")
-BoatVisualRootPath = NodePath("../BoatAnchor/PlayerBoatVisual")
+BoatVisualRootPath = NodePath("../BoatAnchor/PlayerBoatCombatVisual")
 HideTopDownObstructions = true
 TopDownHiddenBoatNodeNames = "Mast,Sail"
+FadedBoatNodeNames = "Cabin,CabinRoof"
+FadedBoatOpacity = 0.22
+FadedBoatTint = Color(0.62, 0.39, 0.18, 1)
 Layout = ExtResource("3_layout")
 UseLayoutDimensions = true
 UseLayoutTilesOnly = true
-GridOrigin = Vector2(0, -0.04)
-GridHeightOffset = 0.86
+GridOrigin = Vector2(0, -0.06)
+GridHeightOffset = 1.34
 GridRotationDegrees = Vector3(0, 90, 0)
-TileSize = 0.38
-TileGap = 0.035
+TileSize = 0.36
+TileGap = 0.026
 TilePanelThickness = 0.018
-GridLineWidth = 0.018
-GridLineHeight = 0.018
-TileOpacity = 0.28
-GridLineOpacity = 0.62
+GridLineWidth = 0.006
+GridLineHeight = 0.014
+TileOpacity = 0.16
+GridLineOpacity = 0.06
+RoomBorderLineWidth = 0.022
+RoomBorderOpacity = 0.46
+EmphasizeRoomBorders = true
 ShowRoomAccents = true
-RoomAccentStrength = 0.42
+RoomAccentStrength = 0.22
+ShowHatchAccessMarker = true
+HatchRoomId = "doctor"
+HatchTileOverride = Vector2i(1, 2)
+HatchMarkerSizeRatio = 0.54
+HatchMarkerLineWidth = 0.026
+HatchMarkerOpacity = 0.64
+EnableRuntimeTuning = true
+TuningReadoutLabelPath = NodePath("../TuningHud/PanelContainer/MarginContainer/ReadoutLabel")
+ShowTuningReadout = true
+OriginNudgeStep = 0.02
+LargeNudgeMultiplier = 5.0
+TileSizeNudgeStep = 0.01
+HeightNudgeStep = 0.02
+
+[node name="TuningHud" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="PanelContainer" type="PanelContainer" parent="TuningHud"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 804.0
+offset_bottom = 78.0
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="TuningHud/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="ReadoutLabel" type="Label" parent="TuningHud/PanelContainer/MarginContainer"]
+layout_mode = 2
+text = "Real boat grid tuning"
+autowrap_mode = 3
 
 [node name="KeyLight" type="DirectionalLight3D" parent="."]
 rotation = Vector3(-1.0472, -0.523599, 0)

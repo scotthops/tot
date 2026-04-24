@@ -1,0 +1,265 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hull"]
+albedo_color = Color(0.29, 0.13, 0.055, 1)
+roughness = 0.68
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_deck"]
+albedo_color = Color(0.62, 0.39, 0.18, 1)
+roughness = 0.76
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_rail"]
+albedo_color = Color(0.22, 0.1, 0.04, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_plank"]
+albedo_color = Color(0.31, 0.18, 0.075, 1)
+roughness = 0.8
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cabin"]
+albedo_color = Color(0.52, 0.31, 0.14, 1)
+roughness = 0.78
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hatch"]
+albedo_color = Color(0.11, 0.07, 0.035, 1)
+roughness = 0.86
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cannon_port"]
+albedo_color = Color(0.055, 0.038, 0.028, 1)
+roughness = 0.88
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mast"]
+albedo_color = Color(0.22, 0.12, 0.05, 1)
+roughness = 0.64
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sail"]
+albedo_color = Color(0.94, 0.86, 0.65, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull_mid"]
+size = Vector3(1.72, 0.5, 3.05)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull_stern"]
+size = Vector3(1.82, 0.5, 0.72)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bow_side"]
+size = Vector3(0.2, 0.5, 1.18)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bow_point"]
+size = Vector3(0.34, 0.46, 0.48)
+
+[sub_resource type="BoxMesh" id="BoxMesh_main_deck"]
+size = Vector3(1.28, 0.14, 2.64)
+
+[sub_resource type="BoxMesh" id="BoxMesh_fore_deck"]
+size = Vector3(0.78, 0.12, 0.62)
+
+[sub_resource type="BoxMesh" id="BoxMesh_quarter_deck"]
+size = Vector3(1.16, 0.18, 0.74)
+
+[sub_resource type="BoxMesh" id="BoxMesh_side_rail"]
+size = Vector3(0.13, 0.28, 3.28)
+
+[sub_resource type="BoxMesh" id="BoxMesh_stern_rail"]
+size = Vector3(1.55, 0.28, 0.13)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bow_rail"]
+size = Vector3(0.12, 0.28, 1.28)
+
+[sub_resource type="BoxMesh" id="BoxMesh_plank_line"]
+size = Vector3(0.028, 0.018, 2.62)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cross_plank"]
+size = Vector3(1.16, 0.018, 0.022)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cannon_port"]
+size = Vector3(0.11, 0.08, 0.22)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cabin"]
+size = Vector3(0.9, 0.38, 0.62)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cabin_roof"]
+size = Vector3(1.0, 0.08, 0.72)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hatch_plate"]
+size = Vector3(0.48, 0.035, 0.38)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hatch_slat"]
+size = Vector3(0.38, 0.018, 0.035)
+
+[sub_resource type="BoxMesh" id="BoxMesh_mast"]
+size = Vector3(0.13, 2.35, 0.13)
+
+[sub_resource type="BoxMesh" id="BoxMesh_sail"]
+size = Vector3(1.35, 1.35, 0.06)
+
+[node name="PlayerBoatCombatVisual" type="Node3D"]
+
+[node name="Hull" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.22, 0.12)
+mesh = SubResource("BoxMesh_hull_mid")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="SternHull" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.22, 1.72)
+mesh = SubResource("BoxMesh_hull_stern")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="PortBowHull" type="MeshInstance3D" parent="."]
+position = Vector3(-0.39, 0.22, -1.78)
+rotation = Vector3(0, -0.52, 0)
+mesh = SubResource("BoxMesh_bow_side")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="StarboardBowHull" type="MeshInstance3D" parent="."]
+position = Vector3(0.39, 0.22, -1.78)
+rotation = Vector3(0, 0.52, 0)
+mesh = SubResource("BoxMesh_bow_side")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="BowPoint" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.22, -2.25)
+mesh = SubResource("BoxMesh_bow_point")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="Deck" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.55, 0.02)
+mesh = SubResource("BoxMesh_main_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="ForeDeck" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.58, -1.62)
+mesh = SubResource("BoxMesh_fore_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="QuarterDeck" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.74, 1.34)
+mesh = SubResource("BoxMesh_quarter_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="PortRail" type="MeshInstance3D" parent="."]
+position = Vector3(-0.86, 0.68, 0.18)
+mesh = SubResource("BoxMesh_side_rail")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="StarboardRail" type="MeshInstance3D" parent="."]
+position = Vector3(0.86, 0.68, 0.18)
+mesh = SubResource("BoxMesh_side_rail")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="SternRail" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.68, 2.07)
+mesh = SubResource("BoxMesh_stern_rail")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="PortBowRail" type="MeshInstance3D" parent="."]
+position = Vector3(-0.43, 0.69, -1.82)
+rotation = Vector3(0, -0.52, 0)
+mesh = SubResource("BoxMesh_bow_rail")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="StarboardBowRail" type="MeshInstance3D" parent="."]
+position = Vector3(0.43, 0.69, -1.82)
+rotation = Vector3(0, 0.52, 0)
+mesh = SubResource("BoxMesh_bow_rail")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="DeckPlankPort" type="MeshInstance3D" parent="."]
+position = Vector3(-0.32, 0.635, 0.02)
+mesh = SubResource("BoxMesh_plank_line")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="DeckPlankCenter" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.636, 0.02)
+mesh = SubResource("BoxMesh_plank_line")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="DeckPlankStarboard" type="MeshInstance3D" parent="."]
+position = Vector3(0.32, 0.635, 0.02)
+mesh = SubResource("BoxMesh_plank_line")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="DeckBoardAft" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.638, 0.75)
+mesh = SubResource("BoxMesh_cross_plank")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="DeckBoardMid" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.638, -0.05)
+mesh = SubResource("BoxMesh_cross_plank")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="DeckBoardForward" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.638, -0.82)
+mesh = SubResource("BoxMesh_cross_plank")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="PortCannonPortA" type="MeshInstance3D" parent="."]
+position = Vector3(-0.94, 0.7, -0.72)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="PortCannonPortB" type="MeshInstance3D" parent="."]
+position = Vector3(-0.94, 0.7, -0.08)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="PortCannonPortC" type="MeshInstance3D" parent="."]
+position = Vector3(-0.94, 0.7, 0.56)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="StarboardCannonPortA" type="MeshInstance3D" parent="."]
+position = Vector3(0.94, 0.7, -0.72)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="StarboardCannonPortB" type="MeshInstance3D" parent="."]
+position = Vector3(0.94, 0.7, -0.08)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="StarboardCannonPortC" type="MeshInstance3D" parent="."]
+position = Vector3(0.94, 0.7, 0.56)
+mesh = SubResource("BoxMesh_cannon_port")
+surface_material_override/0 = SubResource("StandardMaterial3D_cannon_port")
+
+[node name="Cabin" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.0, 1.25)
+mesh = SubResource("BoxMesh_cabin")
+surface_material_override/0 = SubResource("StandardMaterial3D_cabin")
+
+[node name="CabinRoof" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.23, 1.25)
+mesh = SubResource("BoxMesh_cabin_roof")
+surface_material_override/0 = SubResource("StandardMaterial3D_rail")
+
+[node name="HatchSupport" type="MeshInstance3D" parent="."]
+position = Vector3(-0.38, 0.79, 1.06)
+mesh = SubResource("BoxMesh_hatch_plate")
+surface_material_override/0 = SubResource("StandardMaterial3D_hatch")
+
+[node name="HatchSlatA" type="MeshInstance3D" parent="."]
+position = Vector3(-0.38, 0.82, 0.96)
+mesh = SubResource("BoxMesh_hatch_slat")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="HatchSlatB" type="MeshInstance3D" parent="."]
+position = Vector3(-0.38, 0.82, 1.06)
+mesh = SubResource("BoxMesh_hatch_slat")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="HatchSlatC" type="MeshInstance3D" parent="."]
+position = Vector3(-0.38, 0.82, 1.16)
+mesh = SubResource("BoxMesh_hatch_slat")
+surface_material_override/0 = SubResource("StandardMaterial3D_plank")
+
+[node name="Mast" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1.7, -0.35)
+mesh = SubResource("BoxMesh_mast")
+surface_material_override/0 = SubResource("StandardMaterial3D_mast")
+
+[node name="Sail" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.65, -0.18)
+mesh = SubResource("BoxMesh_sail")
+surface_material_override/0 = SubResource("StandardMaterial3D_sail")
