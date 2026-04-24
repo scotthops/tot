@@ -41,6 +41,8 @@ public partial class PlayerBoatController : Node3D
 	[Export] public float WavePitchDegrees { get; set; } = 4.5f;
 	[Export] public float WaveRollDegrees { get; set; } = 5.5f;
 
+	[Export] public bool InputEnabled { get; set; } = true;
+
 	public Vector3 Velocity => _velocity;
 	public float Speed => new Vector2(_velocity.X, _velocity.Z).Length();
 
@@ -82,9 +84,9 @@ public partial class PlayerBoatController : Node3D
 	public override void _Process(double delta)
 	{
 		var deltaSeconds = (float)delta;
-		var throttleInput = GetThrottleInput();
-		var turnInput = GetTurnInput();
-		var hardBrakeHeld = Input.IsKeyPressed(Key.Space);
+		var throttleInput = InputEnabled ? GetThrottleInput() : 0.0f;
+		var turnInput = InputEnabled ? GetTurnInput() : 0.0f;
+		var hardBrakeHeld = InputEnabled && Input.IsKeyPressed(Key.Space);
 
 		var forward = GetFlatForward();
 

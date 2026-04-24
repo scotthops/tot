@@ -2,6 +2,7 @@ using Godot;
 using System.Collections.Generic;
 using TidesOfTime.Crew;
 using TidesOfTime.Data;
+using TidesOfTime.Encounters;
 using TidesOfTime.Ships;
 using TidesOfTime.UI;
 
@@ -11,11 +12,13 @@ public partial class BattleScene : Control
 {
 	private const string SpecialActionMetaKey = "special_action";
 	private const string RematchActionId = "rematch";
+	private const string ReturnToSailingActionId = "return_to_sailing";
 
 	[Export] public ShipLayoutDef PlayerLayout { get; set; } = null!;
 	[Export] public ShipLayoutDef EnemyLayout { get; set; } = null!;
 
 	private BattleState _battleState = null!;
+	private SailingEncounterData? _activeEncounterData;
 	private ShipGridView _playerShipView = null!;
 	private ShipGridView _enemyShipView = null!;
 	private Control _background = null!;
@@ -51,6 +54,8 @@ public partial class BattleScene : Control
 		_restartButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
 		_quitGameButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
 
+		ApplyPendingEncounterIfAny();
+
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
 			GD.PushError("BattleScene: PlayerLayout and EnemyLayout must be assigned.");
@@ -64,6 +69,7 @@ public partial class BattleScene : Control
 		_quitGameButton.Pressed += OnQuitGamePressed;
 		_playerShipView.UsePlayerCannonBarPalette = true;
 		_enemyShipView.UsePlayerCannonBarPalette = false;
+		ApplyShipVisualStyles();
 		_background.GuiInput += OnBackgroundGuiInput;
 		_selectionPanel.GuiInput += OnBackgroundGuiInput;
 		_playerShipView.TilePressed += (ship, x, y) => OnTilePressed("Player", ship, x, y);
@@ -319,7 +325,7 @@ public partial class BattleScene : Control
 		ShowSelectionState(_battleState.CurrentSelection);
 
 		var resolvedStatusText = string.IsNullOrEmpty(statusText)
-			? _battleState.OpeningStatusText
+			? BuildOpeningStatusText()
 			: statusText;
 
 		if (!string.IsNullOrEmpty(resolvedStatusText))
@@ -367,13 +373,85 @@ public partial class BattleScene : Control
 		}
 
 		var specialAction = actionButton.GetMeta(SpecialActionMetaKey).AsString();
-		if (specialAction != RematchActionId)
+		if (specialAction == RematchActionId)
 		{
-			return false;
+			ResetBattleState();
+			return true;
 		}
 
-		ResetBattleState();
-		return true;
+		if (specialAction == ReturnToSailingActionId)
+		{
+			ReturnToSailing();
+			return true;
+		}
+
+		return false;
+	}
+
+	private void ApplyPendingEncounterIfAny()
+	{
+		_activeEncounterData = SailingEncounterStore.ConsumePendingEncounter();
+		if (_activeEncounterData == null)
+		{
+			return;
+		}
+
+		if (_activeEncounterData.PlayerShip?.CombatLayout != null)
+		{
+			PlayerLayout = _activeEncounterData.PlayerShip.CombatLayout;
+		}
+
+		if (_activeEncounterData.EnemyShip?.CombatLayout != null)
+		{
+			EnemyLayout = _activeEncounterData.EnemyShip.CombatLayout;
+		}
+	}
+
+	private void ApplyShipVisualStyles()
+	{
+		_playerShipView.SetShipVisualStyle(
+			GetArchetypeTint(_activeEncounterData?.PlayerShip, new Color(0.24f, 0.48f, 0.78f)),
+			true);
+		_enemyShipView.SetShipVisualStyle(
+			GetArchetypeTint(_activeEncounterData?.EnemyShip, new Color(0.72f, 0.24f, 0.18f)),
+			false);
+	}
+
+	private string? BuildOpeningStatusText()
+	{
+		var battleOpeningText = _battleState.OpeningStatusText;
+		if (_activeEncounterData == null)
+		{
+			return battleOpeningText;
+		}
+
+		var encounterText = $"Encounter: {_activeEncounterData.PlayerDisplayName} vs {_activeEncounterData.EnemyDisplayName}.";
+		return string.IsNullOrEmpty(battleOpeningText)
+			? encounterText
+			: $"{encounterText} {battleOpeningText}";
+	}
+
+	private void ReturnToSailing()
+	{
+		var returnScenePath = _activeEncounterData?.ReturnScenePath;
+		if (string.IsNullOrWhiteSpace(returnScenePath))
+		{
+			_actionStatusLabel.Text = "No sailing scene return path is available.";
+			return;
+		}
+
+		var sceneChangeError = GetTree().ChangeSceneToFile(returnScenePath);
+		if (sceneChangeError != Error.Ok)
+		{
+			_actionStatusLabel.Text = $"Could not return to sailing: {sceneChangeError}.";
+		}
+	}
+
+	private static Color GetArchetypeTint(ShipArchetypeDef? archetype, Color fallback)
+	{
+		return archetype == null
+			? fallback
+			: archetype.CombatTint;
 	}
 
 	private static void ConfigureActionButton(
@@ -415,7 +493,12 @@ public partial class BattleScene : Control
 	private void ConfigureRematchActionButtons()
 	{
 		ConfigureActionButton(_primaryActionButton, "Rematch", null, RematchActionId);
-		ConfigureActionButton(_secondaryActionButton, "Action 2", null);
+		var canReturnToSailing = !string.IsNullOrWhiteSpace(_activeEncounterData?.ReturnScenePath);
+		ConfigureActionButton(
+			_secondaryActionButton,
+			canReturnToSailing ? "Return to Sailing" : "Action 2",
+			null,
+			canReturnToSailing ? ReturnToSailingActionId : null);
 	}
 
 	private static BattleActionKind? GetActionKind(Button button)

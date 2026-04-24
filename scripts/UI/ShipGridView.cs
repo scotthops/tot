@@ -19,6 +19,8 @@ public partial class ShipGridView : PanelContainer
 
 	private Label _shipNameLabel = null!;
 	private ProgressBar _hullBar = null!;
+	private Control _gridStack = null!;
+	private ShipHullBackdrop _hullBackdrop = null!;
 	private Control _grid = null!;
 	private Control _roomOverlay = null!;
 	private Control _crewOverlay = null!;
@@ -32,9 +34,13 @@ public partial class ShipGridView : PanelContainer
 	{
 		_shipNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/HeaderBar/ShipNameLabel");
 		_hullBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/HullBar");
+		_gridStack = GetNode<Control>("MarginContainer/VBoxContainer/GridStack");
 		_grid = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/Grid");
 		_roomOverlay = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/RoomOverlay");
 		_crewOverlay = GetNode<Control>("MarginContainer/VBoxContainer/GridStack/CrewOverlay");
+		_hullBackdrop = CreateHullBackdrop();
+		_gridStack.AddChild(_hullBackdrop);
+		_gridStack.MoveChild(_hullBackdrop, 0);
 
 		if (TileViewScene == null)
 		{
@@ -56,6 +62,7 @@ public partial class ShipGridView : PanelContainer
 		_selectedCrewId = selectedCrewId;
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
+		_hullBackdrop.SetBoardSize(shipState.Grid.Width, shipState.Grid.Height);
 		RefreshCannonChargeBar();
 
 		var renderRevision = ++_boardRenderRevision;
@@ -66,6 +73,11 @@ public partial class ShipGridView : PanelContainer
 	{
 		_cannonChargeBarState = chargeBarState;
 		RefreshCannonChargeBar();
+	}
+
+	public void SetShipVisualStyle(Color hullTint, bool bowFacesRight)
+	{
+		_hullBackdrop.SetVisualStyle(hullTint, bowFacesRight);
 	}
 
 	public override void _GuiInput(InputEvent @event)
@@ -375,6 +387,21 @@ public partial class ShipGridView : PanelContainer
 			Step = 0.0,
 			Visible = false
 		};
+	}
+
+	private static ShipHullBackdrop CreateHullBackdrop()
+	{
+		var backdrop = new ShipHullBackdrop
+		{
+			Name = "HullBackdrop",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both
+		};
+
+		return backdrop;
 	}
 
 	private static void ApplyRoomChargeBarStyle(ProgressBar bar, bool isActive, bool usePlayerPalette)

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ShipArchetypeDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Data/ShipArchetypeDef.cs" id="1_8w4cu"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="2_y26cl"]
+
+[resource]
+script = ExtResource("1_8w4cu")
+ArchetypeId = "player_tidebreaker"
+DisplayName = "The Tidebreaker"
+CombatLayout = ExtResource("2_y26cl")
+CombatTint = Color(0.24, 0.48, 0.78, 1)

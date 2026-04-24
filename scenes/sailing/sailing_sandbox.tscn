@@ -4,6 +4,8 @@
 [ext_resource type="Script" path="res://scripts/Sailing/PlayerBoatController.cs" id="2_boat"]
 [ext_resource type="Script" path="res://scripts/Sailing/SailingChaseCamera.cs" id="3_camera"]
 [ext_resource type="Script" path="res://scripts/Sailing/SailingWakeView.cs" id="4_wake"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_archetype.tres" id="5_player_arch"]
+[ext_resource type="Resource" path="res://data/ships/enemy_ship_archetype.tres" id="6_enemy_arch"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sailing"]
 sky_top_color = Color(0.14, 0.43, 0.64, 1)
@@ -57,6 +59,22 @@ size = Vector3(0.13, 2.35, 0.13)
 albedo_color = Color(0.94, 0.86, 0.65, 1)
 roughness = 0.88
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_enemy_hull"]
+albedo_color = Color(0.16, 0.08, 0.06, 1)
+roughness = 0.68
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_enemy_sail"]
+albedo_color = Color(0.5, 0.08, 0.06, 1)
+roughness = 0.86
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_town"]
+albedo_color = Color(0.62, 0.48, 0.28, 1)
+roughness = 0.76
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dock"]
+albedo_color = Color(0.36, 0.22, 0.1, 1)
+roughness = 0.82
+
 [sub_resource type="BoxMesh" id="BoxMesh_sail"]
 size = Vector3(1.35, 1.35, 0.06)
 
@@ -109,11 +127,17 @@ roughness = 0.9
 [sub_resource type="PlaneMesh" id="PlaneMesh_wake"]
 size = Vector2(1, 1)
 
+[sub_resource type="SphereShape3D" id="SphereShape3D_town_range"]
+radius = 7.5
+
 [node name="SailingSandbox" type="Node3D"]
 script = ExtResource("1_sandbox")
 PlayerBoatPath = NodePath("PlayerBoat")
 HudLabelPath = NodePath("HUD/PanelContainer/MarginContainer/InfoLabel")
 CheckpointsRootPath = NodePath("Course/Checkpoints")
+EncounterContactPath = NodePath("EnemyContact")
+PlayerShipArchetype = ExtResource("5_player_arch")
+EnemyShipArchetype = ExtResource("6_enemy_arch")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_sailing")
@@ -238,6 +262,59 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 0.25, 0)
 mesh = SubResource("BoxMesh_marker")
 surface_material_override/0 = SubResource("StandardMaterial3D_marker")
 
+[node name="TownDock" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0.18, -16)
+
+[node name="Island" type="MeshInstance3D" parent="TownDock"]
+transform = Transform3D(4.8, 0, 0, 0, 0.6, 0, 0, 0, 3.4, 0, 0.05, 0)
+mesh = SubResource("BoxMesh_rock")
+surface_material_override/0 = SubResource("StandardMaterial3D_town")
+
+[node name="Dock" type="MeshInstance3D" parent="TownDock"]
+transform = Transform3D(1.3, 0, 0, 0, 0.24, 0, 0, 0, 4.4, 3.8, 0.34, 0.4)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_dock")
+
+[node name="Storehouse" type="MeshInstance3D" parent="TownDock"]
+transform = Transform3D(1.3, 0, 0, 0, 1, 0, 0, 0, 1.0, -0.8, 0.74, -0.3)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_dock")
+
+[node name="HarborSign" type="MeshInstance3D" parent="TownDock"]
+transform = Transform3D(0.22, 0, 0, 0, 1.8, 0, 0, 0, 0.22, 2.2, 1.0, -1.8)
+mesh = SubResource("BoxMesh_marker")
+surface_material_override/0 = SubResource("StandardMaterial3D_marker")
+
+[node name="InteractionArea" type="Area3D" parent="TownDock"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="TownDock/InteractionArea"]
+shape = SubResource("SphereShape3D_town_range")
+
+[node name="EnemyContact" type="Node3D" parent="."]
+transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, 12, 0.16, -24)
+
+[node name="Visuals" type="Node3D" parent="EnemyContact"]
+
+[node name="Hull" type="MeshInstance3D" parent="EnemyContact/Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
+mesh = SubResource("BoxMesh_hull")
+surface_material_override/0 = SubResource("StandardMaterial3D_enemy_hull")
+
+[node name="Deck" type="MeshInstance3D" parent="EnemyContact/Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0.1)
+mesh = SubResource("BoxMesh_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="Mast" type="MeshInstance3D" parent="EnemyContact/Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.35)
+mesh = SubResource("BoxMesh_mast")
+surface_material_override/0 = SubResource("StandardMaterial3D_mast")
+
+[node name="Sail" type="MeshInstance3D" parent="EnemyContact/Visuals"]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.65, -0.18)
+mesh = SubResource("BoxMesh_sail")
+surface_material_override/0 = SubResource("StandardMaterial3D_enemy_sail")
+
 [node name="PlayerBoat" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.16, 0)
 script = ExtResource("2_boat")
@@ -296,8 +373,8 @@ TargetPath = NodePath("../PlayerBoat")
 [node name="PanelContainer" type="PanelContainer" parent="HUD"]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 330.0
-offset_bottom = 182.0
+offset_right = 382.0
+offset_bottom = 224.0
 
 [node name="MarginContainer" type="MarginContainer" parent="HUD/PanelContainer"]
 layout_mode = 2
@@ -309,3 +386,71 @@ theme_override_constants/margin_bottom = 10
 [node name="InfoLabel" type="Label" parent="HUD/PanelContainer/MarginContainer"]
 layout_mode = 2
 text = "Sailing Sandbox"
+
+[node name="TownPromptPanel" type="PanelContainer" parent="HUD"]
+visible = false
+offset_left = 596.0
+offset_top = 722.0
+offset_right = 1004.0
+offset_bottom = 780.0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/TownPromptPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="PromptLabel" type="Label" parent="HUD/TownPromptPanel/MarginContainer"]
+layout_mode = 2
+text = "Press E to dock at Saltwind Harbor"
+horizontal_alignment = 1
+
+[node name="TownPanel" type="PanelContainer" parent="HUD"]
+visible = false
+offset_left = 520.0
+offset_top = 250.0
+offset_right = 1080.0
+offset_bottom = 562.0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/TownPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/TownPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="TownNameLabel" type="Label" parent="HUD/TownPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "Saltwind Harbor"
+horizontal_alignment = 1
+
+[node name="TownBodyLabel" type="Label" parent="HUD/TownPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 104)
+layout_mode = 2
+text = "You arrive at Saltwind Harbor."
+autowrap_mode = 3
+
+[node name="ButtonRow" type="VBoxContainer" parent="HUD/TownPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MerchantButton" type="Button" parent="HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Visit merchant"
+
+[node name="RepairButton" type="Button" parent="HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Repair ship"
+
+[node name="LeaveTownButton" type="Button" parent="HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Leave town"
