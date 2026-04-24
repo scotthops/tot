@@ -13,13 +13,6 @@ public partial class ShipGridView : PanelContainer
 	[Export] public PackedScene? TileViewScene { get; set; }
 	[Export] public bool UsePlayerCannonBarPalette { get; set; }
 
-	[ExportGroup("3D Boat Preview")]
-	[Export] public PackedScene? BoatPreviewScene { get; set; }
-	[Export(PropertyHint.Range, "0,1,0.01")] public float BoatPreviewOpacity { get; set; } = 0.58f;
-	[Export] public float BoatPreviewOrthographicSize { get; set; } = 5.2f;
-	[Export] public Vector3 BoatPreviewOffset { get; set; } = Vector3.Zero;
-	[Export] public Vector3 BoatPreviewRotationDegrees { get; set; } = new(0.0f, 90.0f, 0.0f);
-	[Export] public Vector3 BoatPreviewScale { get; set; } = new(1.65f, 1.0f, 1.0f);
 	[Export(PropertyHint.Range, "0,1,0.01")] public float TileFillAlpha { get; set; } = 1.0f;
 	[Export] public bool ShowInteriorCutawayBacking { get; set; }
 	[Export(PropertyHint.Range, "0,0.5,0.01")] public float InteriorCutawayPaddingTiles { get; set; } = 0.16f;
@@ -53,7 +46,6 @@ public partial class ShipGridView : PanelContainer
 		_hullBackdrop = CreateHullBackdrop();
 		_gridStack.AddChild(_hullBackdrop);
 		_gridStack.MoveChild(_hullBackdrop, 0);
-		CreateBoatPreviewIfNeeded();
 		CreateInteriorCutawayBackingIfNeeded();
 
 		if (TileViewScene == null)
@@ -416,33 +408,6 @@ public partial class ShipGridView : PanelContainer
 		return backdrop;
 	}
 
-	private void CreateBoatPreviewIfNeeded()
-	{
-		if (BoatPreviewScene == null)
-		{
-			return;
-		}
-
-		var preview = new BoatViewportPreview
-		{
-			Name = "BoatViewportPreview",
-			BoatVisualScene = BoatPreviewScene,
-			OrthographicSize = BoatPreviewOrthographicSize,
-			BoatOffset = BoatPreviewOffset,
-			BoatRotationDegrees = BoatPreviewRotationDegrees,
-			BoatScale = BoatPreviewScale,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Modulate = new Color(1.0f, 1.0f, 1.0f, Mathf.Clamp(BoatPreviewOpacity, 0.0f, 1.0f)),
-			AnchorRight = 1.0f,
-			AnchorBottom = 1.0f,
-			GrowHorizontal = Control.GrowDirection.Both,
-			GrowVertical = Control.GrowDirection.Both
-		};
-
-		_gridStack.AddChild(preview);
-		_gridStack.MoveChild(preview, 1);
-	}
-
 	private void CreateInteriorCutawayBackingIfNeeded()
 	{
 		if (!ShowInteriorCutawayBacking)
@@ -462,7 +427,7 @@ public partial class ShipGridView : PanelContainer
 		};
 
 		_gridStack.AddChild(_interiorCutawayBackdrop);
-		_gridStack.MoveChild(_interiorCutawayBackdrop, BoatPreviewScene == null ? 1 : 2);
+		_gridStack.MoveChild(_interiorCutawayBackdrop, 1);
 	}
 
 	private void UpdateInteriorCutawayBacking(ShipGridState gridState)
