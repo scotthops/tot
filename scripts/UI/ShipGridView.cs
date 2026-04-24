@@ -13,6 +13,17 @@ public partial class ShipGridView : PanelContainer
 	[Export] public PackedScene? TileViewScene { get; set; }
 	[Export] public bool UsePlayerCannonBarPalette { get; set; }
 
+	[ExportGroup("3D Boat Preview")]
+	[Export] public PackedScene? BoatPreviewScene { get; set; }
+	[Export(PropertyHint.Range, "0,1,0.01")] public float BoatPreviewOpacity { get; set; } = 0.58f;
+	[Export] public float BoatPreviewOrthographicSize { get; set; } = 5.2f;
+	[Export] public Vector3 BoatPreviewOffset { get; set; } = Vector3.Zero;
+	[Export] public Vector3 BoatPreviewRotationDegrees { get; set; } = new(0.0f, 90.0f, 0.0f);
+	[Export] public Vector3 BoatPreviewScale { get; set; } = new(1.65f, 1.0f, 1.0f);
+	[Export(PropertyHint.Range, "0,1,0.01")] public float TileFillAlpha { get; set; } = 1.0f;
+	[Export] public bool ShowInteriorCutawayBacking { get; set; }
+	[Export(PropertyHint.Range, "0,0.5,0.01")] public float InteriorCutawayPaddingTiles { get; set; } = 0.16f;
+
 	public event Action<ShipState, int, int>? TilePressed;
 	public event Action<ShipState>? BackgroundPressed;
 	public event Action<ShipState, CrewState>? CrewSelected;
@@ -21,6 +32,7 @@ public partial class ShipGridView : PanelContainer
 	private ProgressBar _hullBar = null!;
 	private Control _gridStack = null!;
 	private ShipHullBackdrop _hullBackdrop = null!;
+	private ShipInteriorCutawayBackdrop? _interiorCutawayBackdrop;
 	private Control _grid = null!;
 	private Control _roomOverlay = null!;
 	private Control _crewOverlay = null!;
@@ -41,6 +53,8 @@ public partial class ShipGridView : PanelContainer
 		_hullBackdrop = CreateHullBackdrop();
 		_gridStack.AddChild(_hullBackdrop);
 		_gridStack.MoveChild(_hullBackdrop, 0);
+		CreateBoatPreviewIfNeeded();
+		CreateInteriorCutawayBackingIfNeeded();
 
 		if (TileViewScene == null)
 		{
@@ -63,6 +77,7 @@ public partial class ShipGridView : PanelContainer
 		_shipNameLabel.Text = shipState.Name;
 		_hullBar.Value = shipState.Hull;
 		_hullBackdrop.SetBoardSize(shipState.Grid.Width, shipState.Grid.Height);
+		UpdateInteriorCutawayBacking(shipState.Grid);
 		RefreshCannonChargeBar();
 
 		var renderRevision = ++_boardRenderRevision;
@@ -198,6 +213,11 @@ public partial class ShipGridView : PanelContainer
 
 		foreach (var tile in _shipState.Grid.Tiles)
 		{
+			if (!tile.Walkable)
+			{
+				continue;
+			}
+
 			var tileNode = TileViewScene.Instantiate<Button>();
 			tileNode.Text = "";
 			tileNode.Position = GetTilePosition(layout, tile.X, tile.Y);
@@ -206,18 +226,10 @@ public partial class ShipGridView : PanelContainer
 			tileNode.FocusMode = Control.FocusModeEnum.None;
 			tileNode.ButtonDown += () => OnTilePressed(tile.X, tile.Y);
 
-			if (tile.Walkable)
-			{
-				var room = roomById.GetValueOrDefault(tile.RoomId);
-				var color = GetRoomColor(room);
-				var isSelected = room?.RoomId == _shipState.SelectedRoomId;
-				ApplyTileStyle(tileNode, color, isSelected);
-			}
-			else
-			{
-				ApplyTileStyle(tileNode, new Color(0.15f, 0.15f, 0.15f), false);
-				tileNode.Disabled = true;
-			}
+			var room = roomById.GetValueOrDefault(tile.RoomId);
+			var color = GetRoomColor(room);
+			var isSelected = room?.RoomId == _shipState.SelectedRoomId;
+			ApplyTileStyle(tileNode, WithTileFillAlpha(color), isSelected);
 
 			_grid.AddChild(tileNode);
 		}
@@ -402,6 +414,107 @@ public partial class ShipGridView : PanelContainer
 		};
 
 		return backdrop;
+	}
+
+	private void CreateBoatPreviewIfNeeded()
+	{
+		if (BoatPreviewScene == null)
+		{
+			return;
+		}
+
+		var preview = new BoatViewportPreview
+		{
+			Name = "BoatViewportPreview",
+			BoatVisualScene = BoatPreviewScene,
+			OrthographicSize = BoatPreviewOrthographicSize,
+			BoatOffset = BoatPreviewOffset,
+			BoatRotationDegrees = BoatPreviewRotationDegrees,
+			BoatScale = BoatPreviewScale,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Modulate = new Color(1.0f, 1.0f, 1.0f, Mathf.Clamp(BoatPreviewOpacity, 0.0f, 1.0f)),
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both
+		};
+
+		_gridStack.AddChild(preview);
+		_gridStack.MoveChild(preview, 1);
+	}
+
+	private void CreateInteriorCutawayBackingIfNeeded()
+	{
+		if (!ShowInteriorCutawayBacking)
+		{
+			return;
+		}
+
+		_interiorCutawayBackdrop = new ShipInteriorCutawayBackdrop
+		{
+			Name = "InteriorCutawayBackdrop",
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			PaddingTiles = InteriorCutawayPaddingTiles,
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both
+		};
+
+		_gridStack.AddChild(_interiorCutawayBackdrop);
+		_gridStack.MoveChild(_interiorCutawayBackdrop, BoatPreviewScene == null ? 1 : 2);
+	}
+
+	private void UpdateInteriorCutawayBacking(ShipGridState gridState)
+	{
+		if (_interiorCutawayBackdrop == null)
+		{
+			return;
+		}
+
+		var hasWalkableTile = false;
+		var minTileX = gridState.Width - 1;
+		var minTileY = gridState.Height - 1;
+		var maxTileX = 0;
+		var maxTileY = 0;
+
+		foreach (var tile in gridState.Tiles)
+		{
+			if (!tile.Walkable)
+			{
+				continue;
+			}
+
+			hasWalkableTile = true;
+			minTileX = Mathf.Min(minTileX, tile.X);
+			minTileY = Mathf.Min(minTileY, tile.Y);
+			maxTileX = Mathf.Max(maxTileX, tile.X);
+			maxTileY = Mathf.Max(maxTileY, tile.Y);
+		}
+
+		if (!hasWalkableTile)
+		{
+			_interiorCutawayBackdrop.ClearInterior();
+			return;
+		}
+
+		_interiorCutawayBackdrop.PaddingTiles = InteriorCutawayPaddingTiles;
+		_interiorCutawayBackdrop.SetInteriorBounds(
+			gridState.Width,
+			gridState.Height,
+			minTileX,
+			minTileY,
+			maxTileX,
+			maxTileY);
+	}
+
+	private Color WithTileFillAlpha(Color color)
+	{
+		return new Color(
+			color.R,
+			color.G,
+			color.B,
+			Mathf.Clamp(TileFillAlpha, 0.0f, 1.0f));
 	}
 
 	private static void ApplyRoomChargeBarStyle(ProgressBar bar, bool isActive, bool usePlayerPalette)

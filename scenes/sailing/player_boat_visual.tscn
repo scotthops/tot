@@ -1,0 +1,59 @@
+[gd_scene format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_hull"]
+albedo_color = Color(0.34, 0.17, 0.08, 1)
+roughness = 0.62
+
+[sub_resource type="BoxMesh" id="BoxMesh_hull"]
+size = Vector3(1.8, 0.55, 4.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_deck"]
+albedo_color = Color(0.62, 0.39, 0.18, 1)
+roughness = 0.72
+
+[sub_resource type="BoxMesh" id="BoxMesh_deck"]
+size = Vector3(1.45, 0.18, 3.15)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_mast"]
+albedo_color = Color(0.22, 0.12, 0.05, 1)
+roughness = 0.64
+
+[sub_resource type="BoxMesh" id="BoxMesh_mast"]
+size = Vector3(0.13, 2.35, 0.13)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_sail"]
+albedo_color = Color(0.94, 0.86, 0.65, 1)
+roughness = 0.88
+
+[sub_resource type="BoxMesh" id="BoxMesh_sail"]
+size = Vector3(1.35, 1.35, 0.06)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cabin"]
+size = Vector3(1.0, 0.45, 1.0)
+
+[node name="PlayerBoatVisual" type="Node3D"]
+
+[node name="Hull" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.22, 0)
+mesh = SubResource("BoxMesh_hull")
+surface_material_override/0 = SubResource("StandardMaterial3D_hull")
+
+[node name="Deck" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0.1)
+mesh = SubResource("BoxMesh_deck")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")
+
+[node name="Mast" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -0.35)
+mesh = SubResource("BoxMesh_mast")
+surface_material_override/0 = SubResource("StandardMaterial3D_mast")
+
+[node name="Sail" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, -0.258819, 0, 0.258819, 0.965926, 0, 1.65, -0.18)
+mesh = SubResource("BoxMesh_sail")
+surface_material_override/0 = SubResource("StandardMaterial3D_sail")
+
+[node name="Cabin" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.92, 1.1)
+mesh = SubResource("BoxMesh_cabin")
+surface_material_override/0 = SubResource("StandardMaterial3D_deck")

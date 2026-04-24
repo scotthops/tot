@@ -1,9 +1,10 @@
-[gd_scene format=3 uid="uid://qyrwm2kwqerr" load_steps=4]
+[gd_scene format=3 uid="uid://qyrwm2kwqerr" load_steps=5]
 
 [ext_resource type="PackedScene" uid="uid://bc5bieea6alyo" path="res://scenes/ships/ship_grid_view.tscn" id="1_3hov6"]
 [ext_resource type="Script" uid="uid://cyy8auci877q7" path="res://scripts/Battle/BattleScene.cs" id="1_6iigb"]
 [ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="2_3p2xu"]
 [ext_resource type="Resource" path="res://data/ships/enemy_ship_layout.tres" id="3_1o3v1"]
+[ext_resource type="PackedScene" path="res://scenes/sailing/player_boat_visual.tscn" id="5_boat_visual"]
 
 [node name="BattleScene" type="Control" unique_id=171627533]
 layout_mode = 3
@@ -117,6 +118,13 @@ theme_override_constants/separation = 16
 
 [node name="PlayerShipGridView" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=848091438 instance=ExtResource("1_3hov6")]
 layout_mode = 2
+BoatPreviewScene = ExtResource("5_boat_visual")
+BoatPreviewOpacity = 0.7
+BoatPreviewOrthographicSize = 4.65
+BoatPreviewRotationDegrees = Vector3(0, 90, 0)
+BoatPreviewScale = Vector3(1.65, 1, 1.08)
+TileFillAlpha = 0.82
+ShowInteriorCutawayBacking = true
 
 [node name="EnemyShipGridView" parent="MarginContainer/VBoxContainer/HBoxContainer" unique_id=1423426248 instance=ExtResource("1_3hov6")]
 layout_mode = 2
