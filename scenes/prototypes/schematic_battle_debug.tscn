@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" path="res://scripts/Prototypes/SchematicBattleDebugScene.cs" id="1_debug"]
 [ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
-[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_player_layout"]
-[ext_resource type="Resource" path="res://data/ships/enemy_ship_layout.tres" id="4_enemy_layout"]
+[ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="3_player_layout"]
+[ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="4_enemy_layout"]
 
 [node name="SchematicBattleDebugScene" type="Control"]
 layout_mode = 3
@@ -142,3 +142,59 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 clip_contents = true
+
+[node name="OrdersOverlay" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Background" type="ColorRect" parent="OrdersOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.035, 0.145, 0.18, 0.96)
+
+[node name="MarginContainer" type="MarginContainer" parent="OrdersOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -250.0
+offset_top = -150.0
+offset_right = 250.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="OrdersOverlay/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="TitleLabel" type="Label" parent="OrdersOverlay/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "Orders, Cap'n?"
+horizontal_alignment = 1
+
+[node name="ButtonStack" type="VBoxContainer" parent="OrdersOverlay/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="GiveEmHellButton" type="Button" parent="OrdersOverlay/MarginContainer/VBoxContainer/ButtonStack"]
+custom_minimum_size = Vector2(0, 52)
+layout_mode = 2
+text = "GIVE 'EM HELL"

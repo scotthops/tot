@@ -88,6 +88,34 @@ public static class ShipStateFactory
 			tile.TileKind = ShipTileKind.Obstacle;
 		}
 
+		foreach (var moduleBayDef in layout.ModuleBays)
+		{
+			var moduleBayState = new ShipModuleBayState
+			{
+				BayId = moduleBayDef.BayId,
+				DisplayName = moduleBayDef.DisplayName,
+				DefaultRole = moduleBayDef.DefaultRole
+			};
+
+			foreach (var allowedRole in moduleBayDef.AllowedRoles)
+			{
+				moduleBayState.AllowedRoles.Add(allowedRole);
+			}
+
+			foreach (var tilePos in moduleBayDef.Tiles)
+			{
+				if (gridState.GetTile(tilePos.X, tilePos.Y) == null)
+				{
+					GD.PushWarning($"Ship layout '{layout.ShipName}' has out-of-bounds tile {tilePos} in module bay '{moduleBayDef.BayId}'.");
+					continue;
+				}
+
+				moduleBayState.Tiles.Add(tilePos);
+			}
+
+			gridState.ModuleBays.Add(moduleBayState);
+		}
+
 		ShipLayoutTopologyValidator.ValidateOrThrow(layout.ShipName, gridState);
 
 		return gridState;

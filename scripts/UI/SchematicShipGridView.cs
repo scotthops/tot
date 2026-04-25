@@ -31,6 +31,11 @@ public partial class SchematicShipGridView : Control
 	private static readonly Color ChargeBack = new(0.08f, 0.05f, 0.025f, 0.82f);
 	private static readonly Color ChargeFill = new(0.48f, 0.88f, 0.52f, 0.95f);
 	private static readonly Color ChargeInactiveFill = new(0.42f, 0.42f, 0.38f, 0.7f);
+	private static readonly Color ModuleBayBorder = new(0.96f, 0.84f, 0.42f, 0.92f);
+	private static readonly Color ModuleBayShadow = new(0.04f, 0.03f, 0.02f, 0.74f);
+	private static readonly Color ModuleBadgeBack = new(0.09f, 0.06f, 0.035f, 0.88f);
+	private static readonly Color SystemSymbolInk = new(1.0f, 0.9f, 0.62f, 0.9f);
+	private static readonly Color SystemSymbolShadow = new(0.04f, 0.025f, 0.015f, 0.66f);
 
 	private ShipState? _shipState;
 	private string? _selectedCrewId;
@@ -116,7 +121,9 @@ public partial class SchematicShipGridView : Control
 		DrawHullBacking(layout);
 		DrawTiles(layout, roomById);
 		DrawRoomBorders(layout);
+		DrawRoomSymbols(layout);
 		DrawRoomLabels(font, layout);
+		DrawModuleBays(font, layout);
 		DrawCannonChargeBar(layout);
 		DrawCrewTokens(font, layout);
 	}
@@ -334,15 +341,123 @@ public partial class SchematicShipGridView : Control
 			var bounds = GetRoomBounds(layout, room);
 			var center = bounds.Position + (bounds.Size * 0.5f);
 			var label = GetRoomLabel(room);
+			var symbolRadius = GetRoomSymbolRadius(layout, room);
+			var labelY = Mathf.Min(bounds.End.Y - 5.0f, center.Y + symbolRadius + 12.0f);
 			DrawString(
 				font,
-				center + new Vector2(-bounds.Size.X * 0.5f, 4.0f),
+				new Vector2(center.X - bounds.Size.X * 0.5f, labelY),
 				label,
 				HorizontalAlignment.Center,
 				bounds.Size.X,
-				10,
+				9,
 				new Color(1.0f, 0.88f, 0.6f, 0.82f));
 		}
+	}
+
+	private void DrawRoomSymbols(BoardLayout layout)
+	{
+		foreach (var room in _shipState!.Grid.Rooms)
+		{
+			if (room.Tiles.Count == 0)
+			{
+				continue;
+			}
+
+			var bounds = GetRoomBounds(layout, room);
+			var center = bounds.Position + (bounds.Size * 0.5f);
+			var radius = GetRoomSymbolRadius(layout, room);
+			DrawSystemSymbol(room.SystemType, center, radius);
+		}
+	}
+
+	private void DrawSystemSymbol(string systemType, Vector2 center, float radius)
+	{
+		var accent = GetSystemAccentColor(systemType);
+		DrawCircle(center + new Vector2(2.0f, 3.0f), radius + 4.0f, SystemSymbolShadow);
+		DrawCircle(center, radius + 4.0f, new Color(0.08f, 0.05f, 0.025f, 0.38f));
+		DrawCircle(center, radius + 4.0f, new Color(accent.R, accent.G, accent.B, 0.42f), false, 1.5f, true);
+
+		switch (systemType)
+		{
+			case "HelmRigging":
+				DrawHelmSymbol(center, radius);
+				break;
+			case "Cannons":
+				DrawCannonSymbol(center, radius);
+				break;
+			case "ThreadChamber":
+				DrawThreadSymbol(center, radius);
+				break;
+			case "CrowsNest":
+				DrawLookoutSymbol(center, radius);
+				break;
+			case "DoctorsQuarters":
+				DrawDoctorSymbol(center, radius);
+				break;
+		}
+	}
+
+	private void DrawHelmSymbol(Vector2 center, float radius)
+	{
+		DrawCircle(center, radius * 0.7f, SystemSymbolShadow, false, 3.0f, true);
+		DrawCircle(center, radius * 0.7f, SystemSymbolInk, false, 1.7f, true);
+		DrawCircle(center, radius * 0.24f, SystemSymbolInk, false, 1.5f, true);
+
+		for (var i = 0; i < 8; i++)
+		{
+			var angle = Mathf.Pi * 2.0f * i / 8.0f;
+			var direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+			DrawLine(center + (direction * radius * 0.24f), center + (direction * radius * 0.9f), SystemSymbolInk, 1.5f, true);
+			DrawCircle(center + (direction * radius * 0.96f), radius * 0.11f, SystemSymbolInk);
+		}
+	}
+
+	private void DrawCannonSymbol(Vector2 center, float radius)
+	{
+		var barrelStart = center + new Vector2(-radius * 0.78f, radius * 0.1f);
+		var barrelEnd = center + new Vector2(radius * 0.78f, -radius * 0.26f);
+		DrawLine(barrelStart + new Vector2(1.5f, 2.0f), barrelEnd + new Vector2(1.5f, 2.0f), SystemSymbolShadow, 5.0f, true);
+		DrawLine(barrelStart, barrelEnd, SystemSymbolInk, 4.0f, true);
+		DrawCircle(center + new Vector2(-radius * 0.42f, radius * 0.56f), radius * 0.18f, SystemSymbolInk);
+		DrawCircle(center + new Vector2(radius * 0.5f, radius * 0.46f), radius * 0.15f, SystemSymbolInk);
+		DrawCircle(center + new Vector2(radius * 0.95f, -radius * 0.4f), radius * 0.12f, SystemSymbolInk);
+	}
+
+	private void DrawThreadSymbol(Vector2 center, float radius)
+	{
+		var points = BuildSpiralPoints(center, radius * 0.78f, 18);
+		DrawPolyline(OffsetPoints(points, new Vector2(1.6f, 2.0f)), SystemSymbolShadow, 3.0f, true);
+		DrawPolyline(points, SystemSymbolInk, 1.8f, true);
+		DrawCircle(center, radius * 0.1f, SystemSymbolInk);
+	}
+
+	private void DrawLookoutSymbol(Vector2 center, float radius)
+	{
+		DrawLine(center + new Vector2(1.5f, -radius * 0.9f), center + new Vector2(1.5f, radius * 0.88f), SystemSymbolShadow, 4.0f, true);
+		DrawLine(center + new Vector2(0.0f, -radius * 0.9f), center + new Vector2(0.0f, radius * 0.88f), SystemSymbolInk, 2.0f, true);
+		DrawLine(center + new Vector2(-radius * 0.58f, -radius * 0.28f), center + new Vector2(radius * 0.58f, -radius * 0.28f), SystemSymbolInk, 2.0f, true);
+
+		var eye = new[]
+		{
+			center + new Vector2(-radius * 0.78f, radius * 0.22f),
+			center + new Vector2(-radius * 0.34f, 0.0f),
+			center + new Vector2(0.0f, -radius * 0.08f),
+			center + new Vector2(radius * 0.34f, 0.0f),
+			center + new Vector2(radius * 0.78f, radius * 0.22f),
+			center + new Vector2(radius * 0.34f, radius * 0.46f),
+			center + new Vector2(0.0f, radius * 0.54f),
+			center + new Vector2(-radius * 0.34f, radius * 0.46f),
+			center + new Vector2(-radius * 0.78f, radius * 0.22f)
+		};
+		DrawPolyline(eye, SystemSymbolInk, 1.5f, true);
+		DrawCircle(center + new Vector2(0.0f, radius * 0.22f), radius * 0.12f, SystemSymbolInk);
+	}
+
+	private void DrawDoctorSymbol(Vector2 center, float radius)
+	{
+		DrawCircle(center, radius * 0.64f, new Color(SystemSymbolInk.R, SystemSymbolInk.G, SystemSymbolInk.B, 0.12f));
+		DrawLine(center + new Vector2(-radius * 0.44f, 0.0f), center + new Vector2(radius * 0.44f, 0.0f), SystemSymbolInk, 2.2f, true);
+		DrawLine(center + new Vector2(0.0f, -radius * 0.44f), center + new Vector2(0.0f, radius * 0.44f), SystemSymbolInk, 2.2f, true);
 	}
 
 	private void DrawCannonChargeBar(BoardLayout layout)
@@ -370,6 +485,123 @@ public partial class SchematicShipGridView : Control
 		DrawRect(barRect, ChargeBack, true);
 		DrawRect(progressRect, _cannonChargeBarState.IsActive ? ChargeFill : ChargeInactiveFill, true);
 		DrawRect(barRect, new Color(0.96f, 0.86f, 0.56f, 0.72f), false, 1.0f);
+	}
+
+	private void DrawModuleBays(Font font, BoardLayout layout)
+	{
+		foreach (var moduleBay in _shipState!.Grid.ModuleBays)
+		{
+			if (moduleBay.Tiles.Count == 0)
+			{
+				continue;
+			}
+
+			var roleColor = GetModuleRoleColor(moduleBay.DefaultRole);
+			DrawModuleBayFootprint(layout, moduleBay, roleColor);
+			DrawModuleRoleBadge(font, layout, moduleBay, roleColor);
+		}
+	}
+
+	private void DrawModuleBayFootprint(BoardLayout layout, ShipModuleBayState moduleBay, Color roleColor)
+	{
+		var tileSet = new HashSet<Vector2I>(moduleBay.Tiles);
+		var outlineColor = ModuleBayBorder.Lerp(roleColor, 0.28f);
+
+		foreach (var tile in moduleBay.Tiles)
+		{
+			DrawModuleBayEdgeIfNeeded(layout, tileSet, tile, Vector2I.Up, outlineColor);
+			DrawModuleBayEdgeIfNeeded(layout, tileSet, tile, Vector2I.Down, outlineColor);
+			DrawModuleBayEdgeIfNeeded(layout, tileSet, tile, Vector2I.Left, outlineColor);
+			DrawModuleBayEdgeIfNeeded(layout, tileSet, tile, Vector2I.Right, outlineColor);
+		}
+	}
+
+	private void DrawModuleBayEdgeIfNeeded(BoardLayout layout, HashSet<Vector2I> tileSet, Vector2I tile, Vector2I neighborOffset, Color color)
+	{
+		if (tileSet.Contains(tile + neighborOffset))
+		{
+			return;
+		}
+
+		var rect = GetTileRect(layout, tile.X, tile.Y).Grow(-4.0f);
+		var from = neighborOffset == Vector2I.Up
+			? rect.Position
+			: neighborOffset == Vector2I.Down
+				? new Vector2(rect.Position.X, rect.End.Y)
+				: neighborOffset == Vector2I.Left
+					? rect.Position
+					: new Vector2(rect.End.X, rect.Position.Y);
+		var to = neighborOffset == Vector2I.Up
+			? new Vector2(rect.End.X, rect.Position.Y)
+			: neighborOffset == Vector2I.Down
+				? rect.End
+				: neighborOffset == Vector2I.Left
+					? new Vector2(rect.Position.X, rect.End.Y)
+					: rect.End;
+
+		var dashLength = Mathf.Clamp(layout.TileSize * 0.16f, 5.0f, 9.0f);
+		DrawDashedLine(from, to, ModuleBayShadow, 4.0f, dashLength, 4.0f);
+		DrawDashedLine(from, to, color, 2.0f, dashLength, 4.0f);
+	}
+
+	private void DrawModuleRoleBadge(Font font, BoardLayout layout, ShipModuleBayState moduleBay, Color roleColor)
+	{
+		var bounds = GetTileBounds(layout, moduleBay.Tiles);
+		var badgeSize = new Vector2(
+			Mathf.Clamp(layout.TileSize * 1.52f, 54.0f, 72.0f),
+			Mathf.Clamp(layout.TileSize * 0.48f, 18.0f, 24.0f));
+		var badgeRect = new Rect2(
+			new Vector2(
+				bounds.Position.X + ((bounds.Size.X - badgeSize.X) * 0.5f),
+				bounds.Position.Y + Mathf.Clamp(layout.TileSize * 0.12f, 4.0f, 8.0f)),
+			badgeSize);
+		var roleLabel = GetModuleRoleLabel(moduleBay.DefaultRole);
+
+		DrawRect(new Rect2(badgeRect.Position + new Vector2(2.0f, 3.0f), badgeRect.Size), ModuleBayShadow, true);
+		DrawRect(badgeRect, ModuleBadgeBack, true);
+		DrawRect(badgeRect, roleColor, false, 1.0f);
+		DrawModuleRoleIcon(badgeRect.Position + new Vector2(12.0f, badgeRect.Size.Y * 0.5f), badgeRect.Size.Y * 0.28f, moduleBay.DefaultRole, roleColor);
+		DrawString(
+			font,
+			badgeRect.Position + new Vector2(23.0f, badgeRect.Size.Y * 0.68f),
+			roleLabel,
+			HorizontalAlignment.Left,
+			badgeRect.Size.X - 27.0f,
+			9,
+			new Color(1.0f, 0.9f, 0.62f, 0.92f));
+	}
+
+	private void DrawModuleRoleIcon(Vector2 center, float radius, string role, Color color)
+	{
+		if (string.Equals(role, "Cannon", StringComparison.OrdinalIgnoreCase))
+		{
+			var barrelStart = center + new Vector2(-radius * 1.1f, radius * 0.24f);
+			var barrelEnd = center + new Vector2(radius * 1.08f, -radius * 0.28f);
+			DrawLine(barrelStart, barrelEnd, color, 2.2f, true);
+			DrawCircle(center + new Vector2(-radius * 0.45f, radius * 0.75f), radius * 0.34f, color);
+			DrawCircle(center + new Vector2(radius * 0.65f, radius * 0.58f), radius * 0.28f, color);
+			return;
+		}
+
+		if (string.Equals(role, "Cargo", StringComparison.OrdinalIgnoreCase))
+		{
+			var box = new Rect2(center - new Vector2(radius, radius * 0.82f), new Vector2(radius * 2.0f, radius * 1.64f));
+			DrawRect(box, new Color(color.R, color.G, color.B, 0.26f), true);
+			DrawRect(box, color, false, 1.4f);
+			DrawLine(new Vector2(center.X, box.Position.Y), new Vector2(center.X, box.End.Y), color, 1.0f, true);
+			DrawLine(new Vector2(box.Position.X, center.Y), new Vector2(box.End.X, center.Y), color, 1.0f, true);
+			return;
+		}
+
+		var points = new[]
+		{
+			center + new Vector2(0.0f, -radius),
+			center + new Vector2(radius, 0.0f),
+			center + new Vector2(0.0f, radius),
+			center + new Vector2(-radius, 0.0f)
+		};
+		DrawColoredPolygon(points, new Color(color.R, color.G, color.B, 0.2f));
+		DrawPolyline(ClosePolygon(points), color, 1.4f, true);
 	}
 
 	private void DrawCrewTokens(Font font, BoardLayout layout)
@@ -462,6 +694,12 @@ public partial class SchematicShipGridView : Control
 		return Mathf.Clamp(layout.TileSize * 0.27f, 9.0f, 15.0f);
 	}
 
+	private static float GetRoomSymbolRadius(BoardLayout layout, ShipRoomState room)
+	{
+		var bounds = GetRoomBounds(layout, room);
+		return Mathf.Clamp(Mathf.Min(bounds.Size.X, bounds.Size.Y) * 0.18f, 7.0f, 14.0f);
+	}
+
 	private static Rect2 GetRoomBounds(BoardLayout layout, ShipRoomState room)
 	{
 		var minTileX = room.Tiles[0].X;
@@ -470,6 +708,28 @@ public partial class SchematicShipGridView : Control
 		var maxTileY = room.Tiles[0].Y;
 
 		foreach (var tile in room.Tiles)
+		{
+			minTileX = Mathf.Min(minTileX, tile.X);
+			maxTileX = Mathf.Max(maxTileX, tile.X);
+			minTileY = Mathf.Min(minTileY, tile.Y);
+			maxTileY = Mathf.Max(maxTileY, tile.Y);
+		}
+
+		var topLeft = GetTileRect(layout, minTileX, minTileY).Position;
+		var size = new Vector2(
+			(maxTileX - minTileX + 1) * layout.TileSize,
+			(maxTileY - minTileY + 1) * layout.TileSize);
+		return new Rect2(topLeft, size);
+	}
+
+	private static Rect2 GetTileBounds(BoardLayout layout, IReadOnlyList<Vector2I> tiles)
+	{
+		var minTileX = tiles[0].X;
+		var maxTileX = tiles[0].X;
+		var minTileY = tiles[0].Y;
+		var maxTileY = tiles[0].Y;
+
+		foreach (var tile in tiles)
 		{
 			minTileX = Mathf.Min(minTileX, tile.X);
 			maxTileX = Mathf.Max(maxTileX, tile.X);
@@ -499,7 +759,12 @@ public partial class SchematicShipGridView : Control
 
 	private static Color GetSystemAccentColor(ShipRoomState room)
 	{
-		return room.SystemType switch
+		return GetSystemAccentColor(room.SystemType);
+	}
+
+	private static Color GetSystemAccentColor(string systemType)
+	{
+		return systemType switch
 		{
 			"HelmRigging" => new Color(0.4f, 0.63f, 0.86f),
 			"Cannons" => new Color(0.82f, 0.34f, 0.25f),
@@ -508,6 +773,54 @@ public partial class SchematicShipGridView : Control
 			"DoctorsQuarters" => new Color(0.44f, 0.78f, 0.54f),
 			_ => new Color(0.58f, 0.48f, 0.34f)
 		};
+	}
+
+	private static string GetModuleRoleLabel(string role)
+	{
+		if (string.IsNullOrWhiteSpace(role))
+		{
+			return "Module";
+		}
+
+		return role;
+	}
+
+	private static Color GetModuleRoleColor(string role)
+	{
+		if (string.Equals(role, "Cannon", StringComparison.OrdinalIgnoreCase))
+		{
+			return new Color(0.96f, 0.54f, 0.34f);
+		}
+
+		return string.Equals(role, "Cargo", StringComparison.OrdinalIgnoreCase)
+			? new Color(0.9f, 0.7f, 0.36f)
+			: ModuleBayBorder;
+	}
+
+	private void DrawDashedLine(
+		Vector2 from,
+		Vector2 to,
+		Color color,
+		float width,
+		float dashLength,
+		float gapLength)
+	{
+		var delta = to - from;
+		var length = delta.Length();
+		if (length <= 0.01f)
+		{
+			return;
+		}
+
+		var direction = delta / length;
+		var distance = 0.0f;
+
+		while (distance < length)
+		{
+			var next = Mathf.Min(distance + dashLength, length);
+			DrawLine(from + (direction * distance), from + (direction * next), color, width, true);
+			distance += dashLength + gapLength;
+		}
 	}
 
 	private static Vector2[] ClosePolygon(Vector2[] points)
@@ -531,6 +844,20 @@ public partial class SchematicShipGridView : Control
 		}
 
 		return offsetPoints;
+	}
+
+	private static Vector2[] BuildSpiralPoints(Vector2 center, float radius, int count)
+	{
+		var points = new Vector2[count];
+		for (var i = 0; i < count; i++)
+		{
+			var t = count <= 1 ? 1.0f : i / (count - 1.0f);
+			var angle = -Mathf.Pi * 0.35f + (Mathf.Pi * 3.3f * t);
+			var distance = radius * t;
+			points[i] = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
+		}
+
+		return points;
 	}
 
 	private readonly record struct BoardLayout(Rect2 BoardRect, float TileSize);

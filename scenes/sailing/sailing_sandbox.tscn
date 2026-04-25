@@ -140,6 +140,7 @@ CheckpointsRootPath = NodePath("Course/Checkpoints")
 EncounterContactPath = NodePath("EnemyContact")
 PlayerShipArchetype = ExtResource("5_player_arch")
 EnemyShipArchetype = ExtResource("6_enemy_arch")
+BattleScenePath = "res://scenes/prototypes/schematic_battle_debug.tscn"
 TownPromptRadius = 10.5
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]

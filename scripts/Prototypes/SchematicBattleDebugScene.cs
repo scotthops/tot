@@ -25,6 +25,8 @@ public partial class SchematicBattleDebugScene : Control
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Button _resetButton = null!;
+	private Control _ordersOverlay = null!;
+	private Button _giveEmHellButton = null!;
 	private BattleActionKind? _primaryActionKind;
 	private BattleActionKind? _secondaryActionKind;
 
@@ -41,6 +43,8 @@ public partial class SchematicBattleDebugScene : Control
 		_primaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/PrimaryActionButton");
 		_secondaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/SecondaryActionButton");
 		_resetButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/ResetButton");
+		_ordersOverlay = GetNode<Control>("OrdersOverlay");
+		_giveEmHellButton = GetNode<Button>("OrdersOverlay/MarginContainer/VBoxContainer/ButtonStack/GiveEmHellButton");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
@@ -60,8 +64,11 @@ public partial class SchematicBattleDebugScene : Control
 		_primaryActionButton.Pressed += () => RunAction(_primaryActionKind);
 		_secondaryActionButton.Pressed += () => RunAction(_secondaryActionKind);
 		_resetButton.Pressed += () => ResetBattleState();
+		_giveEmHellButton.Pressed += StartBattleFromOrders;
 
-		ResetBattleState();
+		ConfigureActionButtons([]);
+		_actionStatusLabel.Text = "Awaiting orders.";
+		_giveEmHellButton.GrabFocus();
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -166,6 +173,12 @@ public partial class SchematicBattleDebugScene : Control
 		_actionStatusLabel.Text = string.IsNullOrEmpty(_battleState.OpeningStatusText)
 			? "Schematic battle debug scene ready."
 			: _battleState.OpeningStatusText;
+	}
+
+	private void StartBattleFromOrders()
+	{
+		_ordersOverlay.Visible = false;
+		ResetBattleState();
 	}
 
 	private void RenderBattleViews()

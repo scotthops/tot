@@ -9,6 +9,7 @@ public class ShipGridState
 
 	public List<ShipTileState> Tiles { get; } = new();
 	public List<ShipRoomState> Rooms { get; } = new();
+	public List<ShipModuleBayState> ModuleBays { get; } = new();
 
 	private readonly ShipTileState?[,] _tilesByPosition;
 
