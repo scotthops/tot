@@ -58,6 +58,10 @@ public partial class SailingSandbox : Node3D
 	[Export] public NodePath MerchantButtonPath { get; set; } = new("HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow/MerchantButton");
 	[Export] public NodePath RepairButtonPath { get; set; } = new("HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow/RepairButton");
 	[Export] public NodePath LeaveTownButtonPath { get; set; } = new("HUD/TownPanel/MarginContainer/VBoxContainer/ButtonRow/LeaveTownButton");
+	[Export] public NodePath PauseOverlayPath { get; set; } = new("HUD/PauseOverlay");
+	[Export] public NodePath ResumeButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeButton");
+	[Export] public NodePath RestartButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
+	[Export] public NodePath QuitGameButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
 	[Export] public ShipArchetypeDef? PlayerShipArchetype { get; set; }
 	[Export] public ShipArchetypeDef? EnemyShipArchetype { get; set; }
 	[Export] public string BattleScenePath { get; set; } = "res://scenes/battle/battle_scene.tscn";
@@ -87,6 +91,10 @@ public partial class SailingSandbox : Node3D
 	private Button? _merchantButton;
 	private Button? _repairButton;
 	private Button? _leaveTownButton;
+	private Control? _pauseOverlay;
+	private Button? _resumeButton;
+	private Button? _restartButton;
+	private Button? _quitGameButton;
 	private readonly List<Node3D> _checkpoints = new();
 	private readonly List<GuideSegmentVisual> _guideSegments = new();
 	private readonly Dictionary<Node3D, float> _checkpointRadii = new();
@@ -102,6 +110,7 @@ public partial class SailingSandbox : Node3D
 	private bool _isTownPanelOpen;
 	private bool _isTownDockInRange;
 	private bool _isBoatFallingOffEdge;
+	private bool _isPauseMenuOpen;
 	private StandardMaterial3D? _inactiveCheckpointMaterial;
 	private StandardMaterial3D? _activeCheckpointMaterial;
 	private StandardMaterial3D? _nextCheckpointMaterial;
@@ -127,6 +136,10 @@ public partial class SailingSandbox : Node3D
 		_merchantButton = GetNodeOrNull<Button>(MerchantButtonPath);
 		_repairButton = GetNodeOrNull<Button>(RepairButtonPath);
 		_leaveTownButton = GetNodeOrNull<Button>(LeaveTownButtonPath);
+		_pauseOverlay = GetNodeOrNull<Control>(PauseOverlayPath);
+		_resumeButton = GetNodeOrNull<Button>(ResumeButtonPath);
+		_restartButton = GetNodeOrNull<Button>(RestartButtonPath);
+		_quitGameButton = GetNodeOrNull<Button>(QuitGameButtonPath);
 
 		if (_merchantButton != null)
 		{
@@ -143,6 +156,22 @@ public partial class SailingSandbox : Node3D
 			_leaveTownButton.Pressed += LeaveTown;
 		}
 
+		if (_resumeButton != null)
+		{
+			_resumeButton.Pressed += OnResumePressed;
+		}
+
+		if (_restartButton != null)
+		{
+			_restartButton.Pressed += OnRestartPressed;
+		}
+
+		if (_quitGameButton != null)
+		{
+			_quitGameButton.Pressed += OnQuitGamePressed;
+		}
+
+		SetPauseMenuOpen(false);
 		SetTownPanelOpen(false);
 		BuildHandlingCourse();
 		LoadCheckpoints();
@@ -164,6 +193,18 @@ public partial class SailingSandbox : Node3D
 	public override void _UnhandledInput(InputEvent @event)
 	{
 		if (@event is not InputEventKey { Pressed: true, Echo: false } keyEvent)
+		{
+			return;
+		}
+
+		if (keyEvent.Keycode == Key.Escape)
+		{
+			SetPauseMenuOpen(!_isPauseMenuOpen);
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (_isPauseMenuOpen)
 		{
 			return;
 		}
@@ -313,7 +354,7 @@ public partial class SailingSandbox : Node3D
 		}
 
 		_playerBoat.ResetToStart();
-		_playerBoat.InputEnabled = !_isTownPanelOpen;
+		_playerBoat.InputEnabled = !_isTownPanelOpen && !_isPauseMenuOpen;
 	}
 
 	private bool IsInsidePlayableBounds(Vector3 position)
@@ -1004,7 +1045,7 @@ public partial class SailingSandbox : Node3D
 
 		if (_playerBoat != null)
 		{
-			_playerBoat.InputEnabled = !isOpen;
+			_playerBoat.InputEnabled = !isOpen && !_isPauseMenuOpen;
 		}
 
 		if (_townPanel != null)
@@ -1025,6 +1066,44 @@ public partial class SailingSandbox : Node3D
 		if (isOpen)
 		{
 			_merchantButton?.GrabFocus();
+		}
+	}
+
+	private void OnResumePressed()
+	{
+		SetPauseMenuOpen(false);
+	}
+
+	private void OnRestartPressed()
+	{
+		SetPauseMenuOpen(false);
+		ResetBoatToCourseStart();
+		ResetCourse("Boat and course reset.");
+	}
+
+	private void OnQuitGamePressed()
+	{
+		SetPauseMenuOpen(false);
+		GetTree().Quit();
+	}
+
+	private void SetPauseMenuOpen(bool isOpen)
+	{
+		_isPauseMenuOpen = isOpen;
+
+		if (_pauseOverlay != null)
+		{
+			_pauseOverlay.Visible = isOpen;
+		}
+
+		if (_playerBoat != null)
+		{
+			_playerBoat.InputEnabled = !isOpen && !_isTownPanelOpen && !_isBoatFallingOffEdge;
+		}
+
+		if (isOpen)
+		{
+			_resumeButton?.GrabFocus();
 		}
 	}
 
