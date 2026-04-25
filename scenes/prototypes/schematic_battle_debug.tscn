@@ -1,0 +1,144 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Prototypes/SchematicBattleDebugScene.cs" id="1_debug"]
+[ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_player_layout"]
+[ext_resource type="Resource" path="res://data/ships/enemy_ship_layout.tres" id="4_enemy_layout"]
+
+[node name="SchematicBattleDebugScene" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_debug")
+PlayerLayout = ExtResource("3_player_layout")
+EnemyLayout = ExtResource("4_enemy_layout")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+color = Color(0.035, 0.145, 0.18, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_horizontal = 3
+clip_contents = true
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/StatusPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Schematic Battle Debug"
+clip_text = true
+
+[node name="HintLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Prototype scene: Space tactical pause, Q slow time, R reset"
+modulate = Color(0.74, 0.76, 0.7, 1)
+
+[node name="SelectionDetails" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="SelectionSourceLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+text = "Ship: None"
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 1
+
+[node name="SelectionRoomLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+text = "Room: None"
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 1
+
+[node name="SelectionSystemLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+text = "System: None"
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 3
+
+[node name="ButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PrimaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+text = "Action 1"
+disabled = true
+
+[node name="SecondaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+text = "Action 2"
+disabled = true
+
+[node name="ResetButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+text = "Reset"
+
+[node name="ActionStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+text = "Select a room to see actions."
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 2
+
+[node name="ShipRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 520)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 36
+
+[node name="PlayerShipView" parent="MarginContainer/VBoxContainer/ShipRow" instance=ExtResource("2_schematic_grid")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+clip_contents = true
+
+[node name="EnemyShipView" parent="MarginContainer/VBoxContainer/ShipRow" instance=ExtResource("2_schematic_grid")]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+clip_contents = true

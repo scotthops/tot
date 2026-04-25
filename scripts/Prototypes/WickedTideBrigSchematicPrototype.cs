@@ -36,8 +36,8 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	private static readonly Color LookoutAccent = new(0.86f, 0.72f, 0.28f);
 	private static readonly Color DoctorAccent = new(0.44f, 0.78f, 0.54f);
 	private static readonly Color CannonAccent = new(0.82f, 0.34f, 0.25f);
-	private const int DeckGridColumns = 14;
-	private const int DeckGridRows = 8;
+	private const int DeckGridColumns = 12;
+	private const int DeckGridRows = 7;
 
 	public override void _Ready()
 	{
@@ -89,13 +89,13 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		var legendSpace = canvas.Size.X >= 1120.0f ? 340.0f : 0.0f;
 		var availableWidth = Mathf.Max(520.0f, canvas.Size.X - (sideMargin * 2.0f) - legendSpace);
 		var availableHeight = Mathf.Max(360.0f, canvas.Size.Y - topMargin - 86.0f);
-		var shipWidth = Mathf.Min(1060.0f, availableWidth);
-		var shipHeight = shipWidth / 2.35f;
+		var shipWidth = Mathf.Min(980.0f, availableWidth);
+		var shipHeight = shipWidth / 1.95f;
 
-		if (shipHeight > availableHeight * 0.66f)
+		if (shipHeight > availableHeight * 0.78f)
 		{
-			shipHeight = availableHeight * 0.66f;
-			shipWidth = shipHeight * 2.35f;
+			shipHeight = availableHeight * 0.78f;
+			shipWidth = shipHeight * 1.95f;
 		}
 
 		var x = sideMargin + (availableWidth - shipWidth) * 0.5f;
@@ -105,9 +105,13 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 	private static Rect2 CalculateDeckRect(Rect2 shipRect)
 	{
+		var maxDeckSize = new Vector2(shipRect.Size.X * 0.78f, shipRect.Size.Y * 0.78f);
+		var cellSize = Mathf.Min(maxDeckSize.X / DeckGridColumns, maxDeckSize.Y / DeckGridRows);
+		var deckSize = new Vector2(cellSize * DeckGridColumns, cellSize * DeckGridRows);
+
 		return new Rect2(
-			shipRect.Position + new Vector2(shipRect.Size.X * 0.13f, shipRect.Size.Y * 0.16f),
-			new Vector2(shipRect.Size.X * 0.74f, shipRect.Size.Y * 0.68f));
+			Center(shipRect) - (deckSize * 0.5f),
+			deckSize);
 	}
 
 	private static DeckGrid CreateDeckGrid(Rect2 deckRect)
@@ -117,12 +121,12 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 	private static Rect2 CalculateMastRect(DeckGrid deckGrid)
 	{
-		return deckGrid.RectFor(7, 2, 1, 3).Grow(-4.0f);
+		return deckGrid.RectFor(5, 2, 2, 3).Grow(-4.0f);
 	}
 
 	private static Vector2 CalculateHatchCenter(DeckGrid deckGrid)
 	{
-		return deckGrid.CellCenter(9, 5);
+		return deckGrid.CellCenter(8, 5);
 	}
 
 	private static Rect2 CalculateDoctorInsetRect(DeckGrid deckGrid)
@@ -139,11 +143,11 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	{
 		return new[]
 		{
-			Room(deckGrid, "Helm", "Rigging", 0, 3, 3, 2, HelmAccent, RoomIconKind.Helm),
-			Room(deckGrid, "Cannon Bay A", "Topside", 4, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Cannon Bay B", "Topside", 9, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Crow's Nest", "Mast", 7, 2, 1, 3, LookoutAccent, RoomIconKind.Lookout),
-			Room(deckGrid, "Thread", "Chamber", 11, 3, 3, 2, ThreadAccent, RoomIconKind.Thread)
+			Room(deckGrid, "Helm", "Rigging", 0, 2, 3, 3, HelmAccent, RoomIconKind.Helm),
+			Room(deckGrid, "Cannon Bay A", "Topside", 3, 0, 2, 2, CannonAccent, RoomIconKind.Cannon),
+			Room(deckGrid, "Cannon Bay B", "Topside", 8, 0, 2, 2, CannonAccent, RoomIconKind.Cannon),
+			Room(deckGrid, "Crow's Nest", "Mast", 5, 2, 2, 3, LookoutAccent, RoomIconKind.Lookout),
+			Room(deckGrid, "Thread", "Chamber", 10, 2, 2, 3, ThreadAccent, RoomIconKind.Thread)
 		};
 	}
 
@@ -356,7 +360,7 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		var tileRect = deckGrid.RectFor(column, row, 1, 1).Grow(-2.5f);
 		var isPlayable = IsPlayableTile(column, row);
 		var isBlocked = IsBlockedTile(column, row);
-		var isHatch = column == 9 && row == 5;
+		var isHatch = column == 8 && row == 5;
 		var isRoute = IsRouteTile(column, row);
 		var fill = GetTileFill(room, isPlayable, isBlocked, isHatch, isRoute);
 
@@ -474,37 +478,36 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	{
 		return row switch
 		{
-			0 => column is >= 3 and <= 11,
-			1 => column is >= 3 and <= 12,
-			2 => column is >= 2 and <= 13,
-			3 or 4 => column is >= 0 and <= 13,
-			5 => column is >= 1 and <= 13,
-			6 => column is >= 3 and <= 12,
-			7 => column is >= 4 and <= 12,
+			0 => column is >= 3 and <= 9,
+			1 => column is >= 2 and <= 10,
+			2 => column is >= 0 and <= 11,
+			3 or 4 => column is >= 0 and <= 11,
+			5 => column is >= 2 and <= 10,
+			6 => column is >= 4 and <= 8,
 			_ => false
 		};
 	}
 
 	private static bool IsBlockedTile(int column, int row)
 	{
-		return column == 7 && row is >= 2 and <= 4;
+		return column is >= 5 and <= 6 && row is >= 2 and <= 4;
 	}
 
 	private static bool IsRouteTile(int column, int row)
 	{
-		return (row == 1 && column is >= 6 and <= 9)
-			|| (row == 2 && column is >= 4 and <= 10)
-			|| (row == 3 && (column is >= 3 and <= 6 || column is >= 9 and <= 12))
-			|| (row == 4 && (column is >= 3 and <= 6 || column is >= 9 and <= 12))
-			|| (row == 5 && column is >= 5 and <= 10);
+		return (row == 1 && column is >= 4 and <= 8)
+			|| (row == 2 && (column is >= 3 and <= 4 || column is >= 7 and <= 9))
+			|| (row == 3 && (column is >= 2 and <= 4 || column is >= 7 and <= 10))
+			|| (row == 4 && (column is >= 2 and <= 4 || column is >= 7 and <= 10))
+			|| (row == 5 && column is >= 4 and <= 8);
 	}
 
 	private void DrawDoors(DeckGrid deckGrid)
 	{
-		DrawDoor(deckGrid, 3, 4.5f, true);
-		DrawDoor(deckGrid, 5.5f, 2, false);
-		DrawDoor(deckGrid, 10.5f, 2, false);
-		DrawDoor(deckGrid, 11, 4.5f, true);
+		DrawDoor(deckGrid, 3, 4.0f, true);
+		DrawDoor(deckGrid, 4.0f, 2, false);
+		DrawDoor(deckGrid, 9.0f, 2, false);
+		DrawDoor(deckGrid, 10, 4.0f, true);
 	}
 
 	private void DrawDoor(DeckGrid deckGrid, float column, float row, bool vertical)
@@ -619,20 +622,20 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	{
 		var upperRoute = new[]
 		{
-			deckGrid.CellCenter(3, 3),
-			deckGrid.CellCenter(5, 2),
-			deckGrid.CellCenter(6, 1),
-			deckGrid.CellCenter(9, 1),
-			deckGrid.CellCenter(10, 2),
-			deckGrid.CellCenter(12, 3)
+			deckGrid.CellCenter(2, 3),
+			deckGrid.CellCenter(3, 2),
+			deckGrid.CellCenter(4, 1),
+			deckGrid.CellCenter(8, 1),
+			deckGrid.CellCenter(9, 2),
+			deckGrid.CellCenter(10, 3)
 		};
 		var lowerRoute = new[]
 		{
-			deckGrid.CellCenter(3, 4),
-			deckGrid.CellCenter(5, 5),
-			deckGrid.CellCenter(9, 5),
-			deckGrid.CellCenter(10, 4),
-			deckGrid.CellCenter(12, 4)
+			deckGrid.CellCenter(2, 4),
+			deckGrid.CellCenter(4, 5),
+			deckGrid.CellCenter(8, 5),
+			deckGrid.CellCenter(9, 4),
+			deckGrid.CellCenter(10, 4)
 		};
 
 		DrawRoutePath(upperRoute, new Color(RouteColor.R, RouteColor.G, RouteColor.B, 0.56f));
@@ -641,14 +644,14 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 	private void DrawRoutePath(Vector2[] points, Color color)
 	{
-		DrawPolyline(points, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.28f), 6.0f, true);
-		DrawPolyline(points, new Color(color.R, color.G, color.B, color.A * 0.35f), 4.0f, true);
-		DrawPolyline(points, color, 2.0f, true);
+		DrawPolyline(points, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.22f), 5.0f, true);
+		DrawPolyline(points, new Color(color.R, color.G, color.B, color.A * 0.28f), 3.0f, true);
+		DrawPolyline(points, color, 1.6f, true);
 
 		foreach (var point in points)
 		{
-			DrawCircle(point, 4.0f, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.62f));
-			DrawCircle(point, 2.5f, color.Lightened(0.2f));
+			DrawCircle(point, 3.3f, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.52f));
+			DrawCircle(point, 2.0f, color.Lightened(0.2f));
 		}
 
 		DrawArrowHead(points[^2], points[^1], color.Lightened(0.18f));
@@ -671,7 +674,7 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		return room.Icon switch
 		{
 			RoomIconKind.Helm => "Helm",
-			RoomIconKind.Cannon => "Bay",
+			RoomIconKind.Cannon => "Cannon",
 			RoomIconKind.Lookout => "Nest",
 			RoomIconKind.Thread => "Thread",
 			_ => room.Name
@@ -784,8 +787,8 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	private void DrawCrewTokens(Font font, DeckGrid deckGrid)
 	{
 		DrawCrewToken(font, deckGrid.CellCenter(1, 4), "C", new Color(0.22f, 0.42f, 0.78f));
-		DrawCrewToken(font, deckGrid.CellCenter(6, 3), "M", new Color(0.24f, 0.56f, 0.42f));
-		DrawCrewToken(font, deckGrid.CellCenter(5, 5), "G", new Color(0.78f, 0.48f, 0.2f));
+		DrawCrewToken(font, deckGrid.CellCenter(4, 3), "M", new Color(0.24f, 0.56f, 0.42f));
+		DrawCrewToken(font, deckGrid.CellCenter(7, 5), "G", new Color(0.78f, 0.48f, 0.2f));
 	}
 
 	private void DrawCrewToken(Font font, Vector2 center, string label, Color fill)

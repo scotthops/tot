@@ -1,0 +1,40 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Prototypes/SchematicShipGridViewPrototype.cs" id="1_prototype"]
+[ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
+[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_layout"]
+
+[node name="SchematicShipGridViewPrototype" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_prototype")
+Layout = ExtResource("3_layout")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.035, 0.145, 0.18, 1)
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 28
+
+[node name="SchematicShipGridView" parent="MarginContainer" instance=ExtResource("2_schematic_grid")]
+layout_mode = 2
