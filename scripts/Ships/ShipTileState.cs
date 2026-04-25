@@ -6,6 +6,7 @@ public class ShipTileState
 	public int Y { get; set; }
 	public bool Walkable { get; set; } = true;
 	public string RoomId { get; set; } = "";
+	public ShipTileKind TileKind { get; set; } = ShipTileKind.OpenDeck;
 	public string? OccupiedCrewId { get; set; }
 
 	public ShipTileState(int x, int y)
@@ -13,4 +14,12 @@ public class ShipTileState
 		X = x;
 		Y = y;
 	}
+}
+
+public enum ShipTileKind
+{
+	Outside,
+	OpenDeck,
+	Room,
+	Obstacle
 }

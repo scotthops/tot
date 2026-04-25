@@ -29,7 +29,7 @@ public static class ShipLayoutTopologyValidator
 		if (traversableTiles.Count == 0)
 		{
 			throw new InvalidOperationException(
-				$"Ship layout '{layoutName}' has no traversable tiles. Add at least one room tile to define the ship interior.");
+				$"Ship layout '{layoutName}' has no traversable tiles. Add at least one room or open deck tile to define the ship interior.");
 		}
 
 		var start = default(Vector2I);

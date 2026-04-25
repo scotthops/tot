@@ -25,6 +25,7 @@ public partial class SchematicShipGridView : Control
 	private static readonly Color DeckFill = new(0.68f, 0.43f, 0.19f);
 	private static readonly Color OpenTileFill = new(0.72f, 0.47f, 0.24f, 0.82f);
 	private static readonly Color OutsideTileFill = new(0.17f, 0.095f, 0.045f, 0.36f);
+	private static readonly Color ObstacleTileFill = new(0.11f, 0.07f, 0.045f, 0.92f);
 	private static readonly Color TileLine = new(0.12f, 0.075f, 0.04f, 0.64f);
 	private static readonly Color SelectedBorder = new(1.0f, 0.92f, 0.58f);
 	private static readonly Color ChargeBack = new(0.08f, 0.05f, 0.025f, 0.82f);
@@ -215,15 +216,21 @@ public partial class SchematicShipGridView : Control
 	private void DrawTile(BoardLayout layout, ShipTileState tile, ShipRoomState? room)
 	{
 		var tileRect = GetTileRect(layout, tile.X, tile.Y).Grow(-2.0f);
-		var fill = tile.Walkable
-			? GetTileFill(room)
-			: OutsideTileFill;
+		var fill = GetTileFill(tile, room);
 
 		DrawRect(tileRect, fill, true);
 		DrawRect(tileRect, TileLine, false, 1.0f);
 
 		if (!tile.Walkable)
 		{
+			if (tile.TileKind == ShipTileKind.Obstacle)
+			{
+				DrawRect(tileRect.Grow(-5.0f), new Color(0.72f, 0.52f, 0.28f, 0.24f), false, 2.0f);
+				DrawLine(tileRect.Position + new Vector2(8.0f, 8.0f), tileRect.End - new Vector2(8.0f, 8.0f), new Color(0.92f, 0.74f, 0.42f, 0.34f), 2.0f, true);
+				DrawLine(new Vector2(tileRect.End.X - 8.0f, tileRect.Position.Y + 8.0f), new Vector2(tileRect.Position.X + 8.0f, tileRect.End.Y - 8.0f), new Color(0.92f, 0.74f, 0.42f, 0.34f), 2.0f, true);
+				return;
+			}
+
 			DrawLine(tileRect.Position + new Vector2(6.0f, tileRect.Size.Y - 6.0f), tileRect.End - new Vector2(6.0f, tileRect.Size.Y - 6.0f), new Color(0.05f, 0.035f, 0.025f, 0.28f), 1.0f, true);
 			return;
 		}
@@ -243,8 +250,15 @@ public partial class SchematicShipGridView : Control
 		}
 	}
 
-	private static Color GetTileFill(ShipRoomState? room)
+	private static Color GetTileFill(ShipTileState tile, ShipRoomState? room)
 	{
+		if (!tile.Walkable)
+		{
+			return tile.TileKind == ShipTileKind.Obstacle
+				? ObstacleTileFill
+				: OutsideTileFill;
+		}
+
 		if (room == null)
 		{
 			return OpenTileFill;

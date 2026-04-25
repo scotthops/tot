@@ -16,9 +16,24 @@ public static class ShipStateFactory
 				gridState.AddTile(new ShipTileState(x, y)
 				{
 					Walkable = false,
-					RoomId = ""
+					RoomId = "",
+					TileKind = ShipTileKind.Outside
 				});
 			}
+		}
+
+		foreach (var tilePos in layout.OpenDeckTiles)
+		{
+			var tile = gridState.GetTile(tilePos.X, tilePos.Y);
+			if (tile == null)
+			{
+				GD.PushWarning($"Ship layout '{layout.ShipName}' has out-of-bounds open deck tile {tilePos}.");
+				continue;
+			}
+
+			tile.Walkable = true;
+			tile.RoomId = "";
+			tile.TileKind = ShipTileKind.OpenDeck;
 		}
 
 		foreach (var roomDef in layout.Rooms)
@@ -48,9 +63,29 @@ public static class ShipStateFactory
 
 				tile.Walkable = true;
 				tile.RoomId = roomDef.RoomId;
+				tile.TileKind = ShipTileKind.Room;
 			}
 
 			gridState.Rooms.Add(roomState);
+		}
+
+		foreach (var tilePos in layout.ObstacleTiles)
+		{
+			var tile = gridState.GetTile(tilePos.X, tilePos.Y);
+			if (tile == null)
+			{
+				GD.PushWarning($"Ship layout '{layout.ShipName}' has out-of-bounds obstacle tile {tilePos}.");
+				continue;
+			}
+
+			if (!string.IsNullOrEmpty(tile.RoomId))
+			{
+				GD.PushWarning($"Ship layout '{layout.ShipName}' marks room tile {tilePos} as an obstacle. The obstacle will make it non-walkable.");
+			}
+
+			tile.Walkable = false;
+			tile.RoomId = "";
+			tile.TileKind = ShipTileKind.Obstacle;
 		}
 
 		ShipLayoutTopologyValidator.ValidateOrThrow(layout.ShipName, gridState);

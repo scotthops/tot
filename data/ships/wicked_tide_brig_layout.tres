@@ -1,0 +1,73 @@
+[gd_resource type="Resource" script_class="ShipLayoutDef" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/Data/ShipLayoutDef.cs" id="1_layout"]
+[ext_resource type="Script" path="res://scripts/Data/RoomDef.cs" id="2_room"]
+[ext_resource type="Script" path="res://scripts/Data/ShipModuleBayDef.cs" id="3_bay"]
+
+[sub_resource type="Resource" id="Resource_helm"]
+script = ExtResource("2_room")
+RoomId = "helm"
+DisplayName = "Helm / Rigging"
+SystemType = "HelmRigging"
+Tiles = Array[Vector2i]([Vector2i(0, 3), Vector2i(1, 3), Vector2i(0, 4), Vector2i(1, 4)])
+
+[sub_resource type="Resource" id="Resource_cannon_bay_a"]
+script = ExtResource("2_room")
+RoomId = "cannon_bay_a"
+DisplayName = "Cannon Bay A"
+SystemType = "Cannons"
+Tiles = Array[Vector2i]([Vector2i(3, 0), Vector2i(4, 0), Vector2i(3, 1), Vector2i(4, 1)])
+
+[sub_resource type="Resource" id="Resource_cannon_bay_b"]
+script = ExtResource("2_room")
+RoomId = "cannon_bay_b"
+DisplayName = "Cannon Bay B"
+SystemType = "Cannons"
+Tiles = Array[Vector2i]([Vector2i(8, 0), Vector2i(9, 0), Vector2i(8, 1), Vector2i(9, 1)])
+
+[sub_resource type="Resource" id="Resource_crows_nest"]
+script = ExtResource("2_room")
+RoomId = "crowsnest"
+DisplayName = "Crow's Nest"
+SystemType = "CrowsNest"
+Tiles = Array[Vector2i]([Vector2i(5, 1), Vector2i(6, 1)])
+
+[sub_resource type="Resource" id="Resource_thread"]
+script = ExtResource("2_room")
+RoomId = "thread"
+DisplayName = "Thread Chamber"
+SystemType = "ThreadChamber"
+Tiles = Array[Vector2i]([Vector2i(10, 2), Vector2i(11, 2), Vector2i(10, 3), Vector2i(11, 3), Vector2i(10, 4), Vector2i(11, 4)])
+
+[sub_resource type="Resource" id="Resource_doctor_hatch"]
+script = ExtResource("2_room")
+RoomId = "doctor_hatch"
+DisplayName = "Hatch Down / Doctor's Quarters"
+SystemType = "DoctorsQuarters"
+Tiles = Array[Vector2i]([Vector2i(8, 5)])
+
+[sub_resource type="Resource" id="Resource_module_bay_top_a"]
+script = ExtResource("3_bay")
+BayId = "top_cannon_bay_a"
+DisplayName = "Top Module Bay A"
+DefaultRole = "Cannon"
+AllowedRoles = Array[String](["Cannon", "Cargo"])
+Tiles = Array[Vector2i]([Vector2i(3, 0), Vector2i(4, 0), Vector2i(3, 1), Vector2i(4, 1)])
+
+[sub_resource type="Resource" id="Resource_module_bay_top_b"]
+script = ExtResource("3_bay")
+BayId = "top_cannon_bay_b"
+DisplayName = "Top Module Bay B"
+DefaultRole = "Cannon"
+AllowedRoles = Array[String](["Cannon", "Cargo"])
+Tiles = Array[Vector2i]([Vector2i(8, 0), Vector2i(9, 0), Vector2i(8, 1), Vector2i(9, 1)])
+
+[resource]
+script = ExtResource("1_layout")
+ShipName = "Wicked Tide Brig"
+Width = 12
+Height = 7
+OpenDeckTiles = Array[Vector2i]([Vector2i(5, 0), Vector2i(6, 0), Vector2i(7, 0), Vector2i(2, 1), Vector2i(7, 1), Vector2i(10, 1), Vector2i(0, 2), Vector2i(1, 2), Vector2i(2, 2), Vector2i(3, 2), Vector2i(4, 2), Vector2i(7, 2), Vector2i(8, 2), Vector2i(9, 2), Vector2i(2, 3), Vector2i(3, 3), Vector2i(4, 3), Vector2i(7, 3), Vector2i(8, 3), Vector2i(9, 3), Vector2i(2, 4), Vector2i(3, 4), Vector2i(4, 4), Vector2i(7, 4), Vector2i(8, 4), Vector2i(9, 4), Vector2i(2, 5), Vector2i(3, 5), Vector2i(4, 5), Vector2i(5, 5), Vector2i(6, 5), Vector2i(7, 5), Vector2i(9, 5), Vector2i(10, 5), Vector2i(4, 6), Vector2i(5, 6), Vector2i(6, 6), Vector2i(7, 6), Vector2i(8, 6)])
+ObstacleTiles = Array[Vector2i]([Vector2i(5, 2), Vector2i(6, 2), Vector2i(5, 3), Vector2i(6, 3), Vector2i(5, 4), Vector2i(6, 4)])
+Rooms = Array[Resource]([SubResource("Resource_helm"), SubResource("Resource_cannon_bay_a"), SubResource("Resource_cannon_bay_b"), SubResource("Resource_crows_nest"), SubResource("Resource_thread"), SubResource("Resource_doctor_hatch")])
+ModuleBays = Array[Resource]([SubResource("Resource_module_bay_top_a"), SubResource("Resource_module_bay_top_b")])

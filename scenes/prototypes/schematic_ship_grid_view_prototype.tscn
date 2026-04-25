@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/Prototypes/SchematicShipGridViewPrototype.cs" id="1_prototype"]
 [ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
-[ext_resource type="Resource" path="res://data/ships/player_ship_layout.tres" id="3_layout"]
+[ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="3_layout"]
 
 [node name="SchematicShipGridViewPrototype" type="Control"]
 layout_mode = 3
