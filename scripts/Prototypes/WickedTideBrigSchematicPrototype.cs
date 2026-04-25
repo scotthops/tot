@@ -36,7 +36,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	private static readonly Color LookoutAccent = new(0.86f, 0.72f, 0.28f);
 	private static readonly Color DoctorAccent = new(0.44f, 0.78f, 0.54f);
 	private static readonly Color CannonAccent = new(0.82f, 0.34f, 0.25f);
-	private static readonly Color CargoAccent = new(0.58f, 0.48f, 0.34f);
 	private const int DeckGridColumns = 14;
 	private const int DeckGridRows = 8;
 
@@ -71,7 +70,7 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		DrawMast(font, mastRect);
 		DrawHatchAndDoctorInset(font, hatchCenter, doctorRect);
 		DrawRoomSymbols(font, rooms);
-		DrawCrewTokens(font, rooms);
+		DrawCrewTokens(font, deckGrid);
 		DrawLegend(font, canvas);
 	}
 
@@ -141,14 +140,10 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		return new[]
 		{
 			Room(deckGrid, "Helm", "Rigging", 0, 3, 3, 2, HelmAccent, RoomIconKind.Helm),
-			Room(deckGrid, "Port Bay", "Cannon", 4, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Port Bay", "Cannon", 9, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Stbd Bay", "Cannon", 4, 5, 3, 3, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Stbd Bay", "Cannon", 10, 5, 3, 3, CannonAccent, RoomIconKind.Cannon),
-			Room(deckGrid, "Cargo Stores", "Support", 4, 3, 2, 3, CargoAccent, RoomIconKind.Cargo),
-			Room(deckGrid, "Crow's Nest", "Lookout", 6, 2, 3, 2, LookoutAccent, RoomIconKind.Lookout),
-			Room(deckGrid, "Cargo Bay", "Supplies", 9, 3, 2, 2, CargoAccent, RoomIconKind.Cargo),
-			Room(deckGrid, "Thread", "Chamber", 12, 3, 2, 2, ThreadAccent, RoomIconKind.Thread)
+			Room(deckGrid, "Cannon Bay A", "Topside", 4, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
+			Room(deckGrid, "Cannon Bay B", "Topside", 9, 0, 3, 2, CannonAccent, RoomIconKind.Cannon),
+			Room(deckGrid, "Crow's Nest", "Mast", 7, 2, 1, 3, LookoutAccent, RoomIconKind.Lookout),
+			Room(deckGrid, "Thread", "Chamber", 11, 3, 3, 2, ThreadAccent, RoomIconKind.Thread)
 		};
 	}
 
@@ -492,30 +487,24 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 	private static bool IsBlockedTile(int column, int row)
 	{
-		return (column == 7 && row is >= 2 and <= 4)
-			|| (row is >= 6 and <= 7 && column is >= 5 and <= 6)
-			|| (row is >= 6 and <= 7 && column is >= 11 and <= 12);
+		return column == 7 && row is >= 2 and <= 4;
 	}
 
 	private static bool IsRouteTile(int column, int row)
 	{
-		return (row == 4 && column is >= 2 and <= 5)
-			|| (column == 5 && row == 5)
-			|| (row == 5 && column is >= 5 and <= 9)
-			|| (row == 4 && column is >= 9 and <= 12);
+		return (row == 1 && column is >= 6 and <= 9)
+			|| (row == 2 && column is >= 4 and <= 10)
+			|| (row == 3 && (column is >= 3 and <= 6 || column is >= 9 and <= 12))
+			|| (row == 4 && (column is >= 3 and <= 6 || column is >= 9 and <= 12))
+			|| (row == 5 && column is >= 5 and <= 10);
 	}
 
 	private void DrawDoors(DeckGrid deckGrid)
 	{
-		DrawDoor(deckGrid, 3, 4, true);
-		DrawDoor(deckGrid, 6, 4, true);
-		DrawDoor(deckGrid, 9, 4, true);
-		DrawDoor(deckGrid, 12, 4, true);
+		DrawDoor(deckGrid, 3, 4.5f, true);
 		DrawDoor(deckGrid, 5.5f, 2, false);
 		DrawDoor(deckGrid, 10.5f, 2, false);
-		DrawDoor(deckGrid, 5.5f, 5, false);
-		DrawDoor(deckGrid, 11.5f, 5, false);
-		DrawDoor(deckGrid, 8.5f, 5, false);
+		DrawDoor(deckGrid, 11, 4.5f, true);
 	}
 
 	private void DrawDoor(DeckGrid deckGrid, float column, float row, bool vertical)
@@ -628,30 +617,41 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 	private void DrawRouteCue(DeckGrid deckGrid)
 	{
-		var start = deckGrid.CellCenter(2, 4);
-		var end = deckGrid.CellCenter(12, 4);
-		var points = new[]
+		var upperRoute = new[]
 		{
-			start,
-			deckGrid.CellCenter(5, 4),
+			deckGrid.CellCenter(3, 3),
+			deckGrid.CellCenter(5, 2),
+			deckGrid.CellCenter(6, 1),
+			deckGrid.CellCenter(9, 1),
+			deckGrid.CellCenter(10, 2),
+			deckGrid.CellCenter(12, 3)
+		};
+		var lowerRoute = new[]
+		{
+			deckGrid.CellCenter(3, 4),
 			deckGrid.CellCenter(5, 5),
 			deckGrid.CellCenter(9, 5),
-			deckGrid.CellCenter(9, 4),
-			end
+			deckGrid.CellCenter(10, 4),
+			deckGrid.CellCenter(12, 4)
 		};
 
-		DrawPolyline(points, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.32f), 6.0f, true);
-		DrawPolyline(points, new Color(0.98f, 0.86f, 0.52f, 0.2f), 4.0f, true);
-		DrawPolyline(points, new Color(RouteColor.R, RouteColor.G, RouteColor.B, 0.62f), 2.0f, true);
+		DrawRoutePath(upperRoute, new Color(RouteColor.R, RouteColor.G, RouteColor.B, 0.56f));
+		DrawRoutePath(lowerRoute, new Color(0.98f, 0.86f, 0.52f, 0.68f));
+	}
+
+	private void DrawRoutePath(Vector2[] points, Color color)
+	{
+		DrawPolyline(points, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.28f), 6.0f, true);
+		DrawPolyline(points, new Color(color.R, color.G, color.B, color.A * 0.35f), 4.0f, true);
+		DrawPolyline(points, color, 2.0f, true);
 
 		foreach (var point in points)
 		{
-			DrawCircle(point, 4.0f, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.7f));
-			DrawCircle(point, 2.5f, new Color(RouteColor.R, RouteColor.G, RouteColor.B, 0.82f));
+			DrawCircle(point, 4.0f, new Color(RouteShadow.R, RouteShadow.G, RouteShadow.B, 0.62f));
+			DrawCircle(point, 2.5f, color.Lightened(0.2f));
 		}
 
-		DrawArrowHead(points[2], points[3], new Color(0.98f, 0.86f, 0.52f, 0.86f));
-		DrawArrowHead(points[^2], points[^1], RouteColor);
+		DrawArrowHead(points[^2], points[^1], color.Lightened(0.18f));
 	}
 
 	private static Vector2 GetRoomSymbolCenter(RoomBox room)
@@ -661,7 +661,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		return room.Icon switch
 		{
 			RoomIconKind.Cannon when room.Height >= 3 => center + new Vector2(0.0f, room.Rect.Size.Y * -0.08f),
-			RoomIconKind.Cargo when room.Width <= 2 => center + new Vector2(0.0f, room.Rect.Size.Y * -0.08f),
 			RoomIconKind.Lookout => center + new Vector2(0.0f, room.Rect.Size.Y * 0.08f),
 			_ => center
 		};
@@ -673,7 +672,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		{
 			RoomIconKind.Helm => "Helm",
 			RoomIconKind.Cannon => "Bay",
-			RoomIconKind.Cargo => "Cargo",
 			RoomIconKind.Lookout => "Nest",
 			RoomIconKind.Thread => "Thread",
 			_ => room.Name
@@ -697,9 +695,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 				break;
 			case RoomIconKind.Cannon:
 				DrawCannonIcon(center, radius, ink, shadow);
-				break;
-			case RoomIconKind.Cargo:
-				DrawCargoIcon(center, radius, ink, shadow);
 				break;
 			case RoomIconKind.Lookout:
 				DrawLookoutIcon(center, radius, ink, shadow);
@@ -746,17 +741,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		DrawCircle(center + new Vector2(radius * 0.85f, -radius * 0.42f), radius * 0.14f, ink);
 	}
 
-	private void DrawCargoIcon(Vector2 center, float radius, Color ink, Color shadow)
-	{
-		var box = new Rect2(center - new Vector2(radius * 0.62f, radius * 0.54f), new Vector2(radius * 1.24f, radius * 1.08f));
-		DrawRect(new Rect2(box.Position + new Vector2(2.0f, 3.0f), box.Size), shadow, true);
-		DrawRect(box, new Color(0.28f, 0.17f, 0.08f, 0.62f), true);
-		DrawRect(box, ink, false, 2.0f);
-		DrawLine(box.Position, box.End, ink, 1.6f, true);
-		DrawLine(new Vector2(box.End.X, box.Position.Y), new Vector2(box.Position.X, box.End.Y), ink, 1.6f, true);
-		DrawLine(new Vector2(box.Position.X, center.Y), new Vector2(box.End.X, center.Y), ink, 1.4f, true);
-	}
-
 	private void DrawLookoutIcon(Vector2 center, float radius, Color ink, Color shadow)
 	{
 		DrawLine(center + new Vector2(2.0f, -radius * 0.94f), center + new Vector2(2.0f, radius * 0.96f), shadow, 5.0f, true);
@@ -797,11 +781,11 @@ public partial class WickedTideBrigSchematicPrototype : Control
 		DrawLine(center + new Vector2(0.0f, -radius * 0.48f), center + new Vector2(0.0f, radius * 0.48f), ink, 3.0f, true);
 	}
 
-	private void DrawCrewTokens(Font font, RoomBox[] rooms)
+	private void DrawCrewTokens(Font font, DeckGrid deckGrid)
 	{
-		DrawCrewToken(font, rooms[0].Rect.Position + new Vector2(22.0f, 24.0f), "C", new Color(0.22f, 0.42f, 0.78f));
-		DrawCrewToken(font, rooms[6].Rect.Position + new Vector2(22.0f, rooms[6].Rect.Size.Y - 20.0f), "M", new Color(0.24f, 0.56f, 0.42f));
-		DrawCrewToken(font, rooms[5].Rect.End - new Vector2(22.0f, 22.0f), "G", new Color(0.78f, 0.48f, 0.2f));
+		DrawCrewToken(font, deckGrid.CellCenter(1, 4), "C", new Color(0.22f, 0.42f, 0.78f));
+		DrawCrewToken(font, deckGrid.CellCenter(6, 3), "M", new Color(0.24f, 0.56f, 0.42f));
+		DrawCrewToken(font, deckGrid.CellCenter(5, 5), "G", new Color(0.78f, 0.48f, 0.2f));
 	}
 
 	private void DrawCrewToken(Font font, Vector2 center, string label, Color fill)
@@ -836,10 +820,9 @@ public partial class WickedTideBrigSchematicPrototype : Control
 
 		var y = rect.Position.Y + 92.0f;
 		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Helm, HelmAccent, "Helm / Rigging");
-		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Cannon, CannonAccent, "Broadside modules");
-		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Lookout, LookoutAccent, "Crow's Nest / lookout");
+		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Cannon, CannonAccent, "2 top cannon bays");
+		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Lookout, LookoutAccent, "Crow's Nest / mast");
 		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Thread, ThreadAccent, "Thread Chamber");
-		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Cargo, CargoAccent, "Cargo / support");
 		DrawLegendItem(font, rect.Position.X + 18.0f, ref y, RoomIconKind.Doctor, DoctorAccent, "Below-deck doctor");
 
 		y += 10.0f;
@@ -1009,7 +992,6 @@ public partial class WickedTideBrigSchematicPrototype : Control
 	{
 		Helm,
 		Cannon,
-		Cargo,
 		Lookout,
 		Thread,
 		Doctor
