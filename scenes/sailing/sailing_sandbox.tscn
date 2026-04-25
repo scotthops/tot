@@ -241,6 +241,7 @@ mesh = SubResource("BoxMesh_rock")
 surface_material_override/0 = SubResource("StandardMaterial3D_rock")
 
 [node name="ReferenceMarkers" type="Node3D" parent="."]
+visible = false
 
 [node name="MarkerNorth" type="MeshInstance3D" parent="ReferenceMarkers"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, -28)
@@ -263,7 +264,7 @@ mesh = SubResource("BoxMesh_marker")
 surface_material_override/0 = SubResource("StandardMaterial3D_marker")
 
 [node name="TownDock" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0.18, -16)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 0.18, -90)
 
 [node name="Island" type="MeshInstance3D" parent="TownDock"]
 transform = Transform3D(4.8, 0, 0, 0, 0.6, 0, 0, 0, 3.4, 0, 0.05, 0)
@@ -291,7 +292,7 @@ surface_material_override/0 = SubResource("StandardMaterial3D_marker")
 shape = SubResource("SphereShape3D_town_range")
 
 [node name="EnemyContact" type="Node3D" parent="."]
-transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, 12, 0.16, -24)
+transform = Transform3D(0.906308, 0, 0.422618, 0, 1, 0, -0.422618, 0, 0.906308, 82, 0.16, -38)
 
 [node name="Visuals" type="Node3D" parent="EnemyContact"]
 
