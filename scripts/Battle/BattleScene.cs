@@ -32,6 +32,7 @@ public partial class BattleScene : Control
 	private Label _actionStatusLabel = null!;
 	private Control _pauseOverlay = null!;
 	private Button _resumeButton = null!;
+	private Button _resumeSailingButton = null!;
 	private Button _restartButton = null!;
 	private Button _quitGameButton = null!;
 	private bool _isPauseMenuOpen;
@@ -51,6 +52,7 @@ public partial class BattleScene : Control
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/SelectionPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
 		_pauseOverlay = GetNode<Control>("PauseOverlay");
 		_resumeButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeButton");
+		_resumeSailingButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeSailingButton");
 		_restartButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
 		_quitGameButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
 
@@ -65,6 +67,7 @@ public partial class BattleScene : Control
 		_primaryActionButton.Pressed += OnPrimaryActionPressed;
 		_secondaryActionButton.Pressed += OnSecondaryActionPressed;
 		_resumeButton.Pressed += OnResumePressed;
+		_resumeSailingButton.Pressed += OnResumeSailingPressed;
 		_restartButton.Pressed += OnRestartPressed;
 		_quitGameButton.Pressed += OnQuitGamePressed;
 		_playerShipView.UsePlayerCannonBarPalette = true;
@@ -342,6 +345,12 @@ public partial class BattleScene : Control
 		SetPauseMenuOpen(false);
 	}
 
+	private void OnResumeSailingPressed()
+	{
+		SetPauseMenuOpen(false);
+		ReturnToSailing();
+	}
+
 	private void OnRestartPressed()
 	{
 		SetPauseMenuOpen(false);
@@ -445,6 +454,11 @@ public partial class BattleScene : Control
 		{
 			_actionStatusLabel.Text = $"Could not return to sailing: {sceneChangeError}.";
 		}
+	}
+
+	private bool CanReturnToSailing()
+	{
+		return !string.IsNullOrWhiteSpace(_activeEncounterData?.ReturnScenePath);
 	}
 
 	private static Color GetArchetypeTint(ShipArchetypeDef? archetype, Color fallback)
@@ -622,6 +636,7 @@ public partial class BattleScene : Control
 	{
 		_isPauseMenuOpen = isOpen;
 		_pauseOverlay.Visible = isOpen;
+		_resumeSailingButton.Visible = CanReturnToSailing();
 		if (isOpen)
 		{
 			_resumeButton.GrabFocus();

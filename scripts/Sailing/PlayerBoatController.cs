@@ -13,6 +13,13 @@ public partial class PlayerBoatController : Node3D
 	[Export] public float ForwardAcceleration { get; set; } = 16.0f;
 	[Export] public float ReverseAcceleration { get; set; } = 8.0f;
 
+	[ExportGroup("Boost")]
+	[Export] public float BoostAccelerationMultiplier { get; set; } = 1.35f;
+	[Export] public float BoostMaxForwardSpeedMultiplier { get; set; } = 1.22f;
+	[Export] public float BoostDurationSeconds { get; set; } = 1.25f;
+	[Export] public float BoostRechargeSeconds { get; set; } = 6.0f;
+	[Export] public float BoostRechargeDelaySeconds { get; set; } = 0.75f;
+
 	[ExportGroup("Handling")]
 	[Export] public float TurnDegreesPerSecond { get; set; } = 82.0f;
 	[Export] public float TurnInputResponsiveness { get; set; } = 7.0f;
@@ -45,6 +52,11 @@ public partial class PlayerBoatController : Node3D
 
 	public Vector3 Velocity => _velocity;
 	public float Speed => new Vector2(_velocity.X, _velocity.Z).Length();
+	public float BoostChargeRatio => BoostDurationSeconds <= 0.0f
+		? 0.0f
+		: Mathf.Clamp(_boostChargeSeconds / BoostDurationSeconds, 0.0f, 1.0f);
+	public bool IsBoosting => _isBoosting;
+	public bool IsFallingOffEdge => _isFallingOffEdge;
 
 	private Node3D? _visualRoot;
 	private Vector3 _visualRestPosition;
@@ -60,6 +72,14 @@ public partial class PlayerBoatController : Node3D
 	private float _waveBob;
 	private float _wavePitch;
 	private float _waveRoll;
+	private float _boostChargeSeconds;
+	private float _boostRechargeDelayTimer;
+	private bool _isBoosting;
+	private bool _boostBlockedUntilReleased;
+	private float _fallVerticalSpeed;
+	private float _fallPitchSpeed;
+	private float _fallRollSpeed;
+	private bool _isFallingOffEdge;
 
 	public override void _Ready()
 	{
@@ -79,24 +99,64 @@ public partial class PlayerBoatController : Node3D
 		_startYaw = Rotation.Y;
 		_waterHeight = GlobalPosition.Y;
 		_yaw = _startYaw;
+		ResetBoost();
 	}
 
 	public override void _Process(double delta)
 	{
 		var deltaSeconds = (float)delta;
-		var throttleInput = InputEnabled ? GetThrottleInput() : 0.0f;
-		var turnInput = InputEnabled ? GetTurnInput() : 0.0f;
-		var hardBrakeHeld = InputEnabled && Input.IsKeyPressed(Key.Space);
 
-		var forward = GetFlatForward();
-
-		if (Mathf.Abs(throttleInput) > 0.01f)
+		if (_isFallingOffEdge)
 		{
-			var acceleration = throttleInput > 0.0f ? ForwardAcceleration : ReverseAcceleration;
-			_velocity += forward * throttleInput * acceleration * deltaSeconds;
+			UpdateFallOffEdge(deltaSeconds);
+			return;
 		}
 
-		var forwardSpeed = ApplyPlanarDrag(forward, throttleInput, hardBrakeHeld, deltaSeconds);
+		var throttleInput = InputEnabled ? GetThrottleInput() : 0.0f;
+		var turnInput = InputEnabled ? GetTurnInput() : 0.0f;
+		var hardBrakeHeld = InputEnabled && Input.IsKeyPressed(Key.Shift);
+		var boostRequested = InputEnabled && IsBoostInputHeld();
+
+		var forward = GetFlatForward();
+		var forwardSpeedBeforeAcceleration = _velocity.Dot(forward);
+		var boostActive = UpdateBoost(
+			boostRequested,
+			throttleInput,
+			forwardSpeedBeforeAcceleration,
+			hardBrakeHeld,
+			deltaSeconds);
+		var maxForwardSpeed = GetMaxForwardSpeed(boostActive);
+		var accelerationThrottleInput = boostActive && throttleInput <= 0.01f
+			? 1.0f
+			: throttleInput;
+
+		if (Mathf.Abs(accelerationThrottleInput) > 0.01f)
+		{
+			var isForwardAcceleration = accelerationThrottleInput > 0.0f;
+			var canAccelerate = !isForwardAcceleration ||
+				boostActive ||
+				forwardSpeedBeforeAcceleration < maxForwardSpeed;
+
+			if (canAccelerate)
+			{
+				var acceleration = isForwardAcceleration ? ForwardAcceleration : ReverseAcceleration;
+				if (boostActive && isForwardAcceleration)
+				{
+					acceleration *= Mathf.Max(1.0f, BoostAccelerationMultiplier);
+				}
+
+				_velocity += forward * accelerationThrottleInput * acceleration * deltaSeconds;
+			}
+		}
+
+		var shouldCoastDownFromBoost = !boostActive && forwardSpeedBeforeAcceleration > maxForwardSpeed;
+		var forwardSpeed = ApplyPlanarDrag(
+			forward,
+			accelerationThrottleInput,
+			hardBrakeHeld,
+			deltaSeconds,
+			maxForwardSpeed,
+			shouldCoastDownFromBoost);
 		ApplyTurning(turnInput, throttleInput, forwardSpeed, deltaSeconds);
 
 		var nextPosition = GlobalPosition + (_velocity * deltaSeconds);
@@ -118,6 +178,11 @@ public partial class PlayerBoatController : Node3D
 		_waveBob = 0.0f;
 		_wavePitch = 0.0f;
 		_waveRoll = 0.0f;
+		ResetBoost();
+		_isFallingOffEdge = false;
+		_fallVerticalSpeed = 0.0f;
+		_fallPitchSpeed = 0.0f;
+		_fallRollSpeed = 0.0f;
 		GlobalPosition = _startPosition;
 		Rotation = new Vector3(0.0f, _yaw, 0.0f);
 
@@ -126,6 +191,37 @@ public partial class PlayerBoatController : Node3D
 			_visualRoot.Position = _visualRestPosition;
 			_visualRoot.Rotation = Vector3.Zero;
 		}
+	}
+
+	public void BeginFallOffEdge()
+	{
+		if (_isFallingOffEdge)
+		{
+			return;
+		}
+
+		_isFallingOffEdge = true;
+		_isBoosting = false;
+		_boostBlockedUntilReleased = true;
+		_boostRechargeDelayTimer = Mathf.Max(0.0f, BoostRechargeDelaySeconds);
+		_fallVerticalSpeed = 2.5f;
+		_fallPitchSpeed = DegreesToRadians(74.0f);
+		_fallRollSpeed = DegreesToRadians(GlobalPosition.X >= 0.0f ? -112.0f : 112.0f);
+	}
+
+	private void UpdateFallOffEdge(float deltaSeconds)
+	{
+		_velocity = _velocity.MoveToward(Vector3.Zero, CoastDrag * 0.45f * deltaSeconds);
+		_fallVerticalSpeed += 11.0f * deltaSeconds;
+
+		GlobalPosition += new Vector3(
+			_velocity.X,
+			-_fallVerticalSpeed,
+			_velocity.Z) * deltaSeconds;
+		Rotation += new Vector3(
+			_fallPitchSpeed * deltaSeconds,
+			0.0f,
+			_fallRollSpeed * deltaSeconds);
 	}
 
 	private void ApplyTurning(float turnInput, float throttleInput, float forwardSpeed, float deltaSeconds)
@@ -148,14 +244,28 @@ public partial class PlayerBoatController : Node3D
 		Rotation = new Vector3(0.0f, _yaw, 0.0f);
 	}
 
-	private float ApplyPlanarDrag(Vector3 forward, float throttleInput, bool hardBrakeHeld, float deltaSeconds)
+	private float ApplyPlanarDrag(
+		Vector3 forward,
+		float throttleInput,
+		bool hardBrakeHeld,
+		float deltaSeconds,
+		float maxForwardSpeed,
+		bool shouldCoastDownFromBoost)
 	{
 		var forwardSpeed = _velocity.Dot(forward);
 		var lateralVelocity = _velocity - (forward * forwardSpeed);
 		var drag = Mathf.Abs(throttleInput) > 0.01f ? ActiveDrag : CoastDrag;
+		var cappedMaxForwardSpeed = Mathf.Max(0.01f, maxForwardSpeed);
 
 		forwardSpeed = Mathf.MoveToward(forwardSpeed, 0.0f, drag * deltaSeconds);
-		forwardSpeed = Mathf.Clamp(forwardSpeed, -MaxReverseSpeed, MaxForwardSpeed);
+		forwardSpeed = Mathf.Max(forwardSpeed, -MaxReverseSpeed);
+		if (forwardSpeed > cappedMaxForwardSpeed)
+		{
+			forwardSpeed = shouldCoastDownFromBoost
+				? Mathf.MoveToward(forwardSpeed, cappedMaxForwardSpeed, Mathf.Max(drag, CoastDrag) * deltaSeconds)
+				: cappedMaxForwardSpeed;
+		}
+
 		lateralVelocity = lateralVelocity.MoveToward(Vector3.Zero, LateralDrag * deltaSeconds);
 
 		if (hardBrakeHeld)
@@ -167,6 +277,79 @@ public partial class PlayerBoatController : Node3D
 		_velocity = (forward * forwardSpeed) + lateralVelocity;
 
 		return forwardSpeed;
+	}
+
+	private bool UpdateBoost(
+		bool boostRequested,
+		float throttleInput,
+		float forwardSpeed,
+		bool hardBrakeHeld,
+		float deltaSeconds)
+	{
+		var boostCapacity = Mathf.Max(0.0f, BoostDurationSeconds);
+		if (boostCapacity <= 0.0f)
+		{
+			_isBoosting = false;
+			_boostChargeSeconds = 0.0f;
+			return false;
+		}
+
+		if (!boostRequested)
+		{
+			_boostBlockedUntilReleased = false;
+		}
+
+		var canApplyBoost = boostRequested &&
+			!_boostBlockedUntilReleased &&
+			_boostChargeSeconds > 0.0f &&
+			!hardBrakeHeld &&
+			throttleInput >= -0.01f &&
+			forwardSpeed >= 0.0f &&
+			(throttleInput > 0.01f || forwardSpeed > 0.25f);
+
+		if (canApplyBoost)
+		{
+			_isBoosting = true;
+			_boostChargeSeconds = Mathf.Max(0.0f, _boostChargeSeconds - deltaSeconds);
+			_boostRechargeDelayTimer = Mathf.Max(0.0f, BoostRechargeDelaySeconds);
+
+			if (_boostChargeSeconds <= 0.0f)
+			{
+				_boostBlockedUntilReleased = true;
+			}
+
+			return true;
+		}
+
+		_isBoosting = false;
+		if (_boostRechargeDelayTimer > 0.0f)
+		{
+			_boostRechargeDelayTimer = Mathf.Max(0.0f, _boostRechargeDelayTimer - deltaSeconds);
+			return false;
+		}
+
+		var rechargeSeconds = Mathf.Max(0.01f, BoostRechargeSeconds);
+		_boostChargeSeconds = Mathf.Min(
+			boostCapacity,
+			_boostChargeSeconds + (boostCapacity / rechargeSeconds * deltaSeconds));
+		return false;
+	}
+
+	private float GetMaxForwardSpeed(bool boostActive)
+	{
+		var multiplier = boostActive
+			? Mathf.Max(1.0f, BoostMaxForwardSpeedMultiplier)
+			: 1.0f;
+
+		return MaxForwardSpeed * multiplier;
+	}
+
+	private void ResetBoost()
+	{
+		_boostChargeSeconds = Mathf.Max(0.0f, BoostDurationSeconds);
+		_boostRechargeDelayTimer = 0.0f;
+		_isBoosting = false;
+		_boostBlockedUntilReleased = false;
 	}
 
 	private void UpdateWavePresentation(float deltaSeconds)
@@ -257,6 +440,11 @@ public partial class PlayerBoatController : Node3D
 		}
 
 		return Mathf.Clamp(input, -1.0f, 1.0f);
+	}
+
+	private static bool IsBoostInputHeld()
+	{
+		return Input.IsKeyPressed(Key.Space);
 	}
 
 	private static float DegreesToRadians(float degrees)

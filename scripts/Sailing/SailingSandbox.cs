@@ -44,7 +44,9 @@ public partial class SailingSandbox : Node3D
 	};
 
 	[Export] public NodePath PlayerBoatPath { get; set; } = new("PlayerBoat");
-	[Export] public NodePath HudLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/InfoLabel");
+	[Export] public NodePath HudLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/InfoLabel");
+	[Export] public NodePath BoostBarPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/BoostBar");
+	[Export] public NodePath BoostLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/BoostLabel");
 	[Export] public NodePath CheckpointsRootPath { get; set; } = new("Course/Checkpoints");
 	[Export] public NodePath EncounterContactPath { get; set; } = new("EnemyContact");
 	[Export] public NodePath TownDockPath { get; set; } = new("TownDock");
@@ -62,12 +64,19 @@ public partial class SailingSandbox : Node3D
 	[Export] public string ReturnScenePath { get; set; } = "res://scenes/sailing/sailing_sandbox.tscn";
 	[Export] public string TownName { get; set; } = "Saltwind Harbor";
 	[Export] public float CheckpointRadius { get; set; } = 4.25f;
-	[Export] public float EncounterPromptRadius { get; set; } = 9.0f;
+	[Export] public float EncounterPromptRadius { get; set; } = 22.0f;
 	[Export] public float TownPromptRadius { get; set; } = 7.5f;
 	[Export] public float FeedbackSeconds { get; set; } = 1.8f;
+	[Export] public float PlayableMinX { get; set; } = -132.0f;
+	[Export] public float PlayableMaxX { get; set; } = 132.0f;
+	[Export] public float PlayableMinZ { get; set; } = -132.0f;
+	[Export] public float PlayableMaxZ { get; set; } = 132.0f;
+	[Export] public float FallResetDelaySeconds { get; set; } = 1.6f;
 
 	private PlayerBoatController? _playerBoat;
 	private Label? _hudLabel;
+	private ProgressBar? _boostBar;
+	private Label? _boostLabel;
 	private Node3D? _encounterContact;
 	private Node3D? _townDock;
 	private Control? _townPromptPanel;
@@ -86,9 +95,13 @@ public partial class SailingSandbox : Node3D
 	private int _lapCount;
 	private float _feedbackTimer;
 	private string _feedbackText = "Find checkpoint 1.";
+	private float _hudStatusTimer;
+	private string _hudStatusText = string.Empty;
+	private float _fallResetTimer;
 	private bool _encounterTriggered;
 	private bool _isTownPanelOpen;
 	private bool _isTownDockInRange;
+	private bool _isBoatFallingOffEdge;
 	private StandardMaterial3D? _inactiveCheckpointMaterial;
 	private StandardMaterial3D? _activeCheckpointMaterial;
 	private StandardMaterial3D? _nextCheckpointMaterial;
@@ -102,6 +115,8 @@ public partial class SailingSandbox : Node3D
 	{
 		_playerBoat = GetNodeOrNull<PlayerBoatController>(PlayerBoatPath);
 		_hudLabel = GetNodeOrNull<Label>(HudLabelPath);
+		_boostBar = GetNodeOrNull<ProgressBar>(BoostBarPath);
+		_boostLabel = GetNodeOrNull<Label>(BoostLabelPath);
 		_encounterContact = GetNodeOrNull<Node3D>(EncounterContactPath);
 		_townDock = GetNodeOrNull<Node3D>(TownDockPath);
 		_townPromptPanel = GetNodeOrNull<Control>(TownPromptPanelPath);
@@ -137,8 +152,12 @@ public partial class SailingSandbox : Node3D
 
 	public override void _Process(double delta)
 	{
+		var deltaSeconds = (float)delta;
+
+		UpdateHudStatus(deltaSeconds);
 		UpdateTownInteraction();
-		UpdateCourse((float)delta);
+		UpdateEdgeFall(deltaSeconds);
+		UpdateCourse(deltaSeconds);
 		UpdateHud();
 	}
 
@@ -154,15 +173,15 @@ public partial class SailingSandbox : Node3D
 			return;
 		}
 
-		if (keyEvent.Keycode == Key.R || keyEvent.PhysicalKeycode == Key.R)
+		if (_isBoatFallingOffEdge)
 		{
-			_playerBoat?.ResetToStart();
-			ResetCourse("Boat and course reset.");
+			return;
 		}
 
-		if (keyEvent.Keycode == Key.C || keyEvent.PhysicalKeycode == Key.C)
+		if (keyEvent.Keycode == Key.R || keyEvent.PhysicalKeycode == Key.R)
 		{
-			ResetCourse("Course reset.");
+			ResetBoatToCourseStart();
+			ResetCourse("Boat and course reset.");
 		}
 
 		if (keyEvent.Keycode == Key.E || keyEvent.PhysicalKeycode == Key.E)
@@ -207,7 +226,7 @@ public partial class SailingSandbox : Node3D
 			_feedbackTimer = Mathf.Max(0.0f, _feedbackTimer - deltaSeconds);
 		}
 
-		if (_playerBoat == null || _checkpoints.Count == 0)
+		if (_isBoatFallingOffEdge || _playerBoat == null || _checkpoints.Count == 0)
 		{
 			return;
 		}
@@ -251,14 +270,90 @@ public partial class SailingSandbox : Node3D
 		UpdateCheckpointVisuals();
 	}
 
+	private void UpdateEdgeFall(float deltaSeconds)
+	{
+		if (_playerBoat == null)
+		{
+			return;
+		}
+
+		if (_isBoatFallingOffEdge)
+		{
+			_fallResetTimer -= deltaSeconds;
+			if (_fallResetTimer > 0.0f)
+			{
+				return;
+			}
+
+			ResetBoatToCourseStart();
+			ResetCourse("Back on the water.");
+			return;
+		}
+
+		if (IsInsidePlayableBounds(_playerBoat.GlobalPosition))
+		{
+			return;
+		}
+
+		_isBoatFallingOffEdge = true;
+		_fallResetTimer = Mathf.Max(0.1f, FallResetDelaySeconds);
+		_playerBoat.InputEnabled = false;
+		_playerBoat.BeginFallOffEdge();
+		ShowHudStatus("Off the edge! Resetting...");
+	}
+
+	private void ResetBoatToCourseStart()
+	{
+		_isBoatFallingOffEdge = false;
+		_fallResetTimer = 0.0f;
+
+		if (_playerBoat == null)
+		{
+			return;
+		}
+
+		_playerBoat.ResetToStart();
+		_playerBoat.InputEnabled = !_isTownPanelOpen;
+	}
+
+	private bool IsInsidePlayableBounds(Vector3 position)
+	{
+		return position.X >= PlayableMinX &&
+			position.X <= PlayableMaxX &&
+			position.Z >= PlayableMinZ &&
+			position.Z <= PlayableMaxZ;
+	}
+
 	private void ShowFeedback(string message)
 	{
 		_feedbackText = message;
 		_feedbackTimer = FeedbackSeconds;
 	}
 
+	private void ShowHudStatus(string message)
+	{
+		_hudStatusText = message;
+		_hudStatusTimer = FeedbackSeconds;
+	}
+
+	private void UpdateHudStatus(float deltaSeconds)
+	{
+		if (_hudStatusTimer <= 0.0f)
+		{
+			return;
+		}
+
+		_hudStatusTimer = Mathf.Max(0.0f, _hudStatusTimer - deltaSeconds);
+		if (_hudStatusTimer <= 0.0f)
+		{
+			_hudStatusText = string.Empty;
+		}
+	}
+
 	private void UpdateHud()
 	{
+		UpdateBoostHud();
+
 		if (_hudLabel == null)
 		{
 			return;
@@ -269,18 +364,29 @@ public partial class SailingSandbox : Node3D
 			: $"Speed: {_playerBoat.Speed:0.0}";
 		var courseText = GetCourseHudText();
 
-		_hudLabel.Text = "Sailing Sandbox\n"
-			+ "Goal: weave through the buoy course\n"
-			+ "W / Up: accelerate\n"
-			+ "S / Down: brake or reverse\n"
-			+ "A/D or Left/Right: turn\n"
-			+ "Space: hard brake\n"
-			+ "R: reset boat + course\n"
-			+ "C: reset course only\n"
-			+ "E: engage contact\n"
-			+ speedText + "\n"
+		_hudLabel.Text = "Sailing Demo\n"
 			+ courseText + "\n"
-			+ GetEncounterHudText();
+			+ speedText + "\n"
+			+ GetEncounterHudText() + "\n"
+			+ "W/S drive · A/D turn · Space boost · Shift brake\n"
+			+ "E dock/engage · R reset"
+			+ GetHudStatusText();
+	}
+
+	private void UpdateBoostHud()
+	{
+		var boostRatio = _playerBoat?.BoostChargeRatio ?? 0.0f;
+		var isBoosting = _playerBoat?.IsBoosting == true;
+
+		if (_boostBar != null)
+		{
+			_boostBar.Value = boostRatio * 100.0f;
+		}
+
+		if (_boostLabel != null)
+		{
+			_boostLabel.Text = isBoosting ? "Boost: active" : "Boost";
+		}
 	}
 
 	private string GetCourseHudText()
@@ -295,9 +401,15 @@ public partial class SailingSandbox : Node3D
 		var nextSection = _checkpointSections.TryGetValue(_checkpoints[_nextCheckpointIndex], out var section)
 			? $" | {section}"
 			: string.Empty;
-		var feedback = _feedbackTimer > 0.0f ? $"\n{_feedbackText}" : string.Empty;
 
-		return $"Lap: {_lapCount} | Next: {nextCheckpointNumber}/{_checkpoints.Count} {nextCheckpointName}{nextSection}{feedback}";
+		return $"Next: {nextCheckpointNumber}/{_checkpoints.Count} {nextCheckpointName}{nextSection}\nLap: {_lapCount}";
+	}
+
+	private string GetHudStatusText()
+	{
+		return _hudStatusTimer > 0.0f && !string.IsNullOrWhiteSpace(_hudStatusText)
+			? $"\n{_hudStatusText}"
+			: string.Empty;
 	}
 
 	private void BuildHandlingCourse()
@@ -815,21 +927,44 @@ public partial class SailingSandbox : Node3D
 			return "Contact: loading combat...";
 		}
 
-		var enemyName = string.IsNullOrWhiteSpace(EnemyShipArchetype?.DisplayName)
-			? "Enemy contact"
-			: EnemyShipArchetype.DisplayName;
-
-		if (_playerBoat == null || _encounterContact == null)
+		var enemyName = GetEnemyDisplayName();
+		if (!TryGetContactDistance(out var distance))
 		{
 			return $"Contact: {enemyName} ready";
 		}
 
-		var distance = GetFlatDistance(_playerBoat.GlobalPosition, _encounterContact.GlobalPosition);
-		var rangeText = distance <= EncounterPromptRadius
-			? "in boarding range"
-			: $"{distance:0}m away";
+		return IsContactInEngageRange(distance)
+			? $"Press E: Engage {enemyName}"
+			: $"Contact: {enemyName} {distance:0}m";
+	}
 
-		return $"Contact: {enemyName} {rangeText}";
+	private string GetEnemyDisplayName()
+	{
+		return string.IsNullOrWhiteSpace(EnemyShipArchetype?.DisplayName)
+			? "Enemy contact"
+			: EnemyShipArchetype.DisplayName;
+	}
+
+	private bool TryGetContactDistance(out float distance)
+	{
+		distance = 0.0f;
+		if (_playerBoat == null || _encounterContact == null)
+		{
+			return false;
+		}
+
+		distance = GetFlatDistance(_playerBoat.GlobalPosition, _encounterContact.GlobalPosition);
+		return true;
+	}
+
+	private bool IsContactInEngageRange()
+	{
+		return TryGetContactDistance(out var distance) && IsContactInEngageRange(distance);
+	}
+
+	private bool IsContactInEngageRange(float distance)
+	{
+		return distance <= EncounterPromptRadius;
 	}
 
 	private void UpdateTownInteraction()
@@ -925,14 +1060,20 @@ public partial class SailingSandbox : Node3D
 
 		if (string.IsNullOrWhiteSpace(BattleScenePath))
 		{
-			ShowFeedback("No combat scene path assigned.");
+			ShowHudStatus("No combat scene path assigned.");
+			return;
+		}
+
+		if (!IsContactInEngageRange())
+		{
+			ShowHudStatus($"Sail closer to {GetEnemyDisplayName()}.");
 			return;
 		}
 
 		var encounter = new SailingEncounterData(PlayerShipArchetype, EnemyShipArchetype, ReturnScenePath);
 		SailingEncounterStore.SetPendingEncounter(encounter);
 		_encounterTriggered = true;
-		ShowFeedback($"Engaging {encounter.EnemyDisplayName}.");
+		ShowHudStatus($"Engaging {encounter.EnemyDisplayName}.");
 
 		var sceneChangeError = GetTree().ChangeSceneToFile(BattleScenePath);
 		if (sceneChangeError == Error.Ok)
@@ -942,6 +1083,7 @@ public partial class SailingSandbox : Node3D
 
 		SailingEncounterStore.ConsumePendingEncounter();
 		_encounterTriggered = false;
+		ShowHudStatus("Could not load combat scene.");
 		GD.PushError($"SailingSandbox: failed to load battle scene '{BattleScenePath}' ({sceneChangeError}).");
 	}
 
