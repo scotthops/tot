@@ -1,4 +1,5 @@
 using Godot;
+using System;
 using System.Collections.Generic;
 using TidesOfTime.Data;
 using TidesOfTime.Encounters;
@@ -9,6 +10,9 @@ public partial class SailingSandbox : Node3D
 {
 	private const float CourseMarkerHeight = 0.055f;
 	private const float BuoyHeight = 0.45f;
+	private const float CourseLaneHalfWidth = 7.2f;
+	private const float GuideMarkerSpacing = 20.0f;
+	private const float PrecisionLaneHalfWidth = 4.4f;
 	private const string CourseRootName = "Course";
 	private const string GeneratedPropsRootName = "GeneratedCourseProps";
 
@@ -75,6 +79,7 @@ public partial class SailingSandbox : Node3D
 	private Button? _repairButton;
 	private Button? _leaveTownButton;
 	private readonly List<Node3D> _checkpoints = new();
+	private readonly List<GuideSegmentVisual> _guideSegments = new();
 	private readonly Dictionary<Node3D, float> _checkpointRadii = new();
 	private readonly Dictionary<Node3D, string> _checkpointSections = new();
 	private int _nextCheckpointIndex;
@@ -86,6 +91,12 @@ public partial class SailingSandbox : Node3D
 	private bool _isTownDockInRange;
 	private StandardMaterial3D? _inactiveCheckpointMaterial;
 	private StandardMaterial3D? _activeCheckpointMaterial;
+	private StandardMaterial3D? _nextCheckpointMaterial;
+	private StandardMaterial3D? _subtlePortGuideMaterial;
+	private StandardMaterial3D? _subtleStarboardGuideMaterial;
+	private StandardMaterial3D? _focusedPortGuideMaterial;
+	private StandardMaterial3D? _focusedStarboardGuideMaterial;
+	private StandardMaterial3D? _directionArrowMaterial;
 
 	public override void _Ready()
 	{
@@ -299,6 +310,7 @@ public partial class SailingSandbox : Node3D
 		}
 
 		ClearChildren(checkpointRoot);
+		_guideSegments.Clear();
 		_checkpointRadii.Clear();
 		_checkpointSections.Clear();
 
@@ -398,9 +410,130 @@ public partial class SailingSandbox : Node3D
 		var propsRoot = new Node3D { Name = GeneratedPropsRootName };
 		courseRoot.AddChild(propsRoot);
 
+		CreateGuideLane(propsRoot);
 		CreateFloatingBarrel(propsRoot, "Hairpin Range Barrel", new Vector3(-94.0f, 0.42f, -50.0f), 0.4f);
 		CreateFloatingBarrel(propsRoot, "Chicane Reference Barrel", new Vector3(-2.0f, 0.42f, -20.0f), -0.25f);
 		CreateFloatingBarrel(propsRoot, "Needle Reference Barrel", new Vector3(33.0f, 0.42f, -34.0f), 0.9f);
+	}
+
+	private void CreateGuideLane(Node3D propsRoot)
+	{
+		var guideRoot = new Node3D { Name = "LaneGuideMarkers" };
+		propsRoot.AddChild(guideRoot);
+
+		for (var segmentIndex = 0; segmentIndex < HandlingCourse.Length; segmentIndex++)
+		{
+			var nextIndex = GetWrappedCourseIndex(segmentIndex + 1);
+			var from = HandlingCourse[segmentIndex];
+			var to = HandlingCourse[nextIndex];
+			var direction = to.Position - from.Position;
+			direction.Y = 0.0f;
+
+			if (direction.LengthSquared() <= 0.0001f)
+			{
+				continue;
+			}
+
+			var segmentLength = direction.Length();
+			direction = direction.Normalized();
+			var starboard = new Vector3(-direction.Z, 0.0f, direction.X).Normalized();
+			var laneHalfWidth = GetSegmentLaneHalfWidth(segmentIndex, nextIndex);
+			var guideMarkerCount = Math.Max(1, (int)MathF.Floor(segmentLength / GuideMarkerSpacing));
+			var segmentRoot = new Node3D { Name = $"Guide {segmentIndex + 1:00} {from.Name} to {to.Name}" };
+			var segmentVisual = new GuideSegmentVisual(segmentIndex, segmentRoot);
+
+			guideRoot.AddChild(segmentRoot);
+
+			for (var markerIndex = 1; markerIndex <= guideMarkerCount; markerIndex++)
+			{
+				var t = markerIndex / (guideMarkerCount + 1.0f);
+				var center = from.Position.Lerp(to.Position, t);
+				center.Y = 0.0f;
+
+				segmentVisual.PortMarkers.Add(CreateGuideBuoy(
+					segmentRoot,
+					$"Port Guide {markerIndex:00}",
+					center - (starboard * laneHalfWidth),
+					isPort: true));
+				segmentVisual.StarboardMarkers.Add(CreateGuideBuoy(
+					segmentRoot,
+					$"Starboard Guide {markerIndex:00}",
+					center + (starboard * laneHalfWidth),
+					isPort: false));
+			}
+
+			segmentVisual.ArrowRoot = CreateDirectionArrow(
+				segmentRoot,
+				"Route Arrow",
+				from.Position.Lerp(to.Position, 0.58f),
+				direction);
+			_guideSegments.Add(segmentVisual);
+		}
+	}
+
+	private float GetSegmentLaneHalfWidth(int fromIndex, int toIndex)
+	{
+		if (HandlingCourse[fromIndex].VisualKind == GateVisualKind.Precision ||
+			HandlingCourse[toIndex].VisualKind == GateVisualKind.Precision)
+		{
+			return PrecisionLaneHalfWidth;
+		}
+
+		var gateHalfWidth = Math.Min(HandlingCourse[fromIndex].Width, HandlingCourse[toIndex].Width) * 0.5f;
+		return Mathf.Max(CourseLaneHalfWidth, gateHalfWidth + 1.2f);
+	}
+
+	private MeshInstance3D CreateGuideBuoy(Node3D parent, string nodeName, Vector3 position, bool isPort)
+	{
+		var buoy = new MeshInstance3D
+		{
+			Name = nodeName,
+			Position = position + new Vector3(0.0f, 0.26f, 0.0f),
+			Mesh = new CylinderMesh
+			{
+				TopRadius = 0.2f,
+				BottomRadius = 0.28f,
+				Height = 0.52f
+			},
+			MaterialOverride = isPort
+				? GetSubtlePortGuideMaterial()
+				: GetSubtleStarboardGuideMaterial()
+		};
+
+		parent.AddChild(buoy);
+		return buoy;
+	}
+
+	private Node3D CreateDirectionArrow(Node3D parent, string nodeName, Vector3 position, Vector3 direction)
+	{
+		var arrowRoot = new Node3D
+		{
+			Name = nodeName,
+			Position = new Vector3(position.X, 0.08f, position.Z),
+			Rotation = new Vector3(0.0f, MathF.Atan2(-direction.X, -direction.Z), 0.0f),
+			Visible = false
+		};
+
+		parent.AddChild(arrowRoot);
+		AddArrowBox(arrowRoot, "Shaft", new Vector3(0.34f, 0.06f, 2.35f), new Vector3(0.0f, 0.0f, 0.18f), 0.0f);
+		AddArrowBox(arrowRoot, "Port Head", new Vector3(0.24f, 0.06f, 1.05f), new Vector3(-0.34f, 0.0f, -0.95f), -0.55f);
+		AddArrowBox(arrowRoot, "Starboard Head", new Vector3(0.24f, 0.06f, 1.05f), new Vector3(0.34f, 0.0f, -0.95f), 0.55f);
+
+		return arrowRoot;
+	}
+
+	private void AddArrowBox(Node3D parent, string nodeName, Vector3 size, Vector3 position, float yaw)
+	{
+		var node = new MeshInstance3D
+		{
+			Name = nodeName,
+			Position = position,
+			Rotation = new Vector3(0.0f, yaw, 0.0f),
+			Mesh = new BoxMesh { Size = size },
+			MaterialOverride = GetDirectionArrowMaterial()
+		};
+
+		parent.AddChild(node);
 	}
 
 	private void CreateFloatingBarrel(Node3D parent, string nodeName, Vector3 position, float yaw)
@@ -483,7 +616,7 @@ public partial class SailingSandbox : Node3D
 	{
 		if (_inactiveCheckpointMaterial == null)
 		{
-			_inactiveCheckpointMaterial = CreateTransparentMaterial(new Color(0.23f, 0.68f, 0.95f, 0.28f));
+			_inactiveCheckpointMaterial = CreateTransparentMaterial(new Color(0.18f, 0.42f, 0.58f, 0.16f));
 		}
 
 		if (_activeCheckpointMaterial == null)
@@ -491,18 +624,108 @@ public partial class SailingSandbox : Node3D
 			_activeCheckpointMaterial = CreateTransparentMaterial(new Color(0.95f, 0.86f, 0.24f, 0.48f));
 		}
 
+		if (_nextCheckpointMaterial == null)
+		{
+			_nextCheckpointMaterial = CreateTransparentMaterial(new Color(0.34f, 0.82f, 1.0f, 0.32f));
+		}
+
 		for (var i = 0; i < _checkpoints.Count; i++)
 		{
+			var isActive = i == _nextCheckpointIndex;
+			var isNext = i == GetWrappedCheckpointIndex(_nextCheckpointIndex + 1);
+			var checkpoint = _checkpoints[i];
+			checkpoint.Visible = isActive || isNext;
+			checkpoint.Scale = isActive ? Vector3.One : new Vector3(0.78f, 1.0f, 0.78f);
+
 			var marker = _checkpoints[i].GetNodeOrNull<MeshInstance3D>("Marker");
 			if (marker == null)
 			{
 				continue;
 			}
 
-			marker.MaterialOverride = i == _nextCheckpointIndex
+			marker.MaterialOverride = isActive
 				? _activeCheckpointMaterial
-				: _inactiveCheckpointMaterial;
+				: isNext
+					? _nextCheckpointMaterial
+					: _inactiveCheckpointMaterial;
 		}
+
+		UpdateGuideVisuals();
+	}
+
+	private void UpdateGuideVisuals()
+	{
+		foreach (var segment in _guideSegments)
+		{
+			var isFocused = segment.SegmentIndex == GetCurrentGuideSegmentIndex();
+			var isPreview = segment.SegmentIndex == GetPreviewGuideSegmentIndex();
+			var isVisible = isFocused || isPreview;
+			var portMaterial = isFocused ? GetFocusedPortGuideMaterial() : GetSubtlePortGuideMaterial();
+			var starboardMaterial = isFocused ? GetFocusedStarboardGuideMaterial() : GetSubtleStarboardGuideMaterial();
+
+			segment.Root.Visible = isVisible;
+			if (!isVisible)
+			{
+				continue;
+			}
+
+			foreach (var marker in segment.PortMarkers)
+			{
+				marker.MaterialOverride = portMaterial;
+				marker.Scale = isFocused ? Vector3.One : new Vector3(0.72f, 0.72f, 0.72f);
+			}
+
+			foreach (var marker in segment.StarboardMarkers)
+			{
+				marker.MaterialOverride = starboardMaterial;
+				marker.Scale = isFocused ? Vector3.One : new Vector3(0.72f, 0.72f, 0.72f);
+			}
+
+			if (segment.ArrowRoot != null)
+			{
+				segment.ArrowRoot.Visible = isFocused;
+			}
+		}
+	}
+
+	private int GetCurrentGuideSegmentIndex()
+	{
+		if (_checkpoints.Count == 0)
+		{
+			return 0;
+		}
+
+		if (_lapCount == 0 && _nextCheckpointIndex == 0)
+		{
+			return 0;
+		}
+
+		return GetWrappedCheckpointIndex(_nextCheckpointIndex - 1);
+	}
+
+	private int GetPreviewGuideSegmentIndex()
+	{
+		if (_checkpoints.Count == 0)
+		{
+			return 0;
+		}
+
+		return GetWrappedCheckpointIndex(GetCurrentGuideSegmentIndex() + 1);
+	}
+
+	private int GetWrappedCheckpointIndex(int index)
+	{
+		if (_checkpoints.Count == 0)
+		{
+			return 0;
+		}
+
+		return ((index % _checkpoints.Count) + _checkpoints.Count) % _checkpoints.Count;
+	}
+
+	private static int GetWrappedCourseIndex(int index)
+	{
+		return ((index % HandlingCourse.Length) + HandlingCourse.Length) % HandlingCourse.Length;
 	}
 
 	private static Color GetPortBuoyColor(GateVisualKind kind)
@@ -558,6 +781,31 @@ public partial class SailingSandbox : Node3D
 			CullMode = BaseMaterial3D.CullModeEnum.Disabled,
 			Roughness = 0.7f
 		};
+	}
+
+	private StandardMaterial3D GetSubtlePortGuideMaterial()
+	{
+		return _subtlePortGuideMaterial ??= CreateTransparentMaterial(new Color(0.78f, 0.18f, 0.16f, 0.42f));
+	}
+
+	private StandardMaterial3D GetSubtleStarboardGuideMaterial()
+	{
+		return _subtleStarboardGuideMaterial ??= CreateTransparentMaterial(new Color(0.12f, 0.64f, 0.32f, 0.42f));
+	}
+
+	private StandardMaterial3D GetFocusedPortGuideMaterial()
+	{
+		return _focusedPortGuideMaterial ??= CreateTransparentMaterial(new Color(0.96f, 0.16f, 0.12f, 0.82f));
+	}
+
+	private StandardMaterial3D GetFocusedStarboardGuideMaterial()
+	{
+		return _focusedStarboardGuideMaterial ??= CreateTransparentMaterial(new Color(0.12f, 0.9f, 0.36f, 0.82f));
+	}
+
+	private StandardMaterial3D GetDirectionArrowMaterial()
+	{
+		return _directionArrowMaterial ??= CreateTransparentMaterial(new Color(1.0f, 0.84f, 0.24f, 0.74f));
 	}
 
 	private string GetEncounterHudText()
@@ -722,5 +970,20 @@ public partial class SailingSandbox : Node3D
 		Chicane,
 		Precision,
 		Finish
+	}
+
+	private sealed class GuideSegmentVisual
+	{
+		public GuideSegmentVisual(int segmentIndex, Node3D root)
+		{
+			SegmentIndex = segmentIndex;
+			Root = root;
+		}
+
+		public int SegmentIndex { get; }
+		public Node3D Root { get; }
+		public Node3D? ArrowRoot { get; set; }
+		public List<MeshInstance3D> PortMarkers { get; } = new();
+		public List<MeshInstance3D> StarboardMarkers { get; } = new();
 	}
 }
