@@ -24,6 +24,7 @@ public partial class SchematicBattleDebugScene : Control
 	private Label _selectionRoomLabel = null!;
 	private Label _selectionSystemLabel = null!;
 	private Label _actionStatusLabel = null!;
+	private VBoxContainer _playerCrewRows = null!;
 	private VBoxContainer _systemStatusRows = null!;
 	private Label _weaponNameLabel = null!;
 	private ProgressBar _weaponChargeBar = null!;
@@ -53,6 +54,7 @@ public partial class SchematicBattleDebugScene : Control
 		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionRoomLabel");
 		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionSystemLabel");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
+		_playerCrewRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer/PlayerCrewRows");
 		_systemStatusRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/SystemColumn/SystemStatusRows");
 		_weaponNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponNameLabel");
 		_weaponChargeBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponChargeBar");
@@ -270,6 +272,7 @@ public partial class SchematicBattleDebugScene : Control
 
 		_playerShipView.Render(_battleState.PlayerShip, playerSelectedCrewId);
 		_enemyShipView.Render(_battleState.EnemyShip, enemySelectedCrewId);
+		RebuildPlayerCrewPanel(playerSelectedCrewId);
 		UpdateCannonChargeBars();
 		RebuildSystemStatusPanel();
 	}
@@ -384,6 +387,71 @@ public partial class SchematicBattleDebugScene : Control
 		}
 	}
 
+	private void RebuildPlayerCrewPanel(string? selectedCrewId)
+	{
+		ClearChildren(_playerCrewRows);
+
+		foreach (var crew in _battleState.PlayerShip.GetCrewOnBoard())
+		{
+			if (crew.Allegiance != CrewAllegiance.Player)
+			{
+				continue;
+			}
+
+			AddPlayerCrewRow(crew, crew.Id == selectedCrewId);
+		}
+	}
+
+	private void AddPlayerCrewRow(CrewState crew, bool isSelected)
+	{
+		var row = new PanelContainer
+		{
+			CustomMinimumSize = new Vector2(0.0f, 32.0f),
+			SizeFlagsHorizontal = SizeFlags.ExpandFill
+		};
+		row.AddThemeStyleboxOverride("panel", CreateCrewRowStyle(isSelected));
+
+		var margin = new MarginContainer();
+		margin.AddThemeConstantOverride("margin_left", 6);
+		margin.AddThemeConstantOverride("margin_top", 4);
+		margin.AddThemeConstantOverride("margin_right", 6);
+		margin.AddThemeConstantOverride("margin_bottom", 4);
+
+		var contents = new HBoxContainer
+		{
+			SizeFlagsHorizontal = SizeFlags.ExpandFill
+		};
+		contents.AddThemeConstantOverride("separation", 8);
+
+		var marker = new Label
+		{
+			CustomMinimumSize = new Vector2(24.0f, 24.0f),
+			Text = crew.ShortLabel,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			VerticalAlignment = VerticalAlignment.Center
+		};
+		marker.AddThemeStyleboxOverride("normal", CreateCrewMarkerStyle(isSelected));
+		marker.AddThemeColorOverride("font_color", Colors.White);
+
+		var roleLabel = new Label
+		{
+			Text = crew.CrewClass,
+			SizeFlagsHorizontal = SizeFlags.ExpandFill,
+			VerticalAlignment = VerticalAlignment.Center,
+			ClipText = true,
+			TooltipText = crew.DisplayName
+		};
+		roleLabel.AddThemeColorOverride(
+			"font_color",
+			isSelected ? new Color(1.0f, 0.94f, 0.62f) : new Color(0.86f, 0.84f, 0.76f));
+
+		contents.AddChild(marker);
+		contents.AddChild(roleLabel);
+		margin.AddChild(contents);
+		row.AddChild(margin);
+		_playerCrewRows.AddChild(row);
+	}
+
 	private void AddSystemStatusRow(ShipRoomState room)
 	{
 		var row = new HBoxContainer
@@ -453,6 +521,46 @@ public partial class SchematicBattleDebugScene : Control
 		return weaponStatus.IsActive
 			? $"Charging shot on {weaponStatus.TargetName}."
 			: $"Targeting {weaponStatus.TargetName}; awaiting operational, manned cannons.";
+	}
+
+	private static StyleBoxFlat CreateCrewRowStyle(bool isSelected)
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = isSelected
+				? new Color(0.24f, 0.32f, 0.38f, 0.92f)
+				: new Color(0.05f, 0.08f, 0.085f, 0.42f),
+			BorderColor = isSelected
+				? new Color(1.0f, 0.86f, 0.42f, 0.94f)
+				: new Color(0.56f, 0.48f, 0.34f, 0.52f),
+			BorderWidthLeft = isSelected ? 2 : 1,
+			BorderWidthTop = isSelected ? 2 : 1,
+			BorderWidthRight = isSelected ? 2 : 1,
+			BorderWidthBottom = isSelected ? 2 : 1,
+			CornerRadiusTopLeft = 4,
+			CornerRadiusTopRight = 4,
+			CornerRadiusBottomRight = 4,
+			CornerRadiusBottomLeft = 4
+		};
+	}
+
+	private static StyleBoxFlat CreateCrewMarkerStyle(bool isSelected)
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = isSelected
+				? new Color(0.22f, 0.45f, 0.78f, 1.0f)
+				: new Color(0.18f, 0.34f, 0.58f, 1.0f),
+			BorderColor = new Color(0.96f, 0.88f, 0.66f, 0.95f),
+			BorderWidthLeft = 1,
+			BorderWidthTop = 1,
+			BorderWidthRight = 1,
+			BorderWidthBottom = 1,
+			CornerRadiusTopLeft = 12,
+			CornerRadiusTopRight = 12,
+			CornerRadiusBottomRight = 12,
+			CornerRadiusBottomLeft = 12
+		};
 	}
 
 	private static void ClearChildren(Node parent)

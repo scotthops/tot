@@ -127,7 +127,32 @@ custom_minimum_size = Vector2(0, 430)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 36
+theme_override_constants/separation = 18
+
+[node name="PlayerCrewPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=1556311403]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_vertical = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel" unique_id=1075257921]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer" unique_id=518016361]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=947004445]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Crew"
+
+[node name="PlayerCrewRows" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=1807852222]
+layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="PlayerShipView" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=1954303745 instance=ExtResource("2_schematic_grid")]
 clip_contents = true

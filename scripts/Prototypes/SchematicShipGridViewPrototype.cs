@@ -64,7 +64,7 @@ public partial class SchematicShipGridViewPrototype : Control
 		{
 			("captain", "Captain Mara", "C", "Captain"),
 			("gunner", "Gunner Flint", "G", "Gunner"),
-			("surgeon", "Surgeon Vale", "S", "Surgeon")
+			("fighter", "Fighter Vale", "F", "Fighter")
 		};
 
 		for (var i = 0; i < ship.Grid.Rooms.Count && i < crewConfigs.Length; i++)
