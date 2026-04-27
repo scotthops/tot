@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="ShipLayoutDef" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="ShipLayoutDef" format=3 uid="uid://c1wx54c0wjcyo"]
 
-[ext_resource type="Script" path="res://scripts/Data/ShipLayoutDef.cs" id="1_cw4to"]
-[ext_resource type="Script" path="res://scripts/Data/RoomDef.cs" id="2_joktb"]
+[ext_resource type="Script" uid="uid://ce6pyuskgg1ii" path="res://scripts/Data/ShipModuleBayDef.cs" id="1_0i1xj"]
+[ext_resource type="Script" uid="uid://staroositonm" path="res://scripts/Data/ShipLayoutDef.cs" id="1_cw4to"]
+[ext_resource type="Script" uid="uid://btwf3we1wk504" path="res://scripts/Data/RoomDef.cs" id="2_joktb"]
 
 [sub_resource type="Resource" id="Resource_helm"]
 script = ExtResource("2_joktb")
@@ -41,6 +42,4 @@ Tiles = Array[Vector2i]([Vector2i(6, 3), Vector2i(6, 4)])
 [resource]
 script = ExtResource("1_cw4to")
 ShipName = "The Black Wake"
-Width = 8
-Height = 6
-Rooms = Array[Resource]([SubResource("Resource_helm"), SubResource("Resource_cannons"), SubResource("Resource_thread"), SubResource("Resource_crows_nest"), SubResource("Resource_doctor")])
+Rooms = Array[ExtResource("2_joktb")]([SubResource("Resource_helm"), SubResource("Resource_cannons"), SubResource("Resource_thread"), SubResource("Resource_crows_nest"), SubResource("Resource_doctor")])

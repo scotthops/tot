@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TidesOfTime.Battle;
 using TidesOfTime.Crew;
 using TidesOfTime.Data;
+using TidesOfTime.Encounters;
 using TidesOfTime.Ships;
 using TidesOfTime.UI;
 
@@ -14,6 +15,7 @@ public partial class SchematicBattleDebugScene : Control
 	[Export] public ShipLayoutDef EnemyLayout { get; set; } = null!;
 
 	private BattleState _battleState = null!;
+	private SailingEncounterData? _activeEncounterData;
 	private SchematicShipGridView _playerShipView = null!;
 	private SchematicShipGridView _enemyShipView = null!;
 	private Control _background = null!;
@@ -27,11 +29,18 @@ public partial class SchematicBattleDebugScene : Control
 	private Button _resetButton = null!;
 	private Control _ordersOverlay = null!;
 	private Button _giveEmHellButton = null!;
+	private Control _pauseOverlay = null!;
+	private Button _resumeButton = null!;
+	private Button _resumeSailingButton = null!;
+	private Button _restartButton = null!;
+	private Button _quitGameButton = null!;
 	private BattleActionKind? _primaryActionKind;
 	private BattleActionKind? _secondaryActionKind;
+	private bool _isPauseMenuOpen;
 
 	public override void _Ready()
 	{
+		_activeEncounterData = SailingEncounterStore.ConsumePendingEncounter();
 		_playerShipView = GetNode<SchematicShipGridView>("MarginContainer/VBoxContainer/ShipRow/PlayerShipView");
 		_enemyShipView = GetNode<SchematicShipGridView>("MarginContainer/VBoxContainer/ShipRow/EnemyShipView");
 		_background = GetNode<Control>("Background");
@@ -45,6 +54,11 @@ public partial class SchematicBattleDebugScene : Control
 		_resetButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/ResetButton");
 		_ordersOverlay = GetNode<Control>("OrdersOverlay");
 		_giveEmHellButton = GetNode<Button>("OrdersOverlay/MarginContainer/VBoxContainer/ButtonStack/GiveEmHellButton");
+		_pauseOverlay = GetNode<Control>("PauseOverlay");
+		_resumeButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeButton");
+		_resumeSailingButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeSailingButton");
+		_restartButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
+		_quitGameButton = GetNode<Button>("PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
 
 		if (PlayerLayout == null || EnemyLayout == null)
 		{
@@ -65,7 +79,12 @@ public partial class SchematicBattleDebugScene : Control
 		_secondaryActionButton.Pressed += () => RunAction(_secondaryActionKind);
 		_resetButton.Pressed += () => ResetBattleState();
 		_giveEmHellButton.Pressed += StartBattleFromOrders;
+		_resumeButton.Pressed += OnResumePressed;
+		_resumeSailingButton.Pressed += OnResumeSailingPressed;
+		_restartButton.Pressed += OnRestartPressed;
+		_quitGameButton.Pressed += OnQuitGamePressed;
 
+		SetPauseMenuOpen(false);
 		ConfigureActionButtons([]);
 		_actionStatusLabel.Text = "Awaiting orders.";
 		_giveEmHellButton.GrabFocus();
@@ -73,6 +92,18 @@ public partial class SchematicBattleDebugScene : Control
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+		{
+			SetPauseMenuOpen(!_isPauseMenuOpen);
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		if (_battleState == null)
 		{
 			return;
@@ -105,7 +136,7 @@ public partial class SchematicBattleDebugScene : Control
 
 	public override void _Process(double delta)
 	{
-		if (_battleState == null)
+		if (_battleState == null || _isPauseMenuOpen)
 		{
 			return;
 		}
@@ -179,6 +210,30 @@ public partial class SchematicBattleDebugScene : Control
 	{
 		_ordersOverlay.Visible = false;
 		ResetBattleState();
+	}
+
+	private void OnResumePressed()
+	{
+		SetPauseMenuOpen(false);
+	}
+
+	private void OnResumeSailingPressed()
+	{
+		SetPauseMenuOpen(false);
+		ReturnToSailing();
+	}
+
+	private void OnRestartPressed()
+	{
+		SetPauseMenuOpen(false);
+		_ordersOverlay.Visible = false;
+		ResetBattleState();
+	}
+
+	private void OnQuitGamePressed()
+	{
+		SetPauseMenuOpen(false);
+		GetTree().Quit();
 	}
 
 	private void RenderBattleViews()
@@ -360,5 +415,38 @@ public partial class SchematicBattleDebugScene : Control
 		_battleState.ClearSelection();
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
+	}
+
+	private void ReturnToSailing()
+	{
+		var returnScenePath = _activeEncounterData?.ReturnScenePath;
+		if (string.IsNullOrWhiteSpace(returnScenePath))
+		{
+			_actionStatusLabel.Text = "No sailing scene return path is available.";
+			return;
+		}
+
+		var sceneChangeError = GetTree().ChangeSceneToFile(returnScenePath);
+		if (sceneChangeError != Error.Ok)
+		{
+			_actionStatusLabel.Text = $"Could not return to sailing: {sceneChangeError}.";
+		}
+	}
+
+	private bool CanReturnToSailing()
+	{
+		return !string.IsNullOrWhiteSpace(_activeEncounterData?.ReturnScenePath);
+	}
+
+	private void SetPauseMenuOpen(bool isOpen)
+	{
+		_isPauseMenuOpen = isOpen;
+		_pauseOverlay.Visible = isOpen;
+		_resumeSailingButton.Visible = CanReturnToSailing();
+
+		if (isOpen)
+		{
+			_resumeButton.GrabFocus();
+		}
 	}
 }

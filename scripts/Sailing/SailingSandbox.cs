@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using TidesOfTime.Audio;
 using TidesOfTime.Data;
 using TidesOfTime.Encounters;
 
@@ -122,6 +123,8 @@ public partial class SailingSandbox : Node3D
 
 	public override void _Ready()
 	{
+		GetNodeOrNull<MusicManager>("/root/MusicManager")?.PlaySailingCombatMusic();
+
 		_playerBoat = GetNodeOrNull<PlayerBoatController>(PlayerBoatPath);
 		_hudLabel = GetNodeOrNull<Label>(HudLabelPath);
 		_boostBar = GetNodeOrNull<ProgressBar>(BoostBarPath);

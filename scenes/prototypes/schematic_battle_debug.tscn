@@ -1,11 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://nnc76ov52nmd"]
 
-[ext_resource type="Script" path="res://scripts/Prototypes/SchematicBattleDebugScene.cs" id="1_debug"]
+[ext_resource type="Script" uid="uid://dawft4i1bh1e3" path="res://scripts/Prototypes/SchematicBattleDebugScene.cs" id="1_debug"]
 [ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
-[ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="3_player_layout"]
 [ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="4_enemy_layout"]
 
-[node name="SchematicBattleDebugScene" type="Control"]
+[node name="SchematicBattleDebugScene" type="Control" unique_id=255003190]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,20 +12,19 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_debug")
-PlayerLayout = ExtResource("3_player_layout")
+PlayerLayout = ExtResource("4_enemy_layout")
 EnemyLayout = ExtResource("4_enemy_layout")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=394654684]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 color = Color(0.035, 0.145, 0.18, 1)
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=902413721]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -38,43 +36,43 @@ theme_override_constants/margin_top = 18
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 18
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1393753703]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer"]
+[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer" unique_id=1317441052]
+clip_contents = true
 custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
 size_flags_horizontal = 3
-clip_contents = true
 
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/StatusPanel"]
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/StatusPanel" unique_id=545896078]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 8
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer" unique_id=1910211158]
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer" unique_id=2109697071]
 layout_mode = 2
 text = "Schematic Battle Debug"
 clip_text = true
 
-[node name="HintLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+[node name="HintLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer" unique_id=1210215207]
+modulate = Color(0.74, 0.76, 0.7, 1)
 layout_mode = 2
 theme_override_font_sizes/font_size = 12
-text = "Prototype scene: Space tactical pause, Q slow time, R reset"
-modulate = Color(0.74, 0.76, 0.7, 1)
+text = "Prototype scene: ESC pause / resume sailing, Space tactical pause, Q slow time, R reset"
 
-[node name="SelectionDetails" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+[node name="SelectionDetails" type="VBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer" unique_id=1814222375]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="SelectionSourceLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+[node name="SelectionSourceLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails" unique_id=1283782059]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 text = "Ship: None"
@@ -82,7 +80,7 @@ autowrap_mode = 3
 clip_text = true
 max_lines_visible = 1
 
-[node name="SelectionRoomLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+[node name="SelectionRoomLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails" unique_id=1488004693]
 custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
 text = "Room: None"
@@ -90,7 +88,7 @@ autowrap_mode = 3
 clip_text = true
 max_lines_visible = 1
 
-[node name="SelectionSystemLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails"]
+[node name="SelectionSystemLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails" unique_id=2023828477]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 text = "System: None"
@@ -98,25 +96,25 @@ autowrap_mode = 3
 clip_text = true
 max_lines_visible = 3
 
-[node name="ButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+[node name="ButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer" unique_id=1787107405]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="PrimaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+[node name="PrimaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=545986425]
 layout_mode = 2
+disabled = true
 text = "Action 1"
-disabled = true
 
-[node name="SecondaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+[node name="SecondaryActionButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=1617937010]
 layout_mode = 2
-text = "Action 2"
 disabled = true
+text = "Action 2"
 
-[node name="ResetButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow"]
+[node name="ResetButton" type="Button" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow" unique_id=1642765481]
 layout_mode = 2
 text = "Reset"
 
-[node name="ActionStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer"]
+[node name="ActionStatusLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer" unique_id=643556319]
 custom_minimum_size = Vector2(0, 36)
 layout_mode = 2
 text = "Select a room to see actions."
@@ -124,35 +122,30 @@ autowrap_mode = 3
 clip_text = true
 max_lines_visible = 2
 
-[node name="ShipRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="ShipRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=428509362]
 custom_minimum_size = Vector2(0, 520)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 36
 
-[node name="PlayerShipView" parent="MarginContainer/VBoxContainer/ShipRow" instance=ExtResource("2_schematic_grid")]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
+[node name="PlayerShipView" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=1954303745 instance=ExtResource("2_schematic_grid")]
 clip_contents = true
-
-[node name="EnemyShipView" parent="MarginContainer/VBoxContainer/ShipRow" instance=ExtResource("2_schematic_grid")]
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-clip_contents = true
 
-[node name="OrdersOverlay" type="Control" parent="."]
+[node name="EnemyShipView" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=936171248 instance=ExtResource("2_schematic_grid")]
+clip_contents = true
+layout_mode = 2
+
+[node name="OrdersOverlay" type="Control" parent="." unique_id=2013727766]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 
-[node name="Background" type="ColorRect" parent="OrdersOverlay"]
+[node name="Background" type="ColorRect" parent="OrdersOverlay" unique_id=393345964]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -162,7 +155,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.035, 0.145, 0.18, 0.96)
 
-[node name="MarginContainer" type="MarginContainer" parent="OrdersOverlay"]
+[node name="MarginContainer" type="MarginContainer" parent="OrdersOverlay" unique_id=2013465478]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -180,21 +173,92 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 24
 
-[node name="VBoxContainer" type="VBoxContainer" parent="OrdersOverlay/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="OrdersOverlay/MarginContainer" unique_id=465303272]
 layout_mode = 2
 theme_override_constants/separation = 30
 
-[node name="TitleLabel" type="Label" parent="OrdersOverlay/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="OrdersOverlay/MarginContainer/VBoxContainer" unique_id=472009651]
 layout_mode = 2
 theme_override_font_sizes/font_size = 42
 text = "Orders, Cap'n?"
 horizontal_alignment = 1
 
-[node name="ButtonStack" type="VBoxContainer" parent="OrdersOverlay/MarginContainer/VBoxContainer"]
+[node name="ButtonStack" type="VBoxContainer" parent="OrdersOverlay/MarginContainer/VBoxContainer" unique_id=1917827164]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="GiveEmHellButton" type="Button" parent="OrdersOverlay/MarginContainer/VBoxContainer/ButtonStack"]
+[node name="GiveEmHellButton" type="Button" parent="OrdersOverlay/MarginContainer/VBoxContainer/ButtonStack" unique_id=591289904]
 custom_minimum_size = Vector2(0, 52)
 layout_mode = 2
-text = "GIVE 'EM HELL"
+text = "GIVE THEM NO QUARTER"
+
+[node name="PauseOverlay" type="Control" parent="." unique_id=28949026]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="PauseOverlay" unique_id=2079596664]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.0431373, 0.054902, 0.0901961, 0.92)
+
+[node name="MarginContainer" type="MarginContainer" parent="PauseOverlay" unique_id=1744932961]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -200.0
+offset_right = 220.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PauseOverlay/MarginContainer" unique_id=1380860045]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="TitleLabel" type="Label" parent="PauseOverlay/MarginContainer/VBoxContainer" unique_id=1547379781]
+layout_mode = 2
+theme_override_font_sizes/font_size = 42
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="ButtonStack" type="VBoxContainer" parent="PauseOverlay/MarginContainer/VBoxContainer" unique_id=756852615]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="ResumeButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack" unique_id=1709926824]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Resume"
+
+[node name="ResumeSailingButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack" unique_id=801170812]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Resume Sailing"
+
+[node name="RestartButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack" unique_id=637249215]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Restart"
+
+[node name="QuitGameButton" type="Button" parent="PauseOverlay/MarginContainer/VBoxContainer/ButtonStack" unique_id=82885198]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+text = "Quit Game"
