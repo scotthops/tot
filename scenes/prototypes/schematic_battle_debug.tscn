@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dawft4i1bh1e3" path="res://scripts/Prototypes/SchematicBattleDebugScene.cs" id="1_debug"]
 [ext_resource type="PackedScene" path="res://scenes/ships/schematic_ship_grid_view.tscn" id="2_schematic_grid"]
-[ext_resource type="Resource" path="res://data/ships/wicked_tide_brig_layout.tres" id="4_enemy_layout"]
+[ext_resource type="Resource" uid="uid://bpcy0jn48sy5i" path="res://data/ships/wicked_tide_brig_layout.tres" id="4_enemy_layout"]
 
 [node name="SchematicBattleDebugScene" type="Control" unique_id=255003190]
 layout_mode = 3
@@ -127,32 +127,37 @@ custom_minimum_size = Vector2(0, 430)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_constants/separation = 18
+theme_override_constants/separation = 4
 
-[node name="PlayerCrewPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=1556311403]
-custom_minimum_size = Vector2(150, 0)
+[node name="PlayerCrewArea" type="Control" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=328929614]
+custom_minimum_size = Vector2(112, 0)
 layout_mode = 2
-size_flags_vertical = 1
 
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel" unique_id=1075257921]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+[node name="PlayerCrewPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea" unique_id=1556311403]
+custom_minimum_size = Vector2(112, 0)
+layout_mode = 1
+offset_right = 112.0
+offset_bottom = 138.0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer" unique_id=518016361]
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea/PlayerCrewPanel" unique_id=1075257921]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
 
-[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=947004445]
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea/PlayerCrewPanel/MarginContainer" unique_id=518016361]
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
+theme_override_constants/separation = 5
+
+[node name="HeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=947004445]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "Crew"
 
-[node name="PlayerCrewRows" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=1807852222]
+[node name="PlayerCrewRows" type="VBoxContainer" parent="MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea/PlayerCrewPanel/MarginContainer/VBoxContainer" unique_id=1807852222]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
 
 [node name="PlayerShipView" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=1954303745 instance=ExtResource("2_schematic_grid")]
 clip_contents = true
@@ -232,6 +237,28 @@ text = "No target selected."
 autowrap_mode = 3
 clip_text = true
 max_lines_visible = 2
+
+[node name="CrewStatsPopout" type="PanelContainer" parent="." unique_id=1701441391]
+z_index = 40
+modulate = Color(1, 1, 1, 0)
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 1
+offset_right = 72.0
+offset_bottom = 96.0
+mouse_filter = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="CrewStatsPopout" unique_id=823030330]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="StatsRows" type="VBoxContainer" parent="CrewStatsPopout/MarginContainer" unique_id=1757604176]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 3
 
 [node name="OrdersOverlay" type="Control" parent="." unique_id=2013727766]
 layout_mode = 1

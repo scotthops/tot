@@ -14,6 +14,13 @@ public partial class SchematicBattleDebugScene : Control
 	[Export] public ShipLayoutDef PlayerLayout { get; set; } = null!;
 	[Export] public ShipLayoutDef EnemyLayout { get; set; } = null!;
 
+	private static readonly Dictionary<string, CrewDisplayStats> CrewStatsByClass = new()
+	{
+		["Captain"] = new CrewDisplayStats(10, 2, 4, 2, 3),
+		["Gunner"] = new CrewDisplayStats(10, 2, 1, 5, 2),
+		["Fighter"] = new CrewDisplayStats(12, 5, 1, 1, 2)
+	};
+
 	private BattleState _battleState = null!;
 	private SailingEncounterData? _activeEncounterData;
 	private SchematicShipGridView _playerShipView = null!;
@@ -24,6 +31,8 @@ public partial class SchematicBattleDebugScene : Control
 	private Label _selectionRoomLabel = null!;
 	private Label _selectionSystemLabel = null!;
 	private Label _actionStatusLabel = null!;
+	private PanelContainer _crewStatsPopout = null!;
+	private VBoxContainer _crewStatsRows = null!;
 	private VBoxContainer _playerCrewRows = null!;
 	private VBoxContainer _systemStatusRows = null!;
 	private Label _weaponNameLabel = null!;
@@ -54,7 +63,9 @@ public partial class SchematicBattleDebugScene : Control
 		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionRoomLabel");
 		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionSystemLabel");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
-		_playerCrewRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/ShipRow/PlayerCrewPanel/MarginContainer/VBoxContainer/PlayerCrewRows");
+		_crewStatsPopout = GetNode<PanelContainer>("CrewStatsPopout");
+		_crewStatsRows = GetNode<VBoxContainer>("CrewStatsPopout/MarginContainer/StatsRows");
+		_playerCrewRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/ShipRow/PlayerCrewArea/PlayerCrewPanel/MarginContainer/VBoxContainer/PlayerCrewRows");
 		_systemStatusRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/SystemColumn/SystemStatusRows");
 		_weaponNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponNameLabel");
 		_weaponChargeBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponChargeBar");
@@ -101,6 +112,7 @@ public partial class SchematicBattleDebugScene : Control
 		_actionStatusLabel.Text = "Awaiting orders.";
 		_weaponChargeBar.Value = 0.0;
 		_weaponDetailLabel.Text = "Awaiting orders.";
+		HideCrewStatsPopout();
 		_giveEmHellButton.GrabFocus();
 	}
 
@@ -406,32 +418,41 @@ public partial class SchematicBattleDebugScene : Control
 	{
 		var row = new PanelContainer
 		{
-			CustomMinimumSize = new Vector2(0.0f, 32.0f),
+			CustomMinimumSize = new Vector2(0.0f, 28.0f),
+			MouseFilter = MouseFilterEnum.Stop,
 			SizeFlagsHorizontal = SizeFlags.ExpandFill
 		};
-		row.AddThemeStyleboxOverride("panel", CreateCrewRowStyle(isSelected));
+		row.AddThemeStyleboxOverride("panel", CreateCrewRowStyle(isSelected, false));
+		row.MouseEntered += () => OnPlayerCrewRowHovered(row, crew, isSelected);
+		row.MouseExited += () => OnPlayerCrewRowUnhovered(row, isSelected);
 
-		var margin = new MarginContainer();
-		margin.AddThemeConstantOverride("margin_left", 6);
-		margin.AddThemeConstantOverride("margin_top", 4);
-		margin.AddThemeConstantOverride("margin_right", 6);
-		margin.AddThemeConstantOverride("margin_bottom", 4);
+		var margin = new MarginContainer
+		{
+			MouseFilter = MouseFilterEnum.Ignore
+		};
+		margin.AddThemeConstantOverride("margin_left", 4);
+		margin.AddThemeConstantOverride("margin_top", 3);
+		margin.AddThemeConstantOverride("margin_right", 4);
+		margin.AddThemeConstantOverride("margin_bottom", 3);
 
 		var contents = new HBoxContainer
 		{
+			MouseFilter = MouseFilterEnum.Ignore,
 			SizeFlagsHorizontal = SizeFlags.ExpandFill
 		};
-		contents.AddThemeConstantOverride("separation", 8);
+		contents.AddThemeConstantOverride("separation", 5);
 
 		var marker = new Label
 		{
-			CustomMinimumSize = new Vector2(24.0f, 24.0f),
+			CustomMinimumSize = new Vector2(20.0f, 20.0f),
 			Text = crew.ShortLabel,
 			HorizontalAlignment = HorizontalAlignment.Center,
-			VerticalAlignment = VerticalAlignment.Center
+			VerticalAlignment = VerticalAlignment.Center,
+			MouseFilter = MouseFilterEnum.Ignore
 		};
 		marker.AddThemeStyleboxOverride("normal", CreateCrewMarkerStyle(isSelected));
 		marker.AddThemeColorOverride("font_color", Colors.White);
+		marker.AddThemeFontSizeOverride("font_size", 11);
 
 		var roleLabel = new Label
 		{
@@ -439,17 +460,98 @@ public partial class SchematicBattleDebugScene : Control
 			SizeFlagsHorizontal = SizeFlags.ExpandFill,
 			VerticalAlignment = VerticalAlignment.Center,
 			ClipText = true,
-			TooltipText = crew.DisplayName
+			TooltipText = crew.DisplayName,
+			MouseFilter = MouseFilterEnum.Ignore
 		};
 		roleLabel.AddThemeColorOverride(
 			"font_color",
 			isSelected ? new Color(1.0f, 0.94f, 0.62f) : new Color(0.86f, 0.84f, 0.76f));
+		roleLabel.AddThemeFontSizeOverride("font_size", 12);
 
 		contents.AddChild(marker);
 		contents.AddChild(roleLabel);
 		margin.AddChild(contents);
 		row.AddChild(margin);
 		_playerCrewRows.AddChild(row);
+	}
+
+	private void OnPlayerCrewRowHovered(PanelContainer row, CrewState crew, bool isSelected)
+	{
+		row.AddThemeStyleboxOverride("panel", CreateCrewRowStyle(isSelected, true));
+		ShowCrewStatsPopout(crew, row);
+	}
+
+	private void OnPlayerCrewRowUnhovered(PanelContainer row, bool isSelected)
+	{
+		row.AddThemeStyleboxOverride("panel", CreateCrewRowStyle(isSelected, false));
+		HideCrewStatsPopout();
+	}
+
+	private void ShowCrewStatsPopout(CrewState crew, Control hoveredRow)
+	{
+		if (!CrewStatsByClass.TryGetValue(crew.CrewClass, out var stats))
+		{
+			HideCrewStatsPopout();
+			return;
+		}
+
+		ClearChildren(_crewStatsRows);
+		AddCrewStatRow("HP", stats.HitPoints);
+		AddCrewStatRow("Fite", stats.Fighting);
+		AddCrewStatRow("Sail", stats.PilotingSailing);
+		AddCrewStatRow("Gun", stats.Gunning);
+		AddCrewStatRow("Fix", stats.Repair);
+		PositionCrewStatsPopout(hoveredRow);
+		_crewStatsPopout.AddThemeStyleboxOverride("panel", CreateCrewStatsPopoutStyle());
+		_crewStatsPopout.Modulate = Colors.White;
+	}
+
+	private void PositionCrewStatsPopout(Control hoveredRow)
+	{
+		var rowRect = hoveredRow.GetGlobalRect();
+		var desiredGlobalPosition = new Vector2(rowRect.End.X + 4.0f, rowRect.Position.Y);
+		_crewStatsPopout.GlobalPosition = desiredGlobalPosition;
+	}
+
+	private void HideCrewStatsPopout()
+	{
+		_crewStatsPopout.Modulate = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+		ClearChildren(_crewStatsRows);
+	}
+
+	private void AddCrewStatRow(string label, int value)
+	{
+		var row = new HBoxContainer
+		{
+			CustomMinimumSize = new Vector2(0.0f, 18.0f),
+			MouseFilter = MouseFilterEnum.Ignore,
+			SizeFlagsHorizontal = SizeFlags.ExpandFill
+		};
+		row.AddThemeConstantOverride("separation", 3);
+
+		var labelNode = new Label
+		{
+			CustomMinimumSize = new Vector2(30.0f, 0.0f),
+			Text = label,
+			ClipText = true,
+			MouseFilter = MouseFilterEnum.Ignore
+		};
+		labelNode.AddThemeColorOverride("font_color", new Color(0.76f, 0.8f, 0.76f));
+		labelNode.AddThemeFontSizeOverride("font_size", 11);
+
+		var valueNode = new Label
+		{
+			Text = value.ToString(),
+			HorizontalAlignment = HorizontalAlignment.Right,
+			MouseFilter = MouseFilterEnum.Ignore,
+			SizeFlagsHorizontal = SizeFlags.ExpandFill
+		};
+		valueNode.AddThemeColorOverride("font_color", Colors.White);
+		valueNode.AddThemeFontSizeOverride("font_size", 11);
+
+		row.AddChild(labelNode);
+		row.AddChild(valueNode);
+		_crewStatsRows.AddChild(row);
 	}
 
 	private void AddSystemStatusRow(ShipRoomState room)
@@ -523,20 +625,26 @@ public partial class SchematicBattleDebugScene : Control
 			: $"Targeting {weaponStatus.TargetName}; awaiting operational, manned cannons.";
 	}
 
-	private static StyleBoxFlat CreateCrewRowStyle(bool isSelected)
+	private static StyleBoxFlat CreateCrewRowStyle(bool isSelected, bool isHovered)
 	{
 		return new StyleBoxFlat
 		{
-			BgColor = isSelected
+			BgColor = isHovered
+				? (isSelected
+					? new Color(0.28f, 0.38f, 0.43f, 0.96f)
+					: new Color(0.1f, 0.16f, 0.17f, 0.76f))
+				: isSelected
 				? new Color(0.24f, 0.32f, 0.38f, 0.92f)
 				: new Color(0.05f, 0.08f, 0.085f, 0.42f),
-			BorderColor = isSelected
+			BorderColor = isHovered
+				? new Color(1.0f, 0.96f, 0.62f, 1.0f)
+				: isSelected
 				? new Color(1.0f, 0.86f, 0.42f, 0.94f)
 				: new Color(0.56f, 0.48f, 0.34f, 0.52f),
-			BorderWidthLeft = isSelected ? 2 : 1,
-			BorderWidthTop = isSelected ? 2 : 1,
-			BorderWidthRight = isSelected ? 2 : 1,
-			BorderWidthBottom = isSelected ? 2 : 1,
+			BorderWidthLeft = isHovered ? 3 : isSelected ? 2 : 1,
+			BorderWidthTop = isSelected || isHovered ? 2 : 1,
+			BorderWidthRight = isSelected || isHovered ? 2 : 1,
+			BorderWidthBottom = isSelected || isHovered ? 2 : 1,
 			CornerRadiusTopLeft = 4,
 			CornerRadiusTopRight = 4,
 			CornerRadiusBottomRight = 4,
@@ -556,10 +664,27 @@ public partial class SchematicBattleDebugScene : Control
 			BorderWidthTop = 1,
 			BorderWidthRight = 1,
 			BorderWidthBottom = 1,
-			CornerRadiusTopLeft = 12,
-			CornerRadiusTopRight = 12,
-			CornerRadiusBottomRight = 12,
-			CornerRadiusBottomLeft = 12
+			CornerRadiusTopLeft = 10,
+			CornerRadiusTopRight = 10,
+			CornerRadiusBottomRight = 10,
+			CornerRadiusBottomLeft = 10
+		};
+	}
+
+	private static StyleBoxFlat CreateCrewStatsPopoutStyle()
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = new Color(0.04f, 0.065f, 0.07f, 0.92f),
+			BorderColor = new Color(1.0f, 0.96f, 0.62f, 0.94f),
+			BorderWidthLeft = 2,
+			BorderWidthTop = 1,
+			BorderWidthRight = 1,
+			BorderWidthBottom = 1,
+			CornerRadiusTopLeft = 4,
+			CornerRadiusTopRight = 4,
+			CornerRadiusBottomRight = 4,
+			CornerRadiusBottomLeft = 4
 		};
 	}
 
@@ -669,4 +794,11 @@ public partial class SchematicBattleDebugScene : Control
 			_resumeButton.GrabFocus();
 		}
 	}
+
+	private sealed record CrewDisplayStats(
+		int HitPoints,
+		int Fighting,
+		int PilotingSailing,
+		int Gunning,
+		int Repair);
 }
