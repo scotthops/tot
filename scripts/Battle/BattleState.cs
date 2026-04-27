@@ -135,6 +135,28 @@ public class BattleState
 		SetSelection(shipSource, ship, ship.GetSelectedRoom());
 	}
 
+	public void HandleRoomSelectionPressed(string shipSource, ShipState ship, int tileX, int tileY)
+	{
+		if (IsBattleOver)
+		{
+			return;
+		}
+
+		ship.SelectRoomAt(tileX, tileY);
+		SetSelection(shipSource, ship, ship.GetSelectedRoom());
+	}
+
+	public void HandleCrewMovePressed(string shipSource, ShipState ship, int tileX, int tileY)
+	{
+		if (IsBattleOver)
+		{
+			return;
+		}
+
+		LastMovementFeedback = null;
+		TryHandleCrewMovement(shipSource, ship, tileX, tileY);
+	}
+
 	public void ClearSelection()
 	{
 		PlayerShip.ClearSelection();
@@ -330,6 +352,13 @@ public class BattleState
 		return BuildCannonChargeBarState(EnemyShip, CrewAllegiance.Enemy, cannonsRoom, targetRoom, _enemyCannons);
 	}
 
+	public BattleWeaponChargeStatus GetPlayerCannonChargeStatus()
+	{
+		var cannonsRoom = PlayerShip.GetRoomBySystemType(OffensiveSystemType);
+		var targetRoom = FindRoomById(EnemyShip, _playerCannons.TargetRoomId);
+		return BuildWeaponChargeStatus(PlayerShip, CrewAllegiance.Player, cannonsRoom, targetRoom, _playerCannons);
+	}
+
 	private CannonChargeBarState BuildCannonChargeBarState(
 		ShipState ship,
 		CrewAllegiance allegiance,
@@ -354,6 +383,32 @@ public class BattleState
 
 		var progressRatio = Math.Clamp(batteryState.ChargeSeconds / CannonChargeDurationSeconds, 0.0, 1.0);
 		return new CannonChargeBarState(cannonsRoom.RoomId, progressRatio, true, true);
+	}
+
+	private BattleWeaponChargeStatus BuildWeaponChargeStatus(
+		ShipState ship,
+		CrewAllegiance allegiance,
+		ShipRoomState? cannonsRoom,
+		ShipRoomState? targetRoom,
+		CannonBatteryState batteryState)
+	{
+		var weaponName = cannonsRoom?.DisplayName ?? "Cannons";
+		if (IsBattleOver || cannonsRoom == null)
+		{
+			return new BattleWeaponChargeStatus(weaponName, null, 0.0, CannonChargeDurationSeconds, false, false, false);
+		}
+
+		var hasTarget = targetRoom != null;
+		var isActive = hasTarget && ship.IsRoomOperational(cannonsRoom) && ship.IsRoomManned(cannonsRoom, allegiance);
+		var chargeSeconds = isActive ? batteryState.ChargeSeconds : 0.0;
+		return new BattleWeaponChargeStatus(
+			weaponName,
+			targetRoom?.DisplayName,
+			chargeSeconds,
+			CannonChargeDurationSeconds,
+			true,
+			hasTarget,
+			isActive);
 	}
 
 	public IReadOnlyList<BattleAvailableAction> GetAvailableActions()
@@ -1167,6 +1222,15 @@ public sealed record CannonChargeBarState(
 	string? RoomId,
 	double ProgressRatio,
 	bool IsVisible,
+	bool IsActive);
+
+public sealed record BattleWeaponChargeStatus(
+	string WeaponName,
+	string? TargetName,
+	double ChargeSeconds,
+	double ChargeDurationSeconds,
+	bool IsVisible,
+	bool HasTarget,
 	bool IsActive);
 
 public sealed record BattleTimeControlStatus(

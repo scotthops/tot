@@ -24,6 +24,10 @@ public partial class SchematicBattleDebugScene : Control
 	private Label _selectionRoomLabel = null!;
 	private Label _selectionSystemLabel = null!;
 	private Label _actionStatusLabel = null!;
+	private VBoxContainer _systemStatusRows = null!;
+	private Label _weaponNameLabel = null!;
+	private ProgressBar _weaponChargeBar = null!;
+	private Label _weaponDetailLabel = null!;
 	private Button _primaryActionButton = null!;
 	private Button _secondaryActionButton = null!;
 	private Button _resetButton = null!;
@@ -49,6 +53,10 @@ public partial class SchematicBattleDebugScene : Control
 		_selectionRoomLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionRoomLabel");
 		_selectionSystemLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/SelectionDetails/SelectionSystemLabel");
 		_actionStatusLabel = GetNode<Label>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ActionStatusLabel");
+		_systemStatusRows = GetNode<VBoxContainer>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/SystemColumn/SystemStatusRows");
+		_weaponNameLabel = GetNode<Label>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponNameLabel");
+		_weaponChargeBar = GetNode<ProgressBar>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow/WeaponChargeBar");
+		_weaponDetailLabel = GetNode<Label>("MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponDetailLabel");
 		_primaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/PrimaryActionButton");
 		_secondaryActionButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/SecondaryActionButton");
 		_resetButton = GetNode<Button>("MarginContainer/VBoxContainer/StatusPanel/MarginContainer/VBoxContainer/ButtonRow/ResetButton");
@@ -68,10 +76,12 @@ public partial class SchematicBattleDebugScene : Control
 
 		_playerShipView.SetShipVisualStyle(new Color(0.24f, 0.48f, 0.78f), true);
 		_enemyShipView.SetShipVisualStyle(new Color(0.72f, 0.24f, 0.18f), false);
-		_playerShipView.TilePressed += (ship, x, y) => OnTilePressed("Player", ship, x, y);
+		_playerShipView.ShowInlineWeaponChargeBars = false;
+		_enemyShipView.ShowInlineWeaponChargeBars = false;
+		_playerShipView.TileClicked += (ship, x, y, button) => OnTileClicked("Player", ship, x, y, button);
 		_playerShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_playerShipView.CrewSelected += (ship, crew) => OnCrewSelected("Player", ship, crew);
-		_enemyShipView.TilePressed += (ship, x, y) => OnTilePressed("Enemy", ship, x, y);
+		_enemyShipView.TileClicked += (ship, x, y, button) => OnTileClicked("Enemy", ship, x, y, button);
 		_enemyShipView.BackgroundPressed += OnBoardBackgroundPressed;
 		_enemyShipView.CrewSelected += (ship, crew) => OnCrewSelected("Enemy", ship, crew);
 		_background.GuiInput += OnBackgroundGuiInput;
@@ -87,6 +97,8 @@ public partial class SchematicBattleDebugScene : Control
 		SetPauseMenuOpen(false);
 		ConfigureActionButtons([]);
 		_actionStatusLabel.Text = "Awaiting orders.";
+		_weaponChargeBar.Value = 0.0;
+		_weaponDetailLabel.Text = "Awaiting orders.";
 		_giveEmHellButton.GrabFocus();
 	}
 
@@ -155,9 +167,17 @@ public partial class SchematicBattleDebugScene : Control
 		_actionStatusLabel.Text = updateResult.StatusText;
 	}
 
-	private void OnTilePressed(string shipSource, ShipState ship, int tileX, int tileY)
+	private void OnTileClicked(string shipSource, ShipState ship, int tileX, int tileY, MouseButton button)
 	{
-		_battleState.HandleTilePressed(shipSource, ship, tileX, tileY);
+		if (button == MouseButton.Left)
+		{
+			_battleState.HandleRoomSelectionPressed(shipSource, ship, tileX, tileY);
+		}
+		else if (button == MouseButton.Right)
+		{
+			_battleState.HandleCrewMovePressed(shipSource, ship, tileX, tileY);
+		}
+
 		RenderBattleViews();
 		ShowSelectionState(_battleState.CurrentSelection);
 	}
@@ -251,6 +271,7 @@ public partial class SchematicBattleDebugScene : Control
 		_playerShipView.Render(_battleState.PlayerShip, playerSelectedCrewId);
 		_enemyShipView.Render(_battleState.EnemyShip, enemySelectedCrewId);
 		UpdateCannonChargeBars();
+		RebuildSystemStatusPanel();
 	}
 
 	private void ShowSelectionState(BattleSelection? selection)
@@ -310,7 +331,7 @@ public partial class SchematicBattleDebugScene : Control
 			ConfigureActionButtons([]);
 			_battleState.SetLastIssuedIntent(null);
 			_actionStatusLabel.Text = selection?.Kind == BattleSelectionKind.Crew
-				? "Crew selected. Click a walkable player tile to queue movement."
+				? "Crew selected. Right-click a walkable player tile to queue movement."
 				: "Select a room to see actions.";
 			return;
 		}
@@ -350,6 +371,97 @@ public partial class SchematicBattleDebugScene : Control
 	{
 		_playerShipView.SetCannonChargeBar(_battleState.GetPlayerCannonChargeBarState());
 		_enemyShipView.SetCannonChargeBar(_battleState.GetEnemyCannonChargeBarState());
+		UpdateWeaponStatusPanel();
+	}
+
+	private void RebuildSystemStatusPanel()
+	{
+		ClearChildren(_systemStatusRows);
+
+		foreach (var room in _battleState.PlayerShip.Grid.Rooms)
+		{
+			AddSystemStatusRow(room);
+		}
+	}
+
+	private void AddSystemStatusRow(ShipRoomState room)
+	{
+		var row = new HBoxContainer
+		{
+			CustomMinimumSize = new Vector2(0.0f, 24.0f),
+			SizeFlagsHorizontal = SizeFlags.ExpandFill
+		};
+		row.AddThemeConstantOverride("separation", 8);
+
+		var nameLabel = new Label
+		{
+			CustomMinimumSize = new Vector2(170.0f, 0.0f),
+			Text = room.DisplayName,
+			ClipText = true,
+			TooltipText = $"{room.DisplayName} | {room.SystemType}"
+		};
+
+		var integrityBar = new ProgressBar
+		{
+			CustomMinimumSize = new Vector2(128.0f, 10.0f),
+			MaxValue = ShipRoomState.MaxIntegrity,
+			Value = room.Integrity,
+			ShowPercentage = false
+		};
+
+		var statusLabel = new Label
+		{
+			CustomMinimumSize = new Vector2(190.0f, 0.0f),
+			Text = $"{room.Integrity}/{ShipRoomState.MaxIntegrity} | {GetRoomStatusText(room)}",
+			ClipText = true
+		};
+
+		row.AddChild(nameLabel);
+		row.AddChild(integrityBar);
+		row.AddChild(statusLabel);
+		_systemStatusRows.AddChild(row);
+	}
+
+	private void UpdateWeaponStatusPanel()
+	{
+		var weaponStatus = _battleState.GetPlayerCannonChargeStatus();
+		if (!weaponStatus.IsVisible)
+		{
+			_weaponNameLabel.Text = $"{weaponStatus.WeaponName}: unavailable";
+			_weaponChargeBar.Value = 0.0;
+			_weaponDetailLabel.Text = "No player cannon system is available.";
+			return;
+		}
+
+		_weaponNameLabel.Text =
+			$"{weaponStatus.WeaponName}: {weaponStatus.ChargeSeconds:0.0}/{weaponStatus.ChargeDurationSeconds:0.0}s";
+		_weaponChargeBar.MaxValue = weaponStatus.ChargeDurationSeconds;
+		_weaponChargeBar.Value = Mathf.Clamp(
+			(float)weaponStatus.ChargeSeconds,
+			0.0f,
+			(float)weaponStatus.ChargeDurationSeconds);
+		_weaponDetailLabel.Text = BuildWeaponDetailText(weaponStatus);
+	}
+
+	private static string BuildWeaponDetailText(BattleWeaponChargeStatus weaponStatus)
+	{
+		if (!weaponStatus.HasTarget)
+		{
+			return "No target selected.";
+		}
+
+		return weaponStatus.IsActive
+			? $"Charging shot on {weaponStatus.TargetName}."
+			: $"Targeting {weaponStatus.TargetName}; awaiting operational, manned cannons.";
+	}
+
+	private static void ClearChildren(Node parent)
+	{
+		foreach (var child in parent.GetChildren())
+		{
+			parent.RemoveChild(child);
+			child.QueueFree();
+		}
 	}
 
 	private void UpdateTimeControlStatusLabel()

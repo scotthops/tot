@@ -12,8 +12,10 @@ public partial class SchematicShipGridView : Control
 {
 	[Export] public Color HullTint { get; set; } = new(0.24f, 0.48f, 0.78f);
 	[Export] public bool BowFacesRight { get; set; } = true;
+	[Export] public bool ShowInlineWeaponChargeBars { get; set; } = true;
 
 	public event Action<ShipState, int, int>? TilePressed;
+	public event Action<ShipState, int, int, MouseButton>? TileClicked;
 	public event Action<ShipState>? BackgroundPressed;
 	public event Action<ShipState, CrewState>? CrewSelected;
 
@@ -82,13 +84,18 @@ public partial class SchematicShipGridView : Control
 
 	public override void _GuiInput(InputEvent @event)
 	{
-		if (_shipState == null || @event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mouseButton)
+		if (_shipState == null || @event is not InputEventMouseButton { Pressed: true } mouseButton)
+		{
+			return;
+		}
+
+		if (mouseButton.ButtonIndex != MouseButton.Left && mouseButton.ButtonIndex != MouseButton.Right)
 		{
 			return;
 		}
 
 		var layout = CalculateBoardLayout(_shipState.Grid.Width, _shipState.Grid.Height);
-		if (TryFindCrewAtPosition(layout, mouseButton.Position, out var crew))
+		if (mouseButton.ButtonIndex == MouseButton.Left && TryFindCrewAtPosition(layout, mouseButton.Position, out var crew))
 		{
 			CrewSelected?.Invoke(_shipState, crew);
 			AcceptEvent();
@@ -97,12 +104,21 @@ public partial class SchematicShipGridView : Control
 
 		if (TryFindWalkableTileAtPosition(layout, mouseButton.Position, out var tileX, out var tileY))
 		{
-			TilePressed?.Invoke(_shipState, tileX, tileY);
+			TileClicked?.Invoke(_shipState, tileX, tileY, mouseButton.ButtonIndex);
+			if (mouseButton.ButtonIndex == MouseButton.Left)
+			{
+				TilePressed?.Invoke(_shipState, tileX, tileY);
+			}
+
 			AcceptEvent();
 			return;
 		}
 
-		BackgroundPressed?.Invoke(_shipState);
+		if (mouseButton.ButtonIndex == MouseButton.Left)
+		{
+			BackgroundPressed?.Invoke(_shipState);
+		}
+
 		AcceptEvent();
 	}
 
@@ -124,7 +140,11 @@ public partial class SchematicShipGridView : Control
 		DrawRoomSymbols(layout);
 		DrawRoomLabels(font, layout);
 		DrawModuleBays(font, layout);
-		DrawCannonChargeBar(layout);
+		if (ShowInlineWeaponChargeBars)
+		{
+			DrawCannonChargeBar(layout);
+		}
+
 		DrawCrewTokens(font, layout);
 	}
 

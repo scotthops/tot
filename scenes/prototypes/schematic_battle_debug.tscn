@@ -123,7 +123,7 @@ clip_text = true
 max_lines_visible = 2
 
 [node name="ShipRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=428509362]
-custom_minimum_size = Vector2(0, 520)
+custom_minimum_size = Vector2(0, 430)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -136,6 +136,77 @@ layout_mode = 2
 [node name="EnemyShipView" parent="MarginContainer/VBoxContainer/ShipRow" unique_id=936171248 instance=ExtResource("2_schematic_grid")]
 clip_contents = true
 layout_mode = 2
+
+[node name="CombatPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer" unique_id=487459226]
+custom_minimum_size = Vector2(0, 168)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/CombatPanel" unique_id=2123889183]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer" unique_id=1560849112]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="SystemColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer" unique_id=886803155]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="SystemHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/SystemColumn" unique_id=534399415]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Player Systems"
+
+[node name="SystemStatusRows" type="VBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/SystemColumn" unique_id=1109943552]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="WeaponColumn" type="VBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer" unique_id=201972839]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="WeaponHeaderLabel" type="Label" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn" unique_id=751155376]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Weapons"
+
+[node name="WeaponStatusRows" type="VBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn" unique_id=592562637]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="WeaponRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows" unique_id=1779895370]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="WeaponNameLabel" type="Label" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow" unique_id=806503726]
+custom_minimum_size = Vector2(230, 0)
+layout_mode = 2
+text = "Cannons: 0.0/7.0s"
+clip_text = true
+
+[node name="WeaponChargeBar" type="ProgressBar" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows/WeaponRow" unique_id=2119886550]
+custom_minimum_size = Vector2(148, 10)
+layout_mode = 2
+max_value = 7.0
+show_percentage = false
+
+[node name="WeaponDetailLabel" type="Label" parent="MarginContainer/VBoxContainer/CombatPanel/MarginContainer/HBoxContainer/WeaponColumn/WeaponStatusRows" unique_id=1655647237]
+layout_mode = 2
+text = "No target selected."
+autowrap_mode = 3
+clip_text = true
+max_lines_visible = 2
 
 [node name="OrdersOverlay" type="Control" parent="." unique_id=2013727766]
 layout_mode = 1
