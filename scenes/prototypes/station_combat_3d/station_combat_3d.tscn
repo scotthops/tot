@@ -48,15 +48,17 @@ surface_material_override/0 = SubResource("StandardMaterial3D_ocean")
 
 [node name="ShipBlockout" type="Node3D" parent="PrototypeRoot"]
 
+[node name="EnemyShipBlockout" type="Node3D" parent="PrototypeRoot"]
+
 [node name="Stations" type="Node3D" parent="PrototypeRoot"]
 
 [node name="Crew" type="Node3D" parent="PrototypeRoot"]
 
 [node name="Camera3D" type="Camera3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.573576, 0.819152, 0, -0.819152, 0.573576, 0, 7.6, 6.8)
+transform = Transform3D(1, 0, 0, 0, 0.573576, 0.819152, 0, -0.819152, 0.573576, 0, 11.2, 10.2)
 projection = 1
 current = true
-size = 7.3
+size = 12.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

@@ -7,19 +7,36 @@ namespace TidesOfTime.Prototypes;
 public partial class StationCombat3D : Node3D
 {
 	[Export] public NodePath ShipRootPath { get; set; } = new("PrototypeRoot/ShipBlockout");
+	[Export] public NodePath EnemyShipRootPath { get; set; } = new("PrototypeRoot/EnemyShipBlockout");
 	[Export] public NodePath StationRootPath { get; set; } = new("PrototypeRoot/Stations");
 	[Export] public NodePath CrewRootPath { get; set; } = new("PrototypeRoot/Crew");
-	[Export] public NodePath HudPanelPath { get; set; } = new("HUD/PanelContainer");
-	[Export] public NodePath SelectedCrewLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/SelectedCrewValue");
-	[Export] public NodePath ClickedStationLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/ClickedStationValue");
-	[Export] public NodePath StatusLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/StatusValue");
-	[Export] public NodePath AssignmentsLabelPath { get; set; } = new("HUD/PanelContainer/MarginContainer/VBoxContainer/AssignmentsValue");
+	[Export] public NodePath HudRootPath { get; set; } = new("HUD");
+	[Export] public NodePath CameraPath { get; set; } = new("Camera3D");
+	[Export] public Vector3 PlayerShipOffset { get; set; } = new(-3.2f, 0.0f, 0.0f);
+	[Export] public Vector3 EnemyShipOffset { get; set; } = new(3.2f, 0.0f, 0.0f);
+	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.0f, 11.2f, 10.2f);
+	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-55.0f, 0.0f, 0.0f);
+	[Export] public float DefaultCameraSize { get; set; } = 12.0f;
+	[Export] public float MinCameraSize { get; set; } = 5.4f;
+	[Export] public float MaxCameraSize { get; set; } = 16.0f;
+	[Export] public float CameraPanSpeed { get; set; } = 5.0f;
+	[Export] public float CameraZoomStep { get; set; } = 0.55f;
 
-	private static readonly Color HullColor = new(0.28f, 0.13f, 0.06f);
-	private static readonly Color DeckColor = new(0.57f, 0.34f, 0.15f);
-	private static readonly Color RailColor = new(0.18f, 0.09f, 0.035f);
-	private static readonly Color SailColor = new(0.82f, 0.76f, 0.58f);
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
+	private static readonly ShipVisualStyle PlayerShipStyle = new(
+		new Color(0.28f, 0.13f, 0.06f),
+		new Color(0.57f, 0.34f, 0.15f),
+		new Color(0.18f, 0.09f, 0.035f),
+		new Color(0.82f, 0.76f, 0.58f),
+		new Color(0.5f, 0.28f, 0.12f),
+		new Color(0.34f, 0.48f, 0.78f));
+	private static readonly ShipVisualStyle EnemyShipStyle = new(
+		new Color(0.18f, 0.075f, 0.045f),
+		new Color(0.38f, 0.19f, 0.11f),
+		new Color(0.12f, 0.045f, 0.035f),
+		new Color(0.48f, 0.38f, 0.32f),
+		new Color(0.35f, 0.12f, 0.085f),
+		new Color(0.68f, 0.20f, 0.16f));
 
 	private static readonly StationDefinition[] StationDefinitions =
 	{
@@ -49,16 +66,19 @@ public partial class StationCombat3D : Node3D
 	{
 		new(
 			"Captain",
+			"C",
 			"Command",
 			new Vector3(-0.58f, 1.04f, 1.54f),
 			new Color(0.26f, 0.46f, 0.82f)),
 		new(
 			"Gunner",
+			"G",
 			"Gunnery",
 			new Vector3(-0.58f, 1.04f, -0.88f),
 			new Color(0.72f, 0.32f, 0.24f)),
 		new(
 			"Deckhand",
+			"D",
 			"Repair",
 			new Vector3(0.58f, 1.04f, 0.12f),
 			new Color(0.26f, 0.62f, 0.42f))
@@ -70,85 +90,214 @@ public partial class StationCombat3D : Node3D
 	private readonly Dictionary<string, string> _crewByStationName = new();
 
 	private Node3D? _shipRoot;
+	private Node3D? _enemyShipRoot;
 	private Node3D? _stationRoot;
 	private Node3D? _crewRoot;
-	private PanelContainer? _hudPanel;
-	private Label? _selectedCrewLabel;
-	private Label? _clickedStationLabel;
+	private CanvasLayer? _hudRoot;
+	private Label? _playerHullLabel;
+	private Label? _enemyHullLabel;
+	private Label? _selectedSummaryLabel;
+	private Label? _targetLabel;
 	private Label? _statusLabel;
-	private Label? _assignmentsLabel;
+	private VBoxContainer? _crewRows;
+	private VBoxContainer? _stationStatusRows;
+	private Label? _playerWeaponLabel;
+	private Label? _enemyWeaponLabel;
+	private readonly Dictionary<string, Button> _crewButtonsByName = new();
+	private Camera3D? _camera;
 	private CrewToken3D? _selectedCrew;
 	private StationMarker3D? _clickedStation;
+	private string _currentTargetText = "Enemy Cannons";
 	private string _statusText = "Awaiting assignment.";
 
 	public override void _Ready()
 	{
 		_shipRoot = GetNodeOrNull<Node3D>(ShipRootPath);
+		_enemyShipRoot = GetNodeOrNull<Node3D>(EnemyShipRootPath);
 		_stationRoot = GetNodeOrNull<Node3D>(StationRootPath);
 		_crewRoot = GetNodeOrNull<Node3D>(CrewRootPath);
-		_hudPanel = GetNodeOrNull<PanelContainer>(HudPanelPath);
-		_selectedCrewLabel = GetNodeOrNull<Label>(SelectedCrewLabelPath);
-		_clickedStationLabel = GetNodeOrNull<Label>(ClickedStationLabelPath);
-		_statusLabel = GetNodeOrNull<Label>(StatusLabelPath);
-		_assignmentsLabel = GetNodeOrNull<Label>(AssignmentsLabelPath);
+		_hudRoot = GetNodeOrNull<CanvasLayer>(HudRootPath);
+		_camera = GetNodeOrNull<Camera3D>(CameraPath);
 
-		if (_shipRoot == null || _stationRoot == null || _crewRoot == null)
+		if (_shipRoot == null || _enemyShipRoot == null || _stationRoot == null || _crewRoot == null || _hudRoot == null || _camera == null)
 		{
-			GD.PushError("StationCombat3D: prototype roots are missing from the scene.");
+			GD.PushError("StationCombat3D: prototype roots, HUD, or camera are missing from the scene.");
 			return;
 		}
 
-		StyleHud();
-		BuildShipBlockout();
+		PositionBattleRoots();
+		ResetCamera();
+		BuildHud();
+		BuildShipBlockout(_shipRoot, PlayerShipStyle, "Player");
+		BuildShipBlockout(_enemyShipRoot, EnemyShipStyle, "Enemy");
 		BuildStations();
 		BuildCrew();
 		UpdateHud();
 	}
 
-	private void BuildShipBlockout()
+	public override void _Process(double delta)
 	{
-		if (_shipRoot == null)
+		UpdateCameraPan((float)delta);
+	}
+
+	public override void _UnhandledInput(InputEvent @event)
+	{
+		if (@event is InputEventKey { Pressed: true, Echo: false } keyEvent &&
+			(keyEvent.Keycode == Key.R || keyEvent.Keycode == Key.Home))
+		{
+			ResetCamera();
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (@event is not InputEventMouseButton { Pressed: true } mouseButton)
 		{
 			return;
 		}
 
-		ClearChildren(_shipRoot);
+		if (mouseButton.ButtonIndex is MouseButton.Left or MouseButton.Right &&
+			TryHandleWorldClick(mouseButton))
+		{
+			GetViewport().SetInputAsHandled();
+			return;
+		}
 
-		CreateBox(_shipRoot, "Hull", new Vector3(3.35f, 0.72f, 6.2f), new Vector3(0.0f, 0.36f, 0.0f), HullColor);
-		CreateBox(_shipRoot, "Deck", new Vector3(2.72f, 0.16f, 5.28f), new Vector3(0.0f, 0.82f, 0.12f), DeckColor);
-		CreateBox(_shipRoot, "PortRail", new Vector3(0.16f, 0.36f, 5.35f), new Vector3(-1.44f, 1.05f, 0.12f), RailColor);
-		CreateBox(_shipRoot, "StarboardRail", new Vector3(0.16f, 0.36f, 5.35f), new Vector3(1.44f, 1.05f, 0.12f), RailColor);
-		CreateBox(_shipRoot, "SternRail", new Vector3(2.86f, 0.36f, 0.16f), new Vector3(0.0f, 1.05f, 2.84f), RailColor);
-		CreateBeamBetween(_shipRoot, "PortBowRail", new Vector2(-1.44f, -2.5f), new Vector2(0.0f, -3.24f), 1.05f);
-		CreateBeamBetween(_shipRoot, "StarboardBowRail", new Vector2(1.44f, -2.5f), new Vector2(0.0f, -3.24f), 1.05f);
+		if (mouseButton.ButtonIndex == MouseButton.Left)
+		{
+			ClearSelection("Selection cleared.");
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (mouseButton.ButtonIndex == MouseButton.WheelUp)
+		{
+			AdjustCameraZoom(-CameraZoomStep);
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (mouseButton.ButtonIndex == MouseButton.WheelDown)
+		{
+			AdjustCameraZoom(CameraZoomStep);
+			GetViewport().SetInputAsHandled();
+		}
+	}
+
+	private bool TryHandleWorldClick(InputEventMouseButton mouseButton)
+	{
+		var target = PickInteractionTarget(mouseButton.Position);
+		if (target is CrewToken3D crew)
+		{
+			if (mouseButton.ButtonIndex == MouseButton.Left)
+			{
+				OnCrewClicked(crew);
+			}
+
+			return true;
+		}
+
+		if (target is StationMarker3D station)
+		{
+			OnStationClicked(station, mouseButton.ButtonIndex);
+			return true;
+		}
+
+		return false;
+	}
+
+	private Node? PickInteractionTarget(Vector2 screenPosition)
+	{
+		if (_camera == null)
+		{
+			return null;
+		}
+
+		var rayOrigin = _camera.ProjectRayOrigin(screenPosition);
+		var rayEnd = rayOrigin + (_camera.ProjectRayNormal(screenPosition) * 100.0f);
+		var query = PhysicsRayQueryParameters3D.Create(rayOrigin, rayEnd);
+		query.CollideWithAreas = true;
+		query.CollideWithBodies = false;
+
+		var result = GetWorld3D().DirectSpaceState.IntersectRay(query);
+		if (result.Count == 0)
+		{
+			return null;
+		}
+
+		var collider = result["collider"].As<Node>();
+		return FindInteractionOwner(collider);
+	}
+
+	private static Node? FindInteractionOwner(Node? node)
+	{
+		while (node != null)
+		{
+			if (node is CrewToken3D or StationMarker3D)
+			{
+				return node;
+			}
+
+			node = node.GetParent();
+		}
+
+		return null;
+	}
+
+	private void PositionBattleRoots()
+	{
+		if (_shipRoot == null || _enemyShipRoot == null || _stationRoot == null || _crewRoot == null)
+		{
+			return;
+		}
+
+		_shipRoot.Position = PlayerShipOffset;
+		_stationRoot.Position = PlayerShipOffset;
+		_crewRoot.Position = PlayerShipOffset;
+		_enemyShipRoot.Position = EnemyShipOffset;
+		_enemyShipRoot.Rotation = new Vector3(0.0f, Mathf.Pi, 0.0f);
+	}
+
+	private void BuildShipBlockout(Node3D shipRoot, ShipVisualStyle style, string displayName)
+	{
+		ClearChildren(shipRoot);
+
+		CreateBox(shipRoot, "Hull", new Vector3(3.35f, 0.72f, 6.2f), new Vector3(0.0f, 0.36f, 0.0f), style.HullColor);
+		CreateBox(shipRoot, "Deck", new Vector3(2.72f, 0.16f, 5.28f), new Vector3(0.0f, 0.82f, 0.12f), style.DeckColor);
+		CreateBox(shipRoot, "PortRail", new Vector3(0.16f, 0.36f, 5.35f), new Vector3(-1.44f, 1.05f, 0.12f), style.RailColor);
+		CreateBox(shipRoot, "StarboardRail", new Vector3(0.16f, 0.36f, 5.35f), new Vector3(1.44f, 1.05f, 0.12f), style.RailColor);
+		CreateBox(shipRoot, "SternRail", new Vector3(2.86f, 0.36f, 0.16f), new Vector3(0.0f, 1.05f, 2.84f), style.RailColor);
+		CreateBeamBetween(shipRoot, "PortBowRail", new Vector2(-1.44f, -2.5f), new Vector2(0.0f, -3.24f), 1.05f, style.RailColor);
+		CreateBeamBetween(shipRoot, "StarboardBowRail", new Vector2(1.44f, -2.5f), new Vector2(0.0f, -3.24f), 1.05f, style.RailColor);
 
 		for (var plank = -2; plank <= 2; plank++)
 		{
 			CreateBox(
-				_shipRoot,
+				shipRoot,
 				$"DeckPlankLine_{plank}",
 				new Vector3(0.025f, 0.022f, 4.92f),
 				new Vector3(plank * 0.42f, 0.925f, 0.18f),
 				new Color(0.22f, 0.12f, 0.055f));
 		}
 
-		CreateBox(_shipRoot, "SternCabin", new Vector3(1.18f, 0.54f, 0.86f), new Vector3(0.0f, 1.18f, 1.48f), new Color(0.5f, 0.28f, 0.12f));
-		CreateBox(_shipRoot, "HelmWheelBlockout", new Vector3(0.58f, 0.42f, 0.12f), new Vector3(0.0f, 1.22f, 2.08f), new Color(0.12f, 0.07f, 0.035f));
-		CreateBox(_shipRoot, "BilgeHatch", new Vector3(0.68f, 0.05f, 0.62f), new Vector3(0.42f, 0.94f, 0.72f), HatchColor);
-		CreateBox(_shipRoot, "HatchSlatA", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.58f), RailColor);
-		CreateBox(_shipRoot, "HatchSlatB", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.72f), RailColor);
-		CreateBox(_shipRoot, "HatchSlatC", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.86f), RailColor);
+		CreateBox(shipRoot, "FactionStripe", new Vector3(2.08f, 0.035f, 0.16f), new Vector3(0.0f, 0.935f, -1.88f), style.AccentColor);
+		CreateBox(shipRoot, "SternCabin", new Vector3(1.18f, 0.54f, 0.86f), new Vector3(0.0f, 1.18f, 1.48f), style.CabinColor);
+		CreateBox(shipRoot, "HelmWheelBlockout", new Vector3(0.58f, 0.42f, 0.12f), new Vector3(0.0f, 1.22f, 2.08f), style.RailColor);
+		CreateBox(shipRoot, "BilgeHatch", new Vector3(0.68f, 0.05f, 0.62f), new Vector3(0.42f, 0.94f, 0.72f), HatchColor);
+		CreateBox(shipRoot, "HatchSlatA", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.58f), style.RailColor);
+		CreateBox(shipRoot, "HatchSlatB", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.72f), style.RailColor);
+		CreateBox(shipRoot, "HatchSlatC", new Vector3(0.52f, 0.035f, 0.045f), new Vector3(0.42f, 0.985f, 0.86f), style.RailColor);
 
-		CreateCylinder(_shipRoot, "Mast", 0.12f, 2.85f, new Vector3(0.0f, 2.17f, -0.66f), RailColor, 8);
-		CreateBox(_shipRoot, "FurledSail", new Vector3(1.72f, 0.34f, 0.08f), new Vector3(0.0f, 2.1f, -0.66f), SailColor);
-		CreateBox(_shipRoot, "CrowNestPlatform", new Vector3(0.9f, 0.12f, 0.9f), new Vector3(0.0f, 2.78f, -0.66f), DeckColor);
-		CreateBox(_shipRoot, "CrowNestRailPort", new Vector3(0.08f, 0.22f, 0.9f), new Vector3(-0.45f, 2.93f, -0.66f), RailColor);
-		CreateBox(_shipRoot, "CrowNestRailStarboard", new Vector3(0.08f, 0.22f, 0.9f), new Vector3(0.45f, 2.93f, -0.66f), RailColor);
+		CreateCylinder(shipRoot, "Mast", 0.12f, 2.85f, new Vector3(0.0f, 2.17f, -0.66f), style.RailColor, 8);
+		CreateBox(shipRoot, "FurledSail", new Vector3(1.72f, 0.34f, 0.08f), new Vector3(0.0f, 2.1f, -0.66f), style.SailColor);
+		CreateBox(shipRoot, "CrowNestPlatform", new Vector3(0.9f, 0.12f, 0.9f), new Vector3(0.0f, 2.78f, -0.66f), style.DeckColor);
+		CreateBox(shipRoot, "CrowNestRailPort", new Vector3(0.08f, 0.22f, 0.9f), new Vector3(-0.45f, 2.93f, -0.66f), style.RailColor);
+		CreateBox(shipRoot, "CrowNestRailStarboard", new Vector3(0.08f, 0.22f, 0.9f), new Vector3(0.45f, 2.93f, -0.66f), style.RailColor);
 
-		CreateCannon(_shipRoot, "PortCannonForward", new Vector3(-1.54f, 1.05f, -0.72f), pointsPort: true);
-		CreateCannon(_shipRoot, "PortCannonAft", new Vector3(-1.54f, 1.05f, 0.28f), pointsPort: true);
-		CreateCannon(_shipRoot, "StarboardCannonForward", new Vector3(1.54f, 1.05f, -0.72f), pointsPort: false);
-		CreateCannon(_shipRoot, "StarboardCannonAft", new Vector3(1.54f, 1.05f, 0.28f), pointsPort: false);
+		CreateCannon(shipRoot, "PortCannonForward", new Vector3(-1.54f, 1.05f, -0.72f), pointsPort: true);
+		CreateCannon(shipRoot, "PortCannonAft", new Vector3(-1.54f, 1.05f, 0.28f), pointsPort: true);
+		CreateCannon(shipRoot, "StarboardCannonForward", new Vector3(1.54f, 1.05f, -0.72f), pointsPort: false);
+		CreateCannon(shipRoot, "StarboardCannonAft", new Vector3(1.54f, 1.05f, 0.28f), pointsPort: false);
+		CreateShipLabel(shipRoot, displayName, new Vector3(0.0f, 1.16f, -3.62f), style.AccentColor);
 	}
 
 	private void BuildStations()
@@ -198,6 +347,7 @@ public partial class StationCombat3D : Node3D
 			{
 				Name = $"{SanitizeNodeName(definition.Name)}Token",
 				CrewName = definition.Name,
+				ShortLabel = definition.ShortLabel,
 				CrewRole = definition.Role,
 				CrewColor = definition.Color,
 				Position = definition.HomePosition,
@@ -213,24 +363,31 @@ public partial class StationCombat3D : Node3D
 	private void OnCrewClicked(CrewToken3D crew)
 	{
 		_selectedCrew = crew;
+		_clickedStation = null;
 		_statusText = $"{crew.CrewName} selected.";
 		UpdateSelectionVisuals();
 		UpdateHud();
 	}
 
-	private void OnStationClicked(StationMarker3D station)
+	private void OnStationClicked(StationMarker3D station, MouseButton button)
 	{
-		_clickedStation = station;
-
-		if (_selectedCrew == null)
+		if (button == MouseButton.Left)
 		{
-			_statusText = $"{station.StationName} clicked.";
+			_selectedCrew = null;
+			_clickedStation = station;
+			_statusText = $"{station.StationName} selected.";
 			UpdateSelectionVisuals();
 			UpdateHud();
 			return;
 		}
 
+		if (button != MouseButton.Right || _selectedCrew == null)
+		{
+			return;
+		}
+
 		AssignCrewToStation(_selectedCrew, station);
+		_clickedStation = null;
 		_statusText = $"{_selectedCrew.CrewName} assigned to {station.StationName}.";
 		UpdateSelectionVisuals();
 		UpdateHud();
@@ -276,16 +433,207 @@ public partial class StationCombat3D : Node3D
 		}
 	}
 
-	private void UpdateHud()
+	private void ClearSelection(string statusText)
 	{
-		if (_selectedCrewLabel != null)
+		_selectedCrew = null;
+		_clickedStation = null;
+		_statusText = statusText;
+		UpdateSelectionVisuals();
+		UpdateHud();
+	}
+
+	private void ResetCamera()
+	{
+		if (_camera == null)
 		{
-			_selectedCrewLabel.Text = $"Crew: {_selectedCrew?.CrewName ?? "None"}";
+			return;
 		}
 
-		if (_clickedStationLabel != null)
+		_camera.Projection = Camera3D.ProjectionType.Orthogonal;
+		_camera.Position = DefaultCameraPosition;
+		_camera.RotationDegrees = DefaultCameraRotationDegrees;
+		_camera.Size = Mathf.Clamp(DefaultCameraSize, MinCameraSize, MaxCameraSize);
+	}
+
+	private void UpdateCameraPan(float deltaSeconds)
+	{
+		if (_camera == null)
 		{
-			_clickedStationLabel.Text = $"Station: {_clickedStation?.StationName ?? "None"}";
+			return;
+		}
+
+		var input = Vector2.Zero;
+		if (Input.IsKeyPressed(Key.A) || Input.IsKeyPressed(Key.Left))
+		{
+			input.X -= 1.0f;
+		}
+
+		if (Input.IsKeyPressed(Key.D) || Input.IsKeyPressed(Key.Right))
+		{
+			input.X += 1.0f;
+		}
+
+		if (Input.IsKeyPressed(Key.W) || Input.IsKeyPressed(Key.Up))
+		{
+			input.Y -= 1.0f;
+		}
+
+		if (Input.IsKeyPressed(Key.S) || Input.IsKeyPressed(Key.Down))
+		{
+			input.Y += 1.0f;
+		}
+
+		if (input.LengthSquared() <= 0.0f)
+		{
+			return;
+		}
+
+		input = input.Normalized();
+		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
+		var panDistance = CameraPanSpeed * zoomScale * deltaSeconds;
+		var nextPosition = _camera.Position + new Vector3(input.X, 0.0f, input.Y) * panDistance;
+		_camera.Position = new Vector3(
+			Mathf.Clamp(nextPosition.X, -4.5f, 4.5f),
+			nextPosition.Y,
+			Mathf.Clamp(nextPosition.Z, 3.0f, 12.5f));
+	}
+
+	private void AdjustCameraZoom(float sizeDelta)
+	{
+		if (_camera == null)
+		{
+			return;
+		}
+
+		_camera.Size = Mathf.Clamp(_camera.Size + sizeDelta, MinCameraSize, MaxCameraSize);
+	}
+
+	private void BuildHud()
+	{
+		if (_hudRoot == null)
+		{
+			return;
+		}
+
+		ClearChildren(_hudRoot);
+		_crewButtonsByName.Clear();
+
+		BuildTopBattlePanel(_hudRoot);
+		BuildCrewPanel(_hudRoot);
+		BuildBottomBattlePanel(_hudRoot);
+	}
+
+	private void BuildTopBattlePanel(CanvasLayer hudRoot)
+	{
+		var panel = CreateHudPanel("TopBattlePanel");
+		panel.AnchorRight = 1.0f;
+		panel.OffsetLeft = 188.0f;
+		panel.OffsetTop = 12.0f;
+		panel.OffsetRight = -16.0f;
+		panel.OffsetBottom = 92.0f;
+		hudRoot.AddChild(panel);
+
+		var row = new HBoxContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		row.AddThemeConstantOverride("separation", 18);
+		AddPanelMargin(panel, row, 12, 8);
+
+		_playerHullLabel = AddHudValue(row, "Player Hull: 100");
+		_enemyHullLabel = AddHudValue(row, "Enemy Hull: 100");
+		_selectedSummaryLabel = AddHudValue(row, "Selected: None");
+		_targetLabel = AddHudValue(row, $"Target: {_currentTargetText}");
+		_statusLabel = AddHudValue(row, $"Status: {_statusText}", expand: true);
+	}
+
+	private void BuildCrewPanel(CanvasLayer hudRoot)
+	{
+		var panel = CreateHudPanel("CrewPanel");
+		panel.OffsetLeft = 16.0f;
+		panel.OffsetTop = 108.0f;
+		panel.OffsetRight = 176.0f;
+		panel.OffsetBottom = 324.0f;
+		hudRoot.AddChild(panel);
+
+		var column = new VBoxContainer();
+		column.AddThemeConstantOverride("separation", 6);
+		AddPanelMargin(panel, column, 10, 8);
+
+		var title = CreateHudLabel("Crew", 15, new Color(0.98f, 0.9f, 0.62f));
+		column.AddChild(title);
+
+		_crewRows = new VBoxContainer();
+		_crewRows.AddThemeConstantOverride("separation", 5);
+		column.AddChild(_crewRows);
+		RebuildCrewRows();
+	}
+
+	private void BuildBottomBattlePanel(CanvasLayer hudRoot)
+	{
+		var panel = CreateHudPanel("BottomBattlePanel");
+		panel.AnchorRight = 1.0f;
+		panel.AnchorTop = 1.0f;
+		panel.AnchorBottom = 1.0f;
+		panel.OffsetLeft = 188.0f;
+		panel.OffsetTop = -152.0f;
+		panel.OffsetRight = -16.0f;
+		panel.OffsetBottom = -16.0f;
+		hudRoot.AddChild(panel);
+
+		var row = new HBoxContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		row.AddThemeConstantOverride("separation", 24);
+		AddPanelMargin(panel, row, 12, 8);
+
+		var stationColumn = new VBoxContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		stationColumn.AddThemeConstantOverride("separation", 4);
+		stationColumn.AddChild(CreateHudLabel("Station Status", 15, new Color(0.98f, 0.9f, 0.62f)));
+		_stationStatusRows = new VBoxContainer();
+		_stationStatusRows.AddThemeConstantOverride("separation", 2);
+		stationColumn.AddChild(_stationStatusRows);
+
+		var weaponColumn = new VBoxContainer
+		{
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		weaponColumn.AddThemeConstantOverride("separation", 6);
+		weaponColumn.AddChild(CreateHudLabel("Weapons", 15, new Color(0.98f, 0.9f, 0.62f)));
+		_playerWeaponLabel = CreateHudLabel("Player Cannons: 0.0 / 7.0s");
+		_enemyWeaponLabel = CreateHudLabel("Enemy Cannons: 0.0 / 7.0s");
+		weaponColumn.AddChild(_playerWeaponLabel);
+		weaponColumn.AddChild(_enemyWeaponLabel);
+
+		row.AddChild(stationColumn);
+		row.AddChild(weaponColumn);
+		RebuildStationStatusRows();
+	}
+
+	private void UpdateHud()
+	{
+		if (_playerHullLabel != null)
+		{
+			_playerHullLabel.Text = "Player Hull: 100";
+		}
+
+		if (_enemyHullLabel != null)
+		{
+			_enemyHullLabel.Text = "Enemy Hull: 100";
+		}
+
+		if (_selectedSummaryLabel != null)
+		{
+			_selectedSummaryLabel.Text = $"Selected: {GetSelectedSummaryText()}";
+		}
+
+		if (_targetLabel != null)
+		{
+			_targetLabel.Text = $"Target: {_currentTargetText}";
 		}
 
 		if (_statusLabel != null)
@@ -293,29 +641,102 @@ public partial class StationCombat3D : Node3D
 			_statusLabel.Text = $"Status: {_statusText}";
 		}
 
-		if (_assignmentsLabel != null)
+		if (_playerWeaponLabel != null)
 		{
-			_assignmentsLabel.Text = BuildAssignmentText();
+			_playerWeaponLabel.Text = "Player Cannons: 0.0 / 7.0s";
+		}
+
+		if (_enemyWeaponLabel != null)
+		{
+			_enemyWeaponLabel.Text = "Enemy Cannons: 0.0 / 7.0s";
+		}
+
+		RebuildCrewRows();
+		RebuildStationStatusRows();
+	}
+
+	private string GetSelectedSummaryText()
+	{
+		if (_selectedCrew != null)
+		{
+			return _selectedCrew.CrewName;
+		}
+
+		if (_clickedStation != null)
+		{
+			return _clickedStation.StationName;
+		}
+
+		return "None";
+	}
+
+	private void RebuildCrewRows()
+	{
+		if (_crewRows == null)
+		{
+			return;
+		}
+
+		ClearChildren(_crewRows);
+		_crewButtonsByName.Clear();
+
+		foreach (var definition in CrewDefinitions)
+		{
+			var crewName = definition.Name;
+			var button = new Button
+			{
+				Name = $"{SanitizeNodeName(crewName)}CrewButton",
+				Text = $"{crewName}\n{GetCrewAssignmentText(crewName)}",
+				CustomMinimumSize = new Vector2(0.0f, 44.0f),
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+				Alignment = HorizontalAlignment.Left
+			};
+			button.AddThemeFontSizeOverride("font_size", 12);
+			button.AddThemeStyleboxOverride("normal", CreateCrewButtonStyle(IsCrewSelected(crewName), false));
+			button.AddThemeStyleboxOverride("hover", CreateCrewButtonStyle(IsCrewSelected(crewName), true));
+			button.AddThemeStyleboxOverride("pressed", CreateCrewButtonStyle(true, true));
+			button.Pressed += () => SelectCrewFromUi(crewName);
+			_crewRows.AddChild(button);
+			_crewButtonsByName[crewName] = button;
 		}
 	}
 
-	private string BuildAssignmentText()
+	private void RebuildStationStatusRows()
 	{
-		if (_crew.Count == 0)
+		if (_stationStatusRows == null)
 		{
-			return "Assignments: None";
+			return;
 		}
 
-		var rows = new List<string> { "Assignments:" };
-		foreach (var crew in _crew)
+		ClearChildren(_stationStatusRows);
+		foreach (var station in StationDefinitions)
 		{
-			var assignment = _stationByCrewName.TryGetValue(crew.CrewName, out var stationName)
-				? stationName
-				: "Unassigned";
-			rows.Add($"{crew.CrewName} -> {assignment}");
+			var row = CreateHudLabel($"{station.Name}: 100% Operational", 13);
+			_stationStatusRows.AddChild(row);
+		}
+	}
+
+	private void SelectCrewFromUi(string crewName)
+	{
+		var crew = FindCrew(crewName);
+		if (crew == null)
+		{
+			return;
 		}
 
-		return string.Join('\n', rows);
+		OnCrewClicked(crew);
+	}
+
+	private string GetCrewAssignmentText(string crewName)
+	{
+		return _stationByCrewName.TryGetValue(crewName, out var stationName)
+			? $"-> {stationName}"
+			: "-> Unassigned";
+	}
+
+	private bool IsCrewSelected(string crewName)
+	{
+		return _selectedCrew?.CrewName == crewName;
 	}
 
 	private StationMarker3D? FindStation(string stationName)
@@ -344,41 +765,113 @@ public partial class StationCombat3D : Node3D
 		return null;
 	}
 
-	private void StyleHud()
+	private static PanelContainer CreateHudPanel(string nodeName)
 	{
-		if (_hudPanel != null)
+		var panel = new PanelContainer
 		{
-			var panelStyle = new StyleBoxFlat
-			{
-				BgColor = new Color(0.035f, 0.05f, 0.055f, 0.88f),
-				BorderColor = new Color(0.78f, 0.67f, 0.42f, 0.75f),
-				BorderWidthLeft = 1,
-				BorderWidthTop = 1,
-				BorderWidthRight = 1,
-				BorderWidthBottom = 1,
-				CornerRadiusTopLeft = 4,
-				CornerRadiusTopRight = 4,
-				CornerRadiusBottomRight = 4,
-				CornerRadiusBottomLeft = 4
-			};
-			_hudPanel.AddThemeStyleboxOverride("panel", panelStyle);
-		}
-
-		StyleHudLabel(_selectedCrewLabel);
-		StyleHudLabel(_clickedStationLabel);
-		StyleHudLabel(_statusLabel);
-		StyleHudLabel(_assignmentsLabel);
+			Name = nodeName,
+			MouseFilter = Control.MouseFilterEnum.Stop
+		};
+		panel.AddThemeStyleboxOverride("panel", CreatePanelStyle());
+		return panel;
 	}
 
-	private static void StyleHudLabel(Label? label)
+	private static void AddPanelMargin(PanelContainer panel, Control contents, int horizontalMargin, int verticalMargin)
 	{
-		if (label == null)
+		var margin = new MarginContainer
 		{
-			return;
+			MouseFilter = Control.MouseFilterEnum.Ignore
+		};
+		margin.AddThemeConstantOverride("margin_left", horizontalMargin);
+		margin.AddThemeConstantOverride("margin_top", verticalMargin);
+		margin.AddThemeConstantOverride("margin_right", horizontalMargin);
+		margin.AddThemeConstantOverride("margin_bottom", verticalMargin);
+		margin.AddChild(contents);
+		panel.AddChild(margin);
+	}
+
+	private static Label AddHudValue(Container parent, string text, bool expand = false)
+	{
+		var label = CreateHudLabel(text);
+		if (expand)
+		{
+			label.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 		}
 
-		label.AddThemeColorOverride("font_color", new Color(0.9f, 0.88f, 0.78f));
-		label.AddThemeFontSizeOverride("font_size", 14);
+		parent.AddChild(label);
+		return label;
+	}
+
+	private static Label CreateHudLabel(string text, int fontSize = 14, Color? color = null)
+	{
+		var label = new Label
+		{
+			Text = text,
+			ClipText = true,
+			VerticalAlignment = VerticalAlignment.Center,
+			MouseFilter = Control.MouseFilterEnum.Ignore
+		};
+		label.AddThemeColorOverride("font_color", color ?? new Color(0.9f, 0.88f, 0.78f));
+		label.AddThemeFontSizeOverride("font_size", fontSize);
+		return label;
+	}
+
+	private static StyleBoxFlat CreatePanelStyle()
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = new Color(0.035f, 0.05f, 0.055f, 0.9f),
+			BorderColor = new Color(0.78f, 0.67f, 0.42f, 0.75f),
+			BorderWidthLeft = 1,
+			BorderWidthTop = 1,
+			BorderWidthRight = 1,
+			BorderWidthBottom = 1,
+			CornerRadiusTopLeft = 4,
+			CornerRadiusTopRight = 4,
+			CornerRadiusBottomRight = 4,
+			CornerRadiusBottomLeft = 4
+		};
+	}
+
+	private static StyleBoxFlat CreateCrewButtonStyle(bool isSelected, bool isHovered)
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = isSelected
+				? new Color(0.18f, 0.28f, 0.34f, 0.96f)
+				: isHovered
+					? new Color(0.11f, 0.16f, 0.17f, 0.88f)
+					: new Color(0.055f, 0.075f, 0.078f, 0.74f),
+			BorderColor = isSelected
+				? new Color(0.98f, 0.86f, 0.36f, 0.95f)
+				: new Color(0.54f, 0.46f, 0.32f, 0.52f),
+			BorderWidthLeft = isSelected ? 2 : 1,
+			BorderWidthTop = 1,
+			BorderWidthRight = 1,
+			BorderWidthBottom = 1,
+			CornerRadiusTopLeft = 4,
+			CornerRadiusTopRight = 4,
+			CornerRadiusBottomRight = 4,
+			CornerRadiusBottomLeft = 4
+		};
+	}
+
+	private static void CreateShipLabel(Node3D parent, string text, Vector3 position, Color color)
+	{
+		var label = new Label3D
+		{
+			Name = $"{text}Label",
+			Text = text,
+			Position = position,
+			FontSize = 32,
+			PixelSize = 0.014f,
+			Modulate = color.Lightened(0.25f),
+			OutlineSize = 8,
+			OutlineModulate = new Color(0.02f, 0.018f, 0.014f),
+			NoDepthTest = true,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled
+		};
+		parent.AddChild(label);
 	}
 
 	private static void CreateCannon(Node3D parent, string nodeName, Vector3 position, bool pointsPort)
@@ -447,7 +940,7 @@ public partial class StationCombat3D : Node3D
 		return node;
 	}
 
-	private static void CreateBeamBetween(Node3D parent, string nodeName, Vector2 start, Vector2 end, float y)
+	private static void CreateBeamBetween(Node3D parent, string nodeName, Vector2 start, Vector2 end, float y, Color railColor)
 	{
 		var direction = end - start;
 		var length = direction.Length();
@@ -459,7 +952,7 @@ public partial class StationCombat3D : Node3D
 			nodeName,
 			new Vector3(0.16f, 0.36f, length),
 			new Vector3(midpoint.X, y, midpoint.Y),
-			RailColor,
+			railColor,
 			new Vector3(0.0f, angle, 0.0f));
 	}
 
@@ -494,7 +987,16 @@ public partial class StationCombat3D : Node3D
 
 	private readonly record struct CrewDefinition(
 		string Name,
+		string ShortLabel,
 		string Role,
 		Vector3 HomePosition,
 		Color Color);
+
+	private readonly record struct ShipVisualStyle(
+		Color HullColor,
+		Color DeckColor,
+		Color RailColor,
+		Color SailColor,
+		Color CabinColor,
+		Color AccentColor);
 }

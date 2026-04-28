@@ -7,6 +7,7 @@ public partial class CrewToken3D : Area3D
 {
 	[Export] public string CrewName { get; set; } = "Crew";
 	[Export] public string CrewRole { get; set; } = "Crew";
+	[Export] public string ShortLabel { get; set; } = "C";
 	[Export] public Color CrewColor { get; set; } = new(0.22f, 0.44f, 0.76f);
 
 	public event Action<CrewToken3D>? Clicked;
@@ -16,9 +17,7 @@ public partial class CrewToken3D : Area3D
 	private MeshInstance3D? _selectionRing;
 	private MeshInstance3D? _bodyMesh;
 	private Label3D? _nameLabel;
-	private Label3D? _assignmentLabel;
 	private bool _isSelected;
-	private string? _assignedStationName;
 
 	public override void _Ready()
 	{
@@ -51,8 +50,7 @@ public partial class CrewToken3D : Area3D
 
 	public void SetAssignedStation(string? stationName)
 	{
-		_assignedStationName = stationName;
-		RefreshVisuals();
+		// Assignments live in the HUD. The token owns only its crew name label in 3D.
 	}
 
 	private void BuildVisuals()
@@ -86,11 +84,8 @@ public partial class CrewToken3D : Area3D
 			10);
 		AddChild(head);
 
-		_nameLabel = CreateLabel("NameLabel", CrewName, new Vector3(0.0f, 0.92f, 0.0f));
+		_nameLabel = CreateLabel("NameLabel", CrewName, new Vector3(0.0f, 1.02f, 0.0f));
 		AddChild(_nameLabel);
-
-		_assignmentLabel = CreateLabel("AssignmentLabel", string.Empty, new Vector3(0.0f, 0.78f, 0.0f));
-		AddChild(_assignmentLabel);
 
 		var collisionShape = new CollisionShape3D
 		{
@@ -118,14 +113,7 @@ public partial class CrewToken3D : Area3D
 
 		if (_nameLabel != null)
 		{
-			_nameLabel.Text = CrewName;
-		}
-
-		if (_assignmentLabel != null)
-		{
-			_assignmentLabel.Text = string.IsNullOrWhiteSpace(_assignedStationName)
-				? string.Empty
-				: _assignedStationName;
+			_nameLabel.Text = ShortLabel;
 		}
 	}
 
@@ -161,7 +149,11 @@ public partial class CrewToken3D : Area3D
 			Position = position,
 			FontSize = 26,
 			PixelSize = 0.011f,
-			Modulate = new Color(0.94f, 0.9f, 0.72f)
+			Modulate = new Color(0.95f, 0.96f, 0.86f),
+			OutlineSize = 7,
+			OutlineModulate = new Color(0.025f, 0.03f, 0.035f),
+			NoDepthTest = true,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled
 		};
 	}
 

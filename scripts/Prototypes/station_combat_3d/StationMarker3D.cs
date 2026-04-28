@@ -8,7 +8,7 @@ public partial class StationMarker3D : Area3D
 	[Export] public string StationName { get; set; } = "Station";
 	[Export] public Color MarkerColor { get; set; } = new(0.55f, 0.46f, 0.26f);
 
-	public event Action<StationMarker3D>? Clicked;
+	public event Action<StationMarker3D, MouseButton>? Clicked;
 
 	public Vector3 AssignmentOffset { get; set; } = new(0.72f, 0.0f, 0.0f);
 	public Vector3 AssignmentSlotGlobalPosition => ToGlobal(AssignmentOffset);
@@ -17,9 +17,7 @@ public partial class StationMarker3D : Area3D
 	private MeshInstance3D? _flagMesh;
 	private MeshInstance3D? _highlightMesh;
 	private Label3D? _stationLabel;
-	private Label3D? _assignmentLabel;
 	private bool _isHighlighted;
-	private string? _assignedCrewName;
 
 	public override void _Ready()
 	{
@@ -35,12 +33,13 @@ public partial class StationMarker3D : Area3D
 		Vector3 normal,
 		int shapeIdx)
 	{
-		if (@event is not InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+		if (@event is not InputEventMouseButton { Pressed: true } mouseButton ||
+			mouseButton.ButtonIndex is not MouseButton.Left and not MouseButton.Right)
 		{
 			return;
 		}
 
-		Clicked?.Invoke(this);
+		Clicked?.Invoke(this, mouseButton.ButtonIndex);
 		GetViewport().SetInputAsHandled();
 	}
 
@@ -52,8 +51,7 @@ public partial class StationMarker3D : Area3D
 
 	public void SetAssignedCrew(string? crewName)
 	{
-		_assignedCrewName = crewName;
-		RefreshVisuals();
+		// Assignments are shown in the HUD so station labels never move with crew tokens.
 	}
 
 	private void BuildVisuals()
@@ -90,11 +88,8 @@ public partial class StationMarker3D : Area3D
 			MarkerColor);
 		AddChild(_flagMesh);
 
-		_stationLabel = CreateLabel("StationLabel", StationName, new Vector3(0.0f, 0.91f, 0.0f));
+		_stationLabel = CreateLabel("StationLabel", StationName, GetStationLabelPosition());
 		AddChild(_stationLabel);
-
-		_assignmentLabel = CreateLabel("AssignmentLabel", string.Empty, new Vector3(0.0f, 0.74f, 0.0f));
-		AddChild(_assignmentLabel);
 
 		var collisionShape = new CollisionShape3D
 		{
@@ -129,13 +124,7 @@ public partial class StationMarker3D : Area3D
 		if (_stationLabel != null)
 		{
 			_stationLabel.Text = StationName;
-		}
-
-		if (_assignmentLabel != null)
-		{
-			_assignmentLabel.Text = string.IsNullOrWhiteSpace(_assignedCrewName)
-				? string.Empty
-				: _assignedCrewName;
+			_stationLabel.Visible = _isHighlighted;
 		}
 	}
 
@@ -180,10 +169,20 @@ public partial class StationMarker3D : Area3D
 			Name = nodeName,
 			Text = text,
 			Position = position,
-			FontSize = 28,
-			PixelSize = 0.012f,
-			Modulate = new Color(0.94f, 0.9f, 0.72f)
+			FontSize = 22,
+			PixelSize = 0.01f,
+			Modulate = new Color(0.96f, 0.9f, 0.64f),
+			OutlineSize = 6,
+			OutlineModulate = new Color(0.035f, 0.028f, 0.018f),
+			NoDepthTest = true,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled
 		};
+	}
+
+	private Vector3 GetStationLabelPosition()
+	{
+		var labelSide = AssignmentOffset.X >= 0.0f ? -0.36f : 0.36f;
+		return new Vector3(labelSide, 1.12f, -0.32f);
 	}
 
 	private static StandardMaterial3D CreateMaterial(Color color)
