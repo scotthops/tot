@@ -22,10 +22,20 @@ public partial class StationCombat3D : Node3D
 	[Export] public float CameraPanSpeed { get; set; } = 5.0f;
 	[Export] public float CameraZoomStep { get; set; } = 0.55f;
 	[Export] public float PlayerCannonChargeDurationSeconds { get; set; } = 7.0f;
+	[Export] public float EnemyCannonChargeDurationSeconds { get; set; } = 7.0f;
 	[Export] public float PlayerCannonDamage { get; set; } = 20.0f;
+	[Export] public float EnemyCannonDamage { get; set; } = 20.0f;
+	[Export] public float CannonHullDamage { get; set; } = 10.0f;
 
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
 	private const string CannonsStationName = "Cannons";
+	private static readonly string[] EnemyTargetPriority =
+	{
+		"Cannons",
+		"Helm",
+		"Bilge",
+		"Crow's Nest"
+	};
 	private static readonly ShipVisualStyle PlayerShipStyle = new(
 		new Color(0.28f, 0.13f, 0.06f),
 		new Color(0.57f, 0.34f, 0.15f),
@@ -103,6 +113,8 @@ public partial class StationCombat3D : Node3D
 	private CanvasLayer? _hudRoot;
 	private Label? _playerHullLabel;
 	private Label? _enemyHullLabel;
+	private HullBarVisual? _playerHullBar;
+	private HullBarVisual? _enemyHullBar;
 	private Label? _selectedSummaryLabel;
 	private Label? _targetLabel;
 	private Label? _statusLabel;
@@ -111,14 +123,19 @@ public partial class StationCombat3D : Node3D
 	private Label? _playerWeaponLabel;
 	private Label? _weaponTargetLabel;
 	private ProgressBar? _playerWeaponChargeBar;
+	private ProgressBar? _enemyWeaponChargeBar;
 	private Label? _enemyWeaponLabel;
 	private readonly Dictionary<string, Button> _crewButtonsByName = new();
 	private Camera3D? _camera;
 	private CrewToken3D? _selectedCrew;
 	private StationMarker3D? _clickedStation;
 	private StationRuntimeState? _currentCannonTarget;
+	private StationRuntimeState? _currentEnemyCannonTarget;
 	private string _statusText = "Awaiting assignment.";
 	private float _playerCannonChargeSeconds;
+	private float _enemyCannonChargeSeconds;
+	private float _playerHull = 100.0f;
+	private float _enemyHull = 100.0f;
 	private bool _isDraggingCannonTarget;
 
 	public override void _Ready()
@@ -153,6 +170,8 @@ public partial class StationCombat3D : Node3D
 		var deltaSeconds = (float)delta;
 		UpdateCameraPan(deltaSeconds);
 		UpdatePlayerCannonCharge(deltaSeconds);
+		UpdateEnemyCannonCharge(deltaSeconds);
+		UpdateHullBars();
 		UpdateWeaponHud();
 	}
 
@@ -346,6 +365,15 @@ public partial class StationCombat3D : Node3D
 		CreateCannon(shipRoot, "StarboardCannonForward", new Vector3(1.54f, 1.05f, -0.72f), pointsPort: false);
 		CreateCannon(shipRoot, "StarboardCannonAft", new Vector3(1.54f, 1.05f, 0.28f), pointsPort: false);
 		CreateShipLabel(shipRoot, displayName, new Vector3(0.0f, 1.16f, -3.62f), style.AccentColor);
+		var hullBar = CreateHullBar(shipRoot, $"{displayName}HullBar", $"{displayName} Hull", new Vector3(0.0f, 1.06f, 3.64f), style.AccentColor);
+		if (displayName == "Player")
+		{
+			_playerHullBar = hullBar;
+		}
+		else if (displayName == "Enemy")
+		{
+			_enemyHullBar = hullBar;
+		}
 	}
 
 	private void BuildStations()
@@ -574,6 +602,14 @@ public partial class StationCombat3D : Node3D
 			return;
 		}
 
+		if (!IsPlayerCannonsOperational())
+		{
+			_statusText = "Player Cannons disabled.";
+			_playerCannonChargeSeconds = 0.0f;
+			UpdateHud();
+			return;
+		}
+
 		if (targetState.IsDisabled)
 		{
 			_statusText = $"Enemy {targetState.Name} is disabled.";
@@ -593,11 +629,19 @@ public partial class StationCombat3D : Node3D
 		return _crewByStationName.ContainsKey(CannonsStationName);
 	}
 
+	private bool IsPlayerCannonsOperational()
+	{
+		return _playerStationStatesByName.TryGetValue(CannonsStationName, out var cannons) && !cannons.IsDisabled;
+	}
+
 	private bool CanPlayerCannonsCharge()
 	{
 		return IsPlayerCannonsCrewed() &&
+			IsPlayerCannonsOperational() &&
 			_currentCannonTarget != null &&
-			!_currentCannonTarget.IsDisabled;
+			!_currentCannonTarget.IsDisabled &&
+			_playerHull > 0.0f &&
+			_enemyHull > 0.0f;
 	}
 
 	private void ResetCannonChargeIfUnableToFire()
@@ -614,6 +658,12 @@ public partial class StationCombat3D : Node3D
 	{
 		if (!CanPlayerCannonsCharge())
 		{
+			if (!IsPlayerCannonsOperational() && _playerCannonChargeSeconds > 0.0f)
+			{
+				_statusText = "Player Cannons disabled.";
+				UpdateHud();
+			}
+
 			_playerCannonChargeSeconds = 0.0f;
 			return;
 		}
@@ -637,11 +687,101 @@ public partial class StationCombat3D : Node3D
 
 		_currentCannonTarget.ApplyDamage(PlayerCannonDamage);
 		_currentCannonTarget.Marker.SetDurabilityPercent(_currentCannonTarget.Durability);
+		_enemyHull = Mathf.Clamp(_enemyHull - CannonHullDamage, 0.0f, 100.0f);
+		var hitTargetName = _currentCannonTarget.Name;
+		var targetDisabled = _currentCannonTarget.IsDisabled;
 
-		_statusText = _currentCannonTarget.IsDisabled
-			? $"Enemy {_currentCannonTarget.Name} disabled."
-			: $"Cannons fired at Enemy {_currentCannonTarget.Name} for {PlayerCannonDamage:0} damage.";
+		_statusText = _enemyHull <= 0.0f
+			? "Enemy hull broken!"
+			: targetDisabled
+			? $"Enemy {hitTargetName} disabled."
+			: $"Cannons hit Enemy {hitTargetName} for {PlayerCannonDamage:0}, hull -{CannonHullDamage:0}.";
+		if (targetDisabled || _enemyHull <= 0.0f)
+		{
+			_currentCannonTarget = null;
+		}
+
 		UpdateSelectionVisuals();
+		UpdateHullBars();
+		UpdateHud();
+	}
+
+	private bool CanEnemyCannonsCharge()
+	{
+		return _enemyStationStatesByName.TryGetValue(CannonsStationName, out var enemyCannons) &&
+			!enemyCannons.IsDisabled &&
+			_enemyHull > 0.0f &&
+			_playerHull > 0.0f;
+	}
+
+	private void UpdateEnemyCannonCharge(float deltaSeconds)
+	{
+		if (!CanEnemyCannonsCharge())
+		{
+			_enemyCannonChargeSeconds = 0.0f;
+			return;
+		}
+
+		_currentEnemyCannonTarget = ChooseEnemyCannonTarget();
+		if (_currentEnemyCannonTarget == null)
+		{
+			_enemyCannonChargeSeconds = 0.0f;
+			return;
+		}
+
+		_enemyCannonChargeSeconds += deltaSeconds;
+		if (_enemyCannonChargeSeconds < EnemyCannonChargeDurationSeconds)
+		{
+			return;
+		}
+
+		FireEnemyCannons();
+		_enemyCannonChargeSeconds = 0.0f;
+	}
+
+	private StationRuntimeState? ChooseEnemyCannonTarget()
+	{
+		foreach (var stationName in EnemyTargetPriority)
+		{
+			if (_playerStationStatesByName.TryGetValue(stationName, out var station) && !station.IsDisabled)
+			{
+				return station;
+			}
+		}
+
+		return _playerStationStatesByName.TryGetValue(CannonsStationName, out var fallback)
+			? fallback
+			: null;
+	}
+
+	private void FireEnemyCannons()
+	{
+		if (_currentEnemyCannonTarget == null)
+		{
+			return;
+		}
+
+		if (!_currentEnemyCannonTarget.IsDisabled)
+		{
+			_currentEnemyCannonTarget.ApplyDamage(EnemyCannonDamage);
+			_currentEnemyCannonTarget.Marker.SetDurabilityPercent(_currentEnemyCannonTarget.Durability);
+		}
+
+		_playerHull = Mathf.Clamp(_playerHull - CannonHullDamage, 0.0f, 100.0f);
+		_statusText = _playerHull <= 0.0f
+			? "Player ship defeated!"
+			: _currentEnemyCannonTarget.IsDisabled
+			? $"Enemy disabled Player {_currentEnemyCannonTarget.Name}."
+			: $"Enemy hit Player {_currentEnemyCannonTarget.Name} for {EnemyCannonDamage:0}, hull -{CannonHullDamage:0}.";
+
+		if (_currentEnemyCannonTarget.Name == CannonsStationName && _currentEnemyCannonTarget.IsDisabled)
+		{
+			_playerCannonChargeSeconds = 0.0f;
+		}
+
+		_currentEnemyCannonTarget = ChooseEnemyCannonTarget();
+		UpdateSelectionVisuals();
+		UpdateHullBars();
 		UpdateHud();
 	}
 
@@ -659,10 +799,12 @@ public partial class StationCombat3D : Node3D
 
 		foreach (var enemyStation in _enemyStations)
 		{
-			enemyStation.SetHighlighted(
+			var isTargeted =
 				_currentCannonTarget != null &&
 				_stationStatesByMarker.TryGetValue(enemyStation, out var state) &&
-				state == _currentCannonTarget);
+				state == _currentCannonTarget;
+			enemyStation.SetHighlighted(isTargeted);
+			enemyStation.SetTargeted(isTargeted);
 		}
 	}
 
@@ -742,6 +884,28 @@ public partial class StationCombat3D : Node3D
 		_camera.Size = Mathf.Clamp(_camera.Size + sizeDelta, MinCameraSize, MaxCameraSize);
 	}
 
+	private void UpdateHullBars()
+	{
+		UpdateHullBar(_playerHullBar, _playerHull, "Player Hull");
+		UpdateHullBar(_enemyHullBar, _enemyHull, "Enemy Hull");
+	}
+
+	private static void UpdateHullBar(HullBarVisual? bar, float hullPercent, string label)
+	{
+		if (bar == null)
+		{
+			return;
+		}
+
+		var ratio = Mathf.Clamp(hullPercent / 100.0f, 0.0f, 1.0f);
+		bar.Fill.Scale = new Vector3(ratio, 1.0f, 1.0f);
+		bar.Fill.Position = new Vector3(
+			bar.FillCenterX - (bar.FullWidth * (1.0f - ratio) * 0.5f),
+			bar.Fill.Position.Y,
+			bar.Fill.Position.Z);
+		bar.Label.Text = $"{label}: {hullPercent:0}%";
+	}
+
 	private void BuildHud()
 	{
 		if (_hudRoot == null)
@@ -777,7 +941,7 @@ public partial class StationCombat3D : Node3D
 		_playerHullLabel = AddHudValue(row, "Player Hull: 100");
 		_enemyHullLabel = AddHudValue(row, "Enemy Hull: 100");
 		_selectedSummaryLabel = AddHudValue(row, "Selected: None");
-		_targetLabel = AddHudValue(row, $"Target: {GetTargetSummaryText()}");
+		_targetLabel = AddHudValue(row, $"Targets: {GetBattleTargetSummaryText()}");
 		_statusLabel = AddHudValue(row, $"Status: {_statusText}", expand: true);
 	}
 
@@ -850,10 +1014,20 @@ public partial class StationCombat3D : Node3D
 			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
 		};
 		_enemyWeaponLabel = CreateHudLabel("Enemy Cannons: inactive");
+		_enemyWeaponChargeBar = new ProgressBar
+		{
+			MinValue = 0.0,
+			MaxValue = EnemyCannonChargeDurationSeconds,
+			Value = 0.0,
+			ShowPercentage = false,
+			CustomMinimumSize = new Vector2(0.0f, 12.0f),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
 		weaponColumn.AddChild(_weaponTargetLabel);
 		weaponColumn.AddChild(_playerWeaponLabel);
 		weaponColumn.AddChild(_playerWeaponChargeBar);
 		weaponColumn.AddChild(_enemyWeaponLabel);
+		weaponColumn.AddChild(_enemyWeaponChargeBar);
 
 		row.AddChild(stationColumn);
 		row.AddChild(weaponColumn);
@@ -864,13 +1038,15 @@ public partial class StationCombat3D : Node3D
 	{
 		if (_playerHullLabel != null)
 		{
-			_playerHullLabel.Text = "Player Hull: 100";
+			_playerHullLabel.Text = $"Player Hull: {_playerHull:0}%";
 		}
 
 		if (_enemyHullLabel != null)
 		{
-			_enemyHullLabel.Text = "Enemy Hull: 100";
+			_enemyHullLabel.Text = $"Enemy Hull: {_enemyHull:0}%";
 		}
+
+		UpdateHullBars();
 
 		if (_selectedSummaryLabel != null)
 		{
@@ -879,7 +1055,7 @@ public partial class StationCombat3D : Node3D
 
 		if (_targetLabel != null)
 		{
-			_targetLabel.Text = $"Target: {GetTargetSummaryText()}";
+			_targetLabel.Text = $"Targets: {GetBattleTargetSummaryText()}";
 		}
 
 		if (_statusLabel != null)
@@ -897,7 +1073,7 @@ public partial class StationCombat3D : Node3D
 	{
 		if (_targetLabel != null)
 		{
-			_targetLabel.Text = $"Target: {GetTargetSummaryText()}";
+			_targetLabel.Text = $"Targets: {GetBattleTargetSummaryText()}";
 		}
 
 		if (_weaponTargetLabel != null)
@@ -909,7 +1085,9 @@ public partial class StationCombat3D : Node3D
 		{
 			var readiness = CanPlayerCannonsCharge()
 				? string.Empty
-				: IsPlayerCannonsCrewed()
+				: !IsPlayerCannonsOperational()
+					? " disabled"
+					: IsPlayerCannonsCrewed()
 					? " idle"
 					: " needs crew";
 			_playerWeaponLabel.Text = $"Player Cannons: {_playerCannonChargeSeconds:0.0} / {PlayerCannonChargeDurationSeconds:0.0}s{readiness}";
@@ -923,7 +1101,15 @@ public partial class StationCombat3D : Node3D
 
 		if (_enemyWeaponLabel != null)
 		{
-			_enemyWeaponLabel.Text = "Enemy Cannons: inactive";
+			var targetText = _currentEnemyCannonTarget == null ? "None" : $"Player {_currentEnemyCannonTarget.Name}";
+			var readiness = CanEnemyCannonsCharge() ? string.Empty : " inactive";
+			_enemyWeaponLabel.Text = $"Enemy Cannons: {_enemyCannonChargeSeconds:0.0} / {EnemyCannonChargeDurationSeconds:0.0}s{readiness} -> {targetText}";
+		}
+
+		if (_enemyWeaponChargeBar != null)
+		{
+			_enemyWeaponChargeBar.MaxValue = EnemyCannonChargeDurationSeconds;
+			_enemyWeaponChargeBar.Value = Mathf.Clamp(_enemyCannonChargeSeconds, 0.0f, EnemyCannonChargeDurationSeconds);
 		}
 	}
 
@@ -936,6 +1122,14 @@ public partial class StationCombat3D : Node3D
 
 		var status = _currentCannonTarget.IsDisabled ? "disabled" : $"{_currentCannonTarget.Durability:0}%";
 		return $"Enemy {_currentCannonTarget.Name} {status}";
+	}
+
+	private string GetBattleTargetSummaryText()
+	{
+		var enemyTarget = _currentEnemyCannonTarget == null
+			? "None"
+			: $"Player {_currentEnemyCannonTarget.Name}";
+		return $"Player -> {GetTargetSummaryText()} | Enemy -> {enemyTarget}";
 	}
 
 	private string GetSelectedSummaryText()
@@ -1162,6 +1356,51 @@ public partial class StationCombat3D : Node3D
 		parent.AddChild(label);
 	}
 
+	private static HullBarVisual CreateHullBar(Node3D parent, string nodeName, string labelText, Vector3 position, Color fillColor)
+	{
+		const float fullWidth = 2.05f;
+		var root = new Node3D
+		{
+			Name = nodeName,
+			Position = position
+		};
+		parent.AddChild(root);
+
+		var label = new Label3D
+		{
+			Name = "Label",
+			Text = $"{labelText}: 100%",
+			Position = new Vector3(0.0f, 0.24f, 0.0f),
+			FontSize = 22,
+			PixelSize = 0.01f,
+			Modulate = new Color(0.95f, 0.92f, 0.78f),
+			OutlineSize = 6,
+			OutlineModulate = new Color(0.02f, 0.018f, 0.014f),
+			NoDepthTest = true,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled
+		};
+		root.AddChild(label);
+
+		var background = new MeshInstance3D
+		{
+			Name = "Background",
+			Mesh = new BoxMesh { Size = new Vector3(fullWidth + 0.12f, 0.08f, 0.14f) },
+			MaterialOverride = CreateMaterial(new Color(0.035f, 0.025f, 0.022f))
+		};
+		root.AddChild(background);
+
+		var fill = new MeshInstance3D
+		{
+			Name = "Fill",
+			Position = new Vector3(0.0f, 0.015f, 0.0f),
+			Mesh = new BoxMesh { Size = new Vector3(fullWidth, 0.09f, 0.16f) },
+			MaterialOverride = CreateMaterial(fillColor.Lightened(0.18f))
+		};
+		root.AddChild(fill);
+
+		return new HullBarVisual(fill, label, fullWidth, fill.Position.X);
+	}
+
 	private static void CreateCrewPlaceholder(Node3D parent, string nodeName, string shortLabel, Vector3 position, Color color)
 	{
 		var root = new Node3D
@@ -1376,4 +1615,10 @@ public partial class StationCombat3D : Node3D
 			Durability = Mathf.Clamp(Durability - Mathf.Max(0.0f, damage), 0.0f, 100.0f);
 		}
 	}
+
+	private sealed record HullBarVisual(
+		MeshInstance3D Fill,
+		Label3D Label,
+		float FullWidth,
+		float FillCenterX);
 }

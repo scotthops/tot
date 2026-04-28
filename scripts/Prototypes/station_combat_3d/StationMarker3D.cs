@@ -16,8 +16,10 @@ public partial class StationMarker3D : Area3D
 	private MeshInstance3D? _baseMesh;
 	private MeshInstance3D? _flagMesh;
 	private MeshInstance3D? _highlightMesh;
+	private Node3D? _targetReticle;
 	private Label3D? _stationLabel;
 	private bool _isHighlighted;
+	private bool _isTargeted;
 	private float _durabilityPercent = 100.0f;
 
 	public override void _Ready()
@@ -50,6 +52,12 @@ public partial class StationMarker3D : Area3D
 		RefreshVisuals();
 	}
 
+	public void SetTargeted(bool isTargeted)
+	{
+		_isTargeted = isTargeted;
+		RefreshVisuals();
+	}
+
 	public void SetAssignedCrew(string? crewName)
 	{
 		// Assignments are shown in the HUD so station labels never move with crew tokens.
@@ -73,6 +81,9 @@ public partial class StationMarker3D : Area3D
 			new Color(1.0f, 0.88f, 0.35f),
 			10);
 		AddChild(_highlightMesh);
+
+		_targetReticle = CreateTargetReticle();
+		AddChild(_targetReticle);
 
 		_baseMesh = CreateBox(
 			"Base",
@@ -130,11 +141,37 @@ public partial class StationMarker3D : Area3D
 			_highlightMesh.Visible = _isHighlighted;
 		}
 
+		if (_targetReticle != null)
+		{
+			_targetReticle.Visible = _isTargeted;
+		}
+
 		if (_stationLabel != null)
 		{
 			_stationLabel.Text = StationName;
-			_stationLabel.Visible = _isHighlighted;
+			_stationLabel.Visible = _isHighlighted || _isTargeted;
 		}
+	}
+
+	private static Node3D CreateTargetReticle()
+	{
+		var root = new Node3D
+		{
+			Name = "TargetReticle",
+			Position = new Vector3(0.0f, 0.08f, 0.0f),
+			Visible = false
+		};
+		var color = new Color(1.0f, 0.08f, 0.05f);
+		var length = 0.34f;
+		var thickness = 0.045f;
+		var offset = 0.48f;
+
+		root.AddChild(CreateBox("NorthReticle", new Vector3(length, thickness, thickness), new Vector3(0.0f, 0.0f, -offset), color));
+		root.AddChild(CreateBox("SouthReticle", new Vector3(length, thickness, thickness), new Vector3(0.0f, 0.0f, offset), color));
+		root.AddChild(CreateBox("WestReticle", new Vector3(thickness, thickness, length), new Vector3(-offset, 0.0f, 0.0f), color));
+		root.AddChild(CreateBox("EastReticle", new Vector3(thickness, thickness, length), new Vector3(offset, 0.0f, 0.0f), color));
+
+		return root;
 	}
 
 	private static MeshInstance3D CreateBox(string nodeName, Vector3 size, Vector3 position, Color color)
