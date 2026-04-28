@@ -1,0 +1,102 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/Prototypes/station_combat_3d/StationCombat3D.cs" id="1_station_combat"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_station_combat"]
+sky_top_color = Color(0.06, 0.12, 0.18, 1)
+sky_horizon_color = Color(0.2, 0.34, 0.38, 1)
+ground_bottom_color = Color(0.02, 0.045, 0.055, 1)
+ground_horizon_color = Color(0.06, 0.12, 0.14, 1)
+
+[sub_resource type="Sky" id="Sky_station_combat"]
+sky_material = SubResource("ProceduralSkyMaterial_station_combat")
+
+[sub_resource type="Environment" id="Environment_station_combat"]
+background_mode = 2
+sky = SubResource("Sky_station_combat")
+ambient_light_source = 2
+ambient_light_color = Color(0.66, 0.72, 0.76, 1)
+ambient_light_energy = 0.58
+fog_enabled = true
+fog_light_color = Color(0.5, 0.62, 0.66, 1)
+fog_light_energy = 0.55
+fog_density = 0.018
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ocean"]
+albedo_color = Color(0.035, 0.22, 0.28, 1)
+roughness = 0.84
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
+size = Vector2(80, 80)
+
+[node name="StationCombat3D" type="Node3D"]
+script = ExtResource("1_station_combat")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_station_combat")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.916298, -0.628319, 0)
+light_energy = 2.1
+shadow_enabled = true
+
+[node name="OceanPlane" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ocean")
+surface_material_override/0 = SubResource("StandardMaterial3D_ocean")
+
+[node name="PrototypeRoot" type="Node3D" parent="."]
+
+[node name="ShipBlockout" type="Node3D" parent="PrototypeRoot"]
+
+[node name="Stations" type="Node3D" parent="PrototypeRoot"]
+
+[node name="Crew" type="Node3D" parent="PrototypeRoot"]
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.573576, 0.819152, 0, -0.819152, 0.573576, 0, 7.6, 6.8)
+projection = 1
+current = true
+size = 7.3
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 348.0
+offset_bottom = 184.0
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/PanelContainer"]
+offset_right = 332.0
+offset_bottom = 168.0
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/PanelContainer/MarginContainer"]
+offset_left = 12.0
+offset_top = 10.0
+offset_right = 320.0
+offset_bottom = 158.0
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Station Combat 3D"
+
+[node name="SelectedCrewValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Crew: None"
+
+[node name="ClickedStationValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Station: None"
+
+[node name="StatusValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Status: Awaiting assignment."
+
+[node name="AssignmentsValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Assignments: None"
