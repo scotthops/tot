@@ -18,6 +18,7 @@ public partial class StationMarker3D : Area3D
 	private MeshInstance3D? _highlightMesh;
 	private Label3D? _stationLabel;
 	private bool _isHighlighted;
+	private float _durabilityPercent = 100.0f;
 
 	public override void _Ready()
 	{
@@ -52,6 +53,12 @@ public partial class StationMarker3D : Area3D
 	public void SetAssignedCrew(string? crewName)
 	{
 		// Assignments are shown in the HUD so station labels never move with crew tokens.
+	}
+
+	public void SetDurabilityPercent(float durabilityPercent)
+	{
+		_durabilityPercent = Mathf.Clamp(durabilityPercent, 0.0f, 100.0f);
+		RefreshVisuals();
 	}
 
 	private void BuildVisuals()
@@ -102,9 +109,11 @@ public partial class StationMarker3D : Area3D
 
 	private void RefreshVisuals()
 	{
+		var damageRatio = 1.0f - (_durabilityPercent / 100.0f);
+		var damagedColor = MarkerColor.Lerp(new Color(0.035f, 0.03f, 0.03f), damageRatio * 0.72f);
 		var activeColor = _isHighlighted
-			? MarkerColor.Lerp(new Color(1.0f, 0.92f, 0.45f), 0.55f)
-			: MarkerColor;
+			? damagedColor.Lerp(new Color(1.0f, 0.92f, 0.45f), 0.45f)
+			: damagedColor;
 
 		if (_baseMesh != null)
 		{

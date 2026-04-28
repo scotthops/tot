@@ -21,8 +21,11 @@ public partial class StationCombat3D : Node3D
 	[Export] public float MaxCameraSize { get; set; } = 16.0f;
 	[Export] public float CameraPanSpeed { get; set; } = 5.0f;
 	[Export] public float CameraZoomStep { get; set; } = 0.55f;
+	[Export] public float PlayerCannonChargeDurationSeconds { get; set; } = 7.0f;
+	[Export] public float PlayerCannonDamage { get; set; } = 20.0f;
 
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
+	private const string CannonsStationName = "Cannons";
 	private static readonly ShipVisualStyle PlayerShipStyle = new(
 		new Color(0.28f, 0.13f, 0.06f),
 		new Color(0.57f, 0.34f, 0.15f),
@@ -85,9 +88,13 @@ public partial class StationCombat3D : Node3D
 	};
 
 	private readonly List<StationMarker3D> _stations = new();
+	private readonly List<StationMarker3D> _enemyStations = new();
 	private readonly List<CrewToken3D> _crew = new();
 	private readonly Dictionary<string, string> _stationByCrewName = new();
 	private readonly Dictionary<string, string> _crewByStationName = new();
+	private readonly Dictionary<string, StationRuntimeState> _playerStationStatesByName = new();
+	private readonly Dictionary<string, StationRuntimeState> _enemyStationStatesByName = new();
+	private readonly Dictionary<StationMarker3D, StationRuntimeState> _stationStatesByMarker = new();
 
 	private Node3D? _shipRoot;
 	private Node3D? _enemyShipRoot;
@@ -102,13 +109,17 @@ public partial class StationCombat3D : Node3D
 	private VBoxContainer? _crewRows;
 	private VBoxContainer? _stationStatusRows;
 	private Label? _playerWeaponLabel;
+	private Label? _weaponTargetLabel;
+	private ProgressBar? _playerWeaponChargeBar;
 	private Label? _enemyWeaponLabel;
 	private readonly Dictionary<string, Button> _crewButtonsByName = new();
 	private Camera3D? _camera;
 	private CrewToken3D? _selectedCrew;
 	private StationMarker3D? _clickedStation;
-	private string _currentTargetText = "Enemy Cannons";
+	private StationRuntimeState? _currentCannonTarget;
 	private string _statusText = "Awaiting assignment.";
+	private float _playerCannonChargeSeconds;
+	private bool _isDraggingCannonTarget;
 
 	public override void _Ready()
 	{
@@ -131,13 +142,18 @@ public partial class StationCombat3D : Node3D
 		BuildShipBlockout(_shipRoot, PlayerShipStyle, "Player");
 		BuildShipBlockout(_enemyShipRoot, EnemyShipStyle, "Enemy");
 		BuildStations();
+		BuildEnemyStations();
 		BuildCrew();
+		BuildEnemyCrewVisuals();
 		UpdateHud();
 	}
 
 	public override void _Process(double delta)
 	{
-		UpdateCameraPan((float)delta);
+		var deltaSeconds = (float)delta;
+		UpdateCameraPan(deltaSeconds);
+		UpdatePlayerCannonCharge(deltaSeconds);
+		UpdateWeaponHud();
 	}
 
 	public override void _UnhandledInput(InputEvent @event)
@@ -150,8 +166,19 @@ public partial class StationCombat3D : Node3D
 			return;
 		}
 
-		if (@event is not InputEventMouseButton { Pressed: true } mouseButton)
+		if (@event is not InputEventMouseButton mouseButton)
 		{
+			return;
+		}
+
+		if (!mouseButton.Pressed)
+		{
+			if (mouseButton.ButtonIndex == MouseButton.Left && _isDraggingCannonTarget)
+			{
+				FinishCannonDragTargeting(mouseButton.Position);
+				GetViewport().SetInputAsHandled();
+			}
+
 			return;
 		}
 
@@ -198,7 +225,15 @@ public partial class StationCombat3D : Node3D
 
 		if (target is StationMarker3D station)
 		{
-			OnStationClicked(station, mouseButton.ButtonIndex);
+			if (_enemyStations.Contains(station))
+			{
+				OnEnemyStationClicked(station, mouseButton.ButtonIndex);
+			}
+			else
+			{
+				OnStationClicked(station, mouseButton.ButtonIndex);
+			}
+
 			return true;
 		}
 
@@ -241,6 +276,19 @@ public partial class StationCombat3D : Node3D
 		}
 
 		return null;
+	}
+
+	private void FinishCannonDragTargeting(Vector2 screenPosition)
+	{
+		_isDraggingCannonTarget = false;
+
+		if (PickInteractionTarget(screenPosition) is not StationMarker3D station ||
+			!_enemyStations.Contains(station))
+		{
+			return;
+		}
+
+		TrySetCannonTarget(station);
 	}
 
 	private void PositionBattleRoots()
@@ -311,6 +359,8 @@ public partial class StationCombat3D : Node3D
 		_stations.Clear();
 		_clickedStation = null;
 		_crewByStationName.Clear();
+		_playerStationStatesByName.Clear();
+		_stationStatesByMarker.Clear();
 
 		foreach (var definition in StationDefinitions)
 		{
@@ -326,7 +376,56 @@ public partial class StationCombat3D : Node3D
 			_stationRoot.AddChild(marker);
 			marker.Clicked += OnStationClicked;
 			_stations.Add(marker);
+			AddStationState(marker, definition.Name, isEnemy: false);
 		}
+	}
+
+	private void BuildEnemyStations()
+	{
+		if (_enemyShipRoot == null)
+		{
+			return;
+		}
+
+		RemoveNamedChild(_enemyShipRoot, "EnemyStations");
+		var enemyStationRoot = new Node3D { Name = "EnemyStations" };
+		_enemyShipRoot.AddChild(enemyStationRoot);
+
+		_enemyStations.Clear();
+		_enemyStationStatesByName.Clear();
+
+		foreach (var definition in StationDefinitions)
+		{
+			var marker = new StationMarker3D
+			{
+				Name = $"Enemy{SanitizeNodeName(definition.Name)}Station",
+				StationName = definition.Name,
+				MarkerColor = definition.Color.Darkened(0.28f).Lerp(new Color(0.72f, 0.18f, 0.14f), 0.22f),
+				Position = definition.Position,
+				AssignmentOffset = -definition.AssignmentOffset
+			};
+
+			enemyStationRoot.AddChild(marker);
+			marker.Clicked += OnEnemyStationClicked;
+			_enemyStations.Add(marker);
+			AddStationState(marker, definition.Name, isEnemy: true);
+		}
+	}
+
+	private void AddStationState(StationMarker3D marker, string stationName, bool isEnemy)
+	{
+		var state = new StationRuntimeState(stationName, marker, isEnemy);
+		if (isEnemy)
+		{
+			_enemyStationStatesByName[stationName] = state;
+		}
+		else
+		{
+			_playerStationStatesByName[stationName] = state;
+		}
+
+		_stationStatesByMarker[marker] = state;
+		marker.SetDurabilityPercent(state.Durability);
 	}
 
 	private void BuildCrew()
@@ -360,10 +459,33 @@ public partial class StationCombat3D : Node3D
 		}
 	}
 
+	private void BuildEnemyCrewVisuals()
+	{
+		if (_enemyShipRoot == null)
+		{
+			return;
+		}
+
+		RemoveNamedChild(_enemyShipRoot, "EnemyCrew");
+		var enemyCrewRoot = new Node3D { Name = "EnemyCrew" };
+		_enemyShipRoot.AddChild(enemyCrewRoot);
+
+		foreach (var definition in CrewDefinitions)
+		{
+			CreateCrewPlaceholder(
+				enemyCrewRoot,
+				$"Enemy{SanitizeNodeName(definition.Name)}",
+				definition.ShortLabel,
+				definition.HomePosition,
+				new Color(0.56f, 0.16f, 0.14f));
+		}
+	}
+
 	private void OnCrewClicked(CrewToken3D crew)
 	{
 		_selectedCrew = crew;
 		_clickedStation = null;
+		_isDraggingCannonTarget = false;
 		_statusText = $"{crew.CrewName} selected.";
 		UpdateSelectionVisuals();
 		UpdateHud();
@@ -375,6 +497,7 @@ public partial class StationCombat3D : Node3D
 		{
 			_selectedCrew = null;
 			_clickedStation = station;
+			_isDraggingCannonTarget = station.StationName == CannonsStationName;
 			_statusText = $"{station.StationName} selected.";
 			UpdateSelectionVisuals();
 			UpdateHud();
@@ -391,6 +514,21 @@ public partial class StationCombat3D : Node3D
 		_statusText = $"{_selectedCrew.CrewName} assigned to {station.StationName}.";
 		UpdateSelectionVisuals();
 		UpdateHud();
+	}
+
+	private void OnEnemyStationClicked(StationMarker3D station, MouseButton button)
+	{
+		if (button == MouseButton.Left)
+		{
+			return;
+		}
+
+		if (button != MouseButton.Right || _selectedCrew != null || _clickedStation?.StationName != CannonsStationName)
+		{
+			return;
+		}
+
+		TrySetCannonTarget(station);
 	}
 
 	private void AssignCrewToStation(CrewToken3D crew, StationMarker3D station)
@@ -418,6 +556,93 @@ public partial class StationCombat3D : Node3D
 		station.SetAssignedCrew(crew.CrewName);
 		crew.SetAssignedStation(station.StationName);
 		crew.GlobalPosition = station.AssignmentSlotGlobalPosition;
+		ResetCannonChargeIfUnableToFire();
+	}
+
+	private void TrySetCannonTarget(StationMarker3D enemyStation)
+	{
+		if (!_stationStatesByMarker.TryGetValue(enemyStation, out var targetState) || !targetState.IsEnemy)
+		{
+			return;
+		}
+
+		if (!IsPlayerCannonsCrewed())
+		{
+			_statusText = "Cannons need crew before targeting.";
+			_playerCannonChargeSeconds = 0.0f;
+			UpdateHud();
+			return;
+		}
+
+		if (targetState.IsDisabled)
+		{
+			_statusText = $"Enemy {targetState.Name} is disabled.";
+			UpdateHud();
+			return;
+		}
+
+		_currentCannonTarget = targetState;
+		_playerCannonChargeSeconds = 0.0f;
+		_statusText = $"Cannons targeting Enemy {targetState.Name}.";
+		UpdateSelectionVisuals();
+		UpdateHud();
+	}
+
+	private bool IsPlayerCannonsCrewed()
+	{
+		return _crewByStationName.ContainsKey(CannonsStationName);
+	}
+
+	private bool CanPlayerCannonsCharge()
+	{
+		return IsPlayerCannonsCrewed() &&
+			_currentCannonTarget != null &&
+			!_currentCannonTarget.IsDisabled;
+	}
+
+	private void ResetCannonChargeIfUnableToFire()
+	{
+		if (CanPlayerCannonsCharge())
+		{
+			return;
+		}
+
+		_playerCannonChargeSeconds = 0.0f;
+	}
+
+	private void UpdatePlayerCannonCharge(float deltaSeconds)
+	{
+		if (!CanPlayerCannonsCharge())
+		{
+			_playerCannonChargeSeconds = 0.0f;
+			return;
+		}
+
+		_playerCannonChargeSeconds += deltaSeconds;
+		if (_playerCannonChargeSeconds < PlayerCannonChargeDurationSeconds)
+		{
+			return;
+		}
+
+		FirePlayerCannons();
+		_playerCannonChargeSeconds = 0.0f;
+	}
+
+	private void FirePlayerCannons()
+	{
+		if (_currentCannonTarget == null)
+		{
+			return;
+		}
+
+		_currentCannonTarget.ApplyDamage(PlayerCannonDamage);
+		_currentCannonTarget.Marker.SetDurabilityPercent(_currentCannonTarget.Durability);
+
+		_statusText = _currentCannonTarget.IsDisabled
+			? $"Enemy {_currentCannonTarget.Name} disabled."
+			: $"Cannons fired at Enemy {_currentCannonTarget.Name} for {PlayerCannonDamage:0} damage.";
+		UpdateSelectionVisuals();
+		UpdateHud();
 	}
 
 	private void UpdateSelectionVisuals()
@@ -431,12 +656,21 @@ public partial class StationCombat3D : Node3D
 		{
 			station.SetHighlighted(station == _clickedStation);
 		}
+
+		foreach (var enemyStation in _enemyStations)
+		{
+			enemyStation.SetHighlighted(
+				_currentCannonTarget != null &&
+				_stationStatesByMarker.TryGetValue(enemyStation, out var state) &&
+				state == _currentCannonTarget);
+		}
 	}
 
 	private void ClearSelection(string statusText)
 	{
 		_selectedCrew = null;
 		_clickedStation = null;
+		_isDraggingCannonTarget = false;
 		_statusText = statusText;
 		UpdateSelectionVisuals();
 		UpdateHud();
@@ -543,7 +777,7 @@ public partial class StationCombat3D : Node3D
 		_playerHullLabel = AddHudValue(row, "Player Hull: 100");
 		_enemyHullLabel = AddHudValue(row, "Enemy Hull: 100");
 		_selectedSummaryLabel = AddHudValue(row, "Selected: None");
-		_targetLabel = AddHudValue(row, $"Target: {_currentTargetText}");
+		_targetLabel = AddHudValue(row, $"Target: {GetTargetSummaryText()}");
 		_statusLabel = AddHudValue(row, $"Status: {_statusText}", expand: true);
 	}
 
@@ -604,9 +838,21 @@ public partial class StationCombat3D : Node3D
 		};
 		weaponColumn.AddThemeConstantOverride("separation", 6);
 		weaponColumn.AddChild(CreateHudLabel("Weapons", 15, new Color(0.98f, 0.9f, 0.62f)));
+		_weaponTargetLabel = CreateHudLabel("Target: None");
 		_playerWeaponLabel = CreateHudLabel("Player Cannons: 0.0 / 7.0s");
-		_enemyWeaponLabel = CreateHudLabel("Enemy Cannons: 0.0 / 7.0s");
+		_playerWeaponChargeBar = new ProgressBar
+		{
+			MinValue = 0.0,
+			MaxValue = PlayerCannonChargeDurationSeconds,
+			Value = 0.0,
+			ShowPercentage = false,
+			CustomMinimumSize = new Vector2(0.0f, 12.0f),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		_enemyWeaponLabel = CreateHudLabel("Enemy Cannons: inactive");
+		weaponColumn.AddChild(_weaponTargetLabel);
 		weaponColumn.AddChild(_playerWeaponLabel);
+		weaponColumn.AddChild(_playerWeaponChargeBar);
 		weaponColumn.AddChild(_enemyWeaponLabel);
 
 		row.AddChild(stationColumn);
@@ -633,7 +879,7 @@ public partial class StationCombat3D : Node3D
 
 		if (_targetLabel != null)
 		{
-			_targetLabel.Text = $"Target: {_currentTargetText}";
+			_targetLabel.Text = $"Target: {GetTargetSummaryText()}";
 		}
 
 		if (_statusLabel != null)
@@ -641,18 +887,55 @@ public partial class StationCombat3D : Node3D
 			_statusLabel.Text = $"Status: {_statusText}";
 		}
 
+		UpdateWeaponHud();
+
+		RebuildCrewRows();
+		RebuildStationStatusRows();
+	}
+
+	private void UpdateWeaponHud()
+	{
+		if (_targetLabel != null)
+		{
+			_targetLabel.Text = $"Target: {GetTargetSummaryText()}";
+		}
+
+		if (_weaponTargetLabel != null)
+		{
+			_weaponTargetLabel.Text = $"Target: {GetTargetSummaryText()}";
+		}
+
 		if (_playerWeaponLabel != null)
 		{
-			_playerWeaponLabel.Text = "Player Cannons: 0.0 / 7.0s";
+			var readiness = CanPlayerCannonsCharge()
+				? string.Empty
+				: IsPlayerCannonsCrewed()
+					? " idle"
+					: " needs crew";
+			_playerWeaponLabel.Text = $"Player Cannons: {_playerCannonChargeSeconds:0.0} / {PlayerCannonChargeDurationSeconds:0.0}s{readiness}";
+		}
+
+		if (_playerWeaponChargeBar != null)
+		{
+			_playerWeaponChargeBar.MaxValue = PlayerCannonChargeDurationSeconds;
+			_playerWeaponChargeBar.Value = Mathf.Clamp(_playerCannonChargeSeconds, 0.0f, PlayerCannonChargeDurationSeconds);
 		}
 
 		if (_enemyWeaponLabel != null)
 		{
-			_enemyWeaponLabel.Text = "Enemy Cannons: 0.0 / 7.0s";
+			_enemyWeaponLabel.Text = "Enemy Cannons: inactive";
+		}
+	}
+
+	private string GetTargetSummaryText()
+	{
+		if (_currentCannonTarget == null)
+		{
+			return "None";
 		}
 
-		RebuildCrewRows();
-		RebuildStationStatusRows();
+		var status = _currentCannonTarget.IsDisabled ? "disabled" : $"{_currentCannonTarget.Durability:0}%";
+		return $"Enemy {_currentCannonTarget.Name} {status}";
 	}
 
 	private string GetSelectedSummaryText()
@@ -711,7 +994,12 @@ public partial class StationCombat3D : Node3D
 		ClearChildren(_stationStatusRows);
 		foreach (var station in StationDefinitions)
 		{
-			var row = CreateHudLabel($"{station.Name}: 100% Operational", 13);
+			var state = _playerStationStatesByName.TryGetValue(station.Name, out var stationState)
+				? stationState
+				: null;
+			var durability = state?.Durability ?? 100.0f;
+			var status = state?.IsDisabled == true ? "Disabled" : "Operational";
+			var row = CreateHudLabel($"{station.Name}: {durability:0}% {status}", 13);
 			_stationStatusRows.AddChild(row);
 		}
 	}
@@ -874,6 +1162,62 @@ public partial class StationCombat3D : Node3D
 		parent.AddChild(label);
 	}
 
+	private static void CreateCrewPlaceholder(Node3D parent, string nodeName, string shortLabel, Vector3 position, Color color)
+	{
+		var root = new Node3D
+		{
+			Name = nodeName,
+			Position = position
+		};
+		parent.AddChild(root);
+
+		var baseColor = color.Darkened(0.08f);
+		var selectionRing = new MeshInstance3D
+		{
+			Name = "BaseRing",
+			Position = new Vector3(0.0f, 0.02f, 0.0f),
+			Mesh = new CylinderMesh
+			{
+				TopRadius = 0.3f,
+				BottomRadius = 0.3f,
+				Height = 0.03f,
+				RadialSegments = 10
+			},
+			MaterialOverride = CreateMaterial(new Color(0.34f, 0.08f, 0.065f))
+		};
+		root.AddChild(selectionRing);
+
+		var body = new MeshInstance3D
+		{
+			Name = "Body",
+			Position = new Vector3(0.0f, 0.28f, 0.0f),
+			Mesh = new CylinderMesh
+			{
+				TopRadius = 0.2f,
+				BottomRadius = 0.2f,
+				Height = 0.42f,
+				RadialSegments = 10
+			},
+			MaterialOverride = CreateMaterial(baseColor)
+		};
+		root.AddChild(body);
+
+		var label = new Label3D
+		{
+			Name = "ShortLabel",
+			Text = shortLabel,
+			Position = new Vector3(0.0f, 0.94f, 0.0f),
+			FontSize = 24,
+			PixelSize = 0.011f,
+			Modulate = new Color(0.96f, 0.72f, 0.68f),
+			OutlineSize = 7,
+			OutlineModulate = new Color(0.035f, 0.012f, 0.01f),
+			NoDepthTest = true,
+			Billboard = BaseMaterial3D.BillboardModeEnum.Enabled
+		};
+		root.AddChild(label);
+	}
+
 	private static void CreateCannon(Node3D parent, string nodeName, Vector3 position, bool pointsPort)
 	{
 		var rotation = new Vector3(0.0f, 0.0f, Mathf.Pi * 0.5f);
@@ -974,6 +1318,18 @@ public partial class StationCombat3D : Node3D
 		}
 	}
 
+	private static void RemoveNamedChild(Node parent, string childName)
+	{
+		var child = parent.GetNodeOrNull<Node>(childName);
+		if (child == null)
+		{
+			return;
+		}
+
+		parent.RemoveChild(child);
+		child.QueueFree();
+	}
+
 	private static string SanitizeNodeName(string value)
 	{
 		return value.Replace(" ", string.Empty).Replace("'", string.Empty);
@@ -999,4 +1355,25 @@ public partial class StationCombat3D : Node3D
 		Color SailColor,
 		Color CabinColor,
 		Color AccentColor);
+
+	private sealed class StationRuntimeState
+	{
+		public StationRuntimeState(string name, StationMarker3D marker, bool isEnemy)
+		{
+			Name = name;
+			Marker = marker;
+			IsEnemy = isEnemy;
+		}
+
+		public string Name { get; }
+		public StationMarker3D Marker { get; }
+		public bool IsEnemy { get; }
+		public float Durability { get; private set; } = 100.0f;
+		public bool IsDisabled => Durability <= 0.0f;
+
+		public void ApplyDamage(float damage)
+		{
+			Durability = Mathf.Clamp(Durability - Mathf.Max(0.0f, damage), 0.0f, 100.0f);
+		}
+	}
 }
