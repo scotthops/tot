@@ -26,6 +26,7 @@ public partial class StationCombat3D : Node3D
 	[Export] public float PlayerCannonDamage { get; set; } = 20.0f;
 	[Export] public float EnemyCannonDamage { get; set; } = 20.0f;
 	[Export] public float CannonHullDamage { get; set; } = 10.0f;
+	[Export] public float PlayerRepairRatePerSecond { get; set; } = 10.0f;
 
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
 	private const string CannonsStationName = "Cannons";
@@ -169,6 +170,7 @@ public partial class StationCombat3D : Node3D
 	{
 		var deltaSeconds = (float)delta;
 		UpdateCameraPan(deltaSeconds);
+		UpdatePlayerStationRepairs(deltaSeconds);
 		UpdatePlayerCannonCharge(deltaSeconds);
 		UpdateEnemyCannonCharge(deltaSeconds);
 		UpdateHullBars();
@@ -537,9 +539,11 @@ public partial class StationCombat3D : Node3D
 			return;
 		}
 
-		AssignCrewToStation(_selectedCrew, station);
+		var stoppedRepairStationName = AssignCrewToStation(_selectedCrew, station);
 		_clickedStation = null;
-		_statusText = $"{_selectedCrew.CrewName} assigned to {station.StationName}.";
+		_statusText = string.IsNullOrEmpty(stoppedRepairStationName)
+			? $"{_selectedCrew.CrewName} assigned to {station.StationName}."
+			: $"Repair stopped: no crew assigned to {stoppedRepairStationName}.";
 		UpdateSelectionVisuals();
 		UpdateHud();
 	}
@@ -559,18 +563,27 @@ public partial class StationCombat3D : Node3D
 		TrySetCannonTarget(station);
 	}
 
-	private void AssignCrewToStation(CrewToken3D crew, StationMarker3D station)
+	private string AssignCrewToStation(CrewToken3D crew, StationMarker3D station)
 	{
+		var stoppedRepairStationName = string.Empty;
 		if (_stationByCrewName.TryGetValue(crew.CrewName, out var oldStationName))
 		{
 			_crewByStationName.Remove(oldStationName);
 			FindStation(oldStationName)?.SetAssignedCrew(null);
+			if (StopRepairIfUncrewed(oldStationName))
+			{
+				stoppedRepairStationName = oldStationName;
+			}
 		}
 
 		if (_crewByStationName.TryGetValue(station.StationName, out var displacedCrewName) &&
 			displacedCrewName != crew.CrewName)
 		{
 			_stationByCrewName.Remove(displacedCrewName);
+			if (StopRepairIfUncrewed(station.StationName))
+			{
+				stoppedRepairStationName = station.StationName;
+			}
 			var displacedCrew = FindCrew(displacedCrewName);
 			if (displacedCrew != null)
 			{
@@ -585,6 +598,94 @@ public partial class StationCombat3D : Node3D
 		crew.SetAssignedStation(station.StationName);
 		crew.GlobalPosition = station.AssignmentSlotGlobalPosition;
 		ResetCannonChargeIfUnableToFire();
+		return stoppedRepairStationName;
+	}
+
+	private void StartRepair(string stationName)
+	{
+		if (!_playerStationStatesByName.TryGetValue(stationName, out var station))
+		{
+			return;
+		}
+
+		if (station.Durability >= 100.0f)
+		{
+			_statusText = $"{station.Name} is already fully repaired.";
+			UpdateHud();
+			return;
+		}
+
+		if (!IsPlayerStationCrewed(stationName))
+		{
+			_statusText = $"Assign crew to {station.Name} before repairing.";
+			UpdateHud();
+			return;
+		}
+
+		station.IsRepairing = true;
+		_statusText = $"{GetCrewAssignedToStation(stationName) ?? "Crew"} started repairing {station.Name}.";
+		UpdateHud();
+	}
+
+	private void UpdatePlayerStationRepairs(float deltaSeconds)
+	{
+		var hadRepairUpdate = false;
+		foreach (var station in _playerStationStatesByName.Values)
+		{
+			if (!station.IsRepairing)
+			{
+				continue;
+			}
+
+			if (!IsPlayerStationCrewed(station.Name))
+			{
+				station.IsRepairing = false;
+				_statusText = $"Repair stopped: no crew assigned to {station.Name}.";
+				hadRepairUpdate = true;
+				continue;
+			}
+
+			station.Repair(PlayerRepairRatePerSecond * deltaSeconds);
+			station.Marker.SetDurabilityPercent(station.Durability);
+			hadRepairUpdate = true;
+
+			if (station.Durability >= 100.0f)
+			{
+				station.IsRepairing = false;
+				_statusText = $"{station.Name} repaired.";
+			}
+		}
+
+		if (hadRepairUpdate)
+		{
+			UpdateHud();
+		}
+	}
+
+	private bool StopRepairIfUncrewed(string stationName)
+	{
+		if (!_playerStationStatesByName.TryGetValue(stationName, out var station) ||
+			!station.IsRepairing ||
+			IsPlayerStationCrewed(stationName))
+		{
+			return false;
+		}
+
+		station.IsRepairing = false;
+		_statusText = $"Repair stopped: no crew assigned to {station.Name}.";
+		return true;
+	}
+
+	private bool IsPlayerStationCrewed(string stationName)
+	{
+		return _crewByStationName.ContainsKey(stationName);
+	}
+
+	private string? GetCrewAssignedToStation(string stationName)
+	{
+		return _crewByStationName.TryGetValue(stationName, out var crewName)
+			? crewName
+			: null;
 	}
 
 	private void TrySetCannonTarget(StationMarker3D enemyStation)
@@ -1193,7 +1294,29 @@ public partial class StationCombat3D : Node3D
 				: null;
 			var durability = state?.Durability ?? 100.0f;
 			var status = state?.IsDisabled == true ? "Disabled" : "Operational";
-			var row = CreateHudLabel($"{station.Name}: {durability:0}% {status}", 13);
+			var repairText = state?.IsRepairing == true ? " - Repairing" : string.Empty;
+			var row = new HBoxContainer
+			{
+				CustomMinimumSize = new Vector2(0.0f, 28.0f),
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+			};
+			row.AddThemeConstantOverride("separation", 6);
+
+			var stationLabel = CreateHudLabel($"{station.Name}: {durability:0}% {status}{repairText}", 13,
+				state?.IsRepairing == true ? new Color(0.52f, 0.95f, 0.68f) : null);
+			stationLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+			var repairButton = new Button
+			{
+				Text = "Repair",
+				CustomMinimumSize = new Vector2(72.0f, 24.0f)
+			};
+			repairButton.AddThemeFontSizeOverride("font_size", 12);
+			var stationName = station.Name;
+			repairButton.Pressed += () => StartRepair(stationName);
+
+			row.AddChild(stationLabel);
+			row.AddChild(repairButton);
 			_stationStatusRows.AddChild(row);
 		}
 	}
@@ -1608,11 +1731,17 @@ public partial class StationCombat3D : Node3D
 		public StationMarker3D Marker { get; }
 		public bool IsEnemy { get; }
 		public float Durability { get; private set; } = 100.0f;
+		public bool IsRepairing { get; set; }
 		public bool IsDisabled => Durability <= 0.0f;
 
 		public void ApplyDamage(float damage)
 		{
 			Durability = Mathf.Clamp(Durability - Mathf.Max(0.0f, damage), 0.0f, 100.0f);
+		}
+
+		public void Repair(float amount)
+		{
+			Durability = Mathf.Clamp(Durability + Mathf.Max(0.0f, amount), 0.0f, 100.0f);
 		}
 	}
 
