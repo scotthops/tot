@@ -36,6 +36,7 @@ public partial class StationCombat3D : Node3D
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
 	private const string CannonsStationName = "Cannons";
 	private const string PlayerCannonModelPath = "res://art/models/cannon-test-1.glb";
+	private const string PlayerHelmModelPath = "res://art/models/helm-test-1.glb";
 	private static readonly string[] EnemyTargetPriority =
 	{
 		"Cannons",
@@ -564,8 +565,7 @@ public partial class StationCombat3D : Node3D
 		CreateBox(shipRoot, "Quarterdeck", new Vector3(2.6f, 0.18f, 1.34f), new Vector3(-0.08f, 1.02f, 2.86f), style.DeckColor.Lightened(0.08f));
 		CreateBox(shipRoot, "HelmStationPad", new Vector3(1.28f, 0.026f, 0.96f), new Vector3(-0.78f, 1.125f, 2.94f), new Color(0.12f, 0.22f, 0.34f));
 		CreateBox(shipRoot, "SternCabin", new Vector3(1.42f, 0.56f, 0.96f), new Vector3(0.16f, 1.28f, 3.26f), style.CabinColor);
-		CreateBox(shipRoot, "HelmWheelBlockout", new Vector3(0.62f, 0.48f, 0.12f), new Vector3(-0.96f, 1.36f, 3.08f), style.RailColor);
-		CreateCylinder(shipRoot, "HelmWheelHub", 0.16f, 0.08f, new Vector3(-0.96f, 1.36f, 2.96f), style.AccentColor, 12, new Vector3(Mathf.Pi * 0.5f, 0.0f, 0.0f));
+		CreatePlayerHelmModel(shipRoot, "PlayerHelmWheel", new Vector3(-0.98f, 1.24f, 3.02f));
 
 		CreateBox(shipRoot, "BilgeStationPad", new Vector3(1.22f, 0.026f, 1.06f), new Vector3(0.76f, 0.982f, 0.84f), new Color(0.08f, 0.22f, 0.16f));
 		CreateBox(shipRoot, "BilgeHatch", new Vector3(0.86f, 0.055f, 0.76f), new Vector3(0.74f, 0.96f, 0.8f), HatchColor);
@@ -1938,6 +1938,28 @@ public partial class StationCombat3D : Node3D
 		}
 
 		CreateCannon(parent, $"{nodeName}Fallback", position, pointsPort: false);
+	}
+
+	private static void CreatePlayerHelmModel(Node3D parent, string nodeName, Vector3 position)
+	{
+		var root = new Node3D
+		{
+			Name = nodeName,
+			Position = position,
+			Rotation = new Vector3(0.0f, Mathf.Pi, 0.0f),
+			Scale = Vector3.One * 0.48f
+		};
+		parent.AddChild(root);
+
+		var helmScene = ResourceLoader.Load<PackedScene>(PlayerHelmModelPath);
+		if (helmScene?.Instantiate() is Node3D helmModel)
+		{
+			helmModel.Name = "Model";
+			root.AddChild(helmModel);
+			return;
+		}
+
+		CreateBox(parent, $"{nodeName}Fallback", new Vector3(0.62f, 0.48f, 0.12f), position, new Color(0.5f, 0.28f, 0.12f));
 	}
 
 	private static void CreatePowderBarrel(Node3D parent, string nodeName, Vector3 position)
