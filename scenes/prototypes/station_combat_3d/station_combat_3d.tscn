@@ -1,6 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://cujyrbchoc17v"]
 
-[ext_resource type="Script" path="res://scripts/Prototypes/station_combat_3d/StationCombat3D.cs" id="1_station_combat"]
+[ext_resource type="Script" uid="uid://c5ggxy50ugxxw" path="res://scripts/Prototypes/station_combat_3d/StationCombat3D.cs" id="1_station_combat"]
 [ext_resource type="PackedScene" path="res://scenes/environment/ocean_environment.tscn" id="2_ocean"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_station_combat"]
@@ -23,19 +23,19 @@ fog_light_color = Color(0.5, 0.62, 0.66, 1)
 fog_light_energy = 0.55
 fog_density = 0.018
 
-[node name="StationCombat3D" type="Node3D"]
+[node name="StationCombat3D" type="Node3D" unique_id=933936684]
 script = ExtResource("1_station_combat")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=902553799]
 environment = SubResource("Environment_station_combat")
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-rotation = Vector3(-0.916298, -0.628319, 0)
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=824910389]
+transform = Transform3D(0.8090167, 0.46632177, -0.35782117, 0, 0.6087613, 0.79335344, 0.58778566, -0.64183617, 0.49249807, 0, 0, 0)
 light_energy = 2.1
 shadow_enabled = true
 
-[node name="OceanEnvironment" parent="." instance=ExtResource("2_ocean")]
-position = Vector3(0, -0.04, 0)
+[node name="OceanEnvironment" parent="." unique_id=2137040845 instance=ExtResource("2_ocean")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.04, 0)
 WaterSize = 82.0
 MeshSubdivisions = 48
 WaveHeight = 0.025
@@ -46,61 +46,57 @@ ColorVariation = 0.12
 GlintStrength = 0.025
 FoamStrength = 0.035
 
-[node name="PrototypeRoot" type="Node3D" parent="."]
+[node name="PrototypeRoot" type="Node3D" parent="." unique_id=79781198]
 
-[node name="ShipBlockout" type="Node3D" parent="PrototypeRoot"]
+[node name="ShipBlockout" type="Node3D" parent="PrototypeRoot" unique_id=1679375538]
 
-[node name="EnemyShipBlockout" type="Node3D" parent="PrototypeRoot"]
+[node name="EnemyShipBlockout" type="Node3D" parent="PrototypeRoot" unique_id=536882234]
 
-[node name="Stations" type="Node3D" parent="PrototypeRoot"]
+[node name="Stations" type="Node3D" parent="PrototypeRoot" unique_id=2098289288]
 
-[node name="Crew" type="Node3D" parent="PrototypeRoot"]
+[node name="Crew" type="Node3D" parent="PrototypeRoot" unique_id=1579507285]
 
-[node name="Camera3D" type="Camera3D" parent="."]
+[node name="Camera3D" type="Camera3D" parent="." unique_id=2069753997]
 transform = Transform3D(1, 0, 0, 0, 0.573576, 0.819152, 0, -0.819152, 0.573576, 0.85, 12.8, 11.4)
 projection = 1
 current = true
 size = 13.2
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1777916788]
 
-[node name="PanelContainer" type="PanelContainer" parent="HUD"]
+[node name="PanelContainer" type="PanelContainer" parent="HUD" unique_id=678508878]
 offset_left = 16.0
 offset_top = 16.0
 offset_right = 348.0
 offset_bottom = 184.0
 
-[node name="MarginContainer" type="MarginContainer" parent="HUD/PanelContainer"]
-offset_right = 332.0
-offset_bottom = 168.0
+[node name="MarginContainer" type="MarginContainer" parent="HUD/PanelContainer" unique_id=169682346]
+layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 10
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HUD/PanelContainer/MarginContainer"]
-offset_left = 12.0
-offset_top = 10.0
-offset_right = 320.0
-offset_bottom = 158.0
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/PanelContainer/MarginContainer" unique_id=1943347058]
+layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="TitleLabel" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer" unique_id=968746752]
 layout_mode = 2
 text = "Station Combat 3D"
 
-[node name="SelectedCrewValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="SelectedCrewValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer" unique_id=237973755]
 layout_mode = 2
 text = "Crew: None"
 
-[node name="ClickedStationValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="ClickedStationValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer" unique_id=1788270155]
 layout_mode = 2
 text = "Station: None"
 
-[node name="StatusValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="StatusValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer" unique_id=1860094566]
 layout_mode = 2
 text = "Status: Awaiting assignment."
 
-[node name="AssignmentsValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="AssignmentsValue" type="Label" parent="HUD/PanelContainer/MarginContainer/VBoxContainer" unique_id=1976236048]
 layout_mode = 2
 text = "Assignments: None"
