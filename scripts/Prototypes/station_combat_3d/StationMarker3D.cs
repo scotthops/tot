@@ -7,6 +7,8 @@ public partial class StationMarker3D : Area3D
 {
 	[Export] public string StationName { get; set; } = "Station";
 	[Export] public Color MarkerColor { get; set; } = new(0.55f, 0.46f, 0.26f);
+	[Export] public Vector3 ClickShapeSize { get; set; } = new(0.88f, 0.9f, 0.88f);
+	[Export] public Vector3 ClickShapeOffset { get; set; } = new(0.0f, 0.38f, 0.0f);
 
 	public event Action<StationMarker3D, MouseButton>? Clicked;
 
@@ -112,8 +114,8 @@ public partial class StationMarker3D : Area3D
 		var collisionShape = new CollisionShape3D
 		{
 			Name = "ClickShape",
-			Position = new Vector3(0.0f, 0.38f, 0.0f),
-			Shape = new BoxShape3D { Size = new Vector3(0.88f, 0.9f, 0.88f) }
+			Position = ClickShapeOffset,
+			Shape = new BoxShape3D { Size = ClickShapeSize }
 		};
 		AddChild(collisionShape);
 	}

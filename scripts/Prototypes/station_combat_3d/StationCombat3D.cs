@@ -15,7 +15,7 @@ public partial class StationCombat3D : Node3D
 	[Export] public Vector3 PlayerShipOffset { get; set; } = new(-2.2f, 0.0f, 0.35f);
 	[Export] public Vector3 EnemyShipOffset { get; set; } = new(4.45f, 0.0f, 0.35f);
 	[Export] public Vector3 PlayerShipRotationDegrees { get; set; } = new(0.0f, -90.0f, 0.0f);
-	[Export] public float PlayerShipScale { get; set; } = 1.18f;
+	[Export] public float PlayerShipScale { get; set; } = 1.2f;
 	[Export] public float EnemyShipScale { get; set; } = 0.72f;
 	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.85f, 12.8f, 11.4f);
 	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-55.0f, 0.0f, 0.0f);
@@ -61,6 +61,30 @@ public partial class StationCombat3D : Node3D
 	{
 		new(
 			"Helm",
+			new Vector3(-0.96f, 1.16f, 3.08f),
+			new Vector3(0.58f, 0.0f, -0.28f),
+			new Color(0.34f, 0.52f, 0.78f)),
+		new(
+			"Cannons",
+			new Vector3(1.34f, 1.06f, -1.08f),
+			new Vector3(-0.74f, 0.0f, 0.18f),
+			new Color(0.74f, 0.28f, 0.2f)),
+		new(
+			"Crow's Nest",
+			new Vector3(-0.18f, 3.1f, -0.36f),
+			new Vector3(0.58f, 0.0f, 0.36f),
+			new Color(0.86f, 0.72f, 0.28f)),
+		new(
+			"Bilge",
+			new Vector3(0.78f, 1.06f, 0.82f),
+			new Vector3(-0.72f, 0.0f, 0.38f),
+			new Color(0.28f, 0.58f, 0.44f))
+	};
+
+	private static readonly StationDefinition[] EnemyStationDefinitions =
+	{
+		new(
+			"Helm",
 			new Vector3(0.0f, 1.02f, 2.18f),
 			new Vector3(0.68f, 0.0f, 0.0f),
 			new Color(0.34f, 0.52f, 0.78f)),
@@ -82,6 +106,28 @@ public partial class StationCombat3D : Node3D
 	};
 
 	private static readonly CrewDefinition[] CrewDefinitions =
+	{
+		new(
+			"Captain",
+			"C",
+			"Command",
+			new Vector3(-0.38f, 1.16f, 2.8f),
+			new Color(0.26f, 0.46f, 0.82f)),
+		new(
+			"Gunner",
+			"G",
+			"Gunnery",
+			new Vector3(0.6f, 1.06f, -0.9f),
+			new Color(0.72f, 0.32f, 0.24f)),
+		new(
+			"Deckhand",
+			"D",
+			"Repair",
+			new Vector3(1.02f, 1.06f, 1.22f),
+			new Color(0.26f, 0.62f, 0.42f))
+	};
+
+	private static readonly CrewDefinition[] EnemyCrewDefinitions =
 	{
 		new(
 			"Captain",
@@ -377,9 +423,9 @@ public partial class StationCombat3D : Node3D
 		parent.AddChild(root);
 		_playerBattleAreaFrameRoot = root;
 
-		CreateBox(root, "PlayerDeckShadow", new Vector3(4.05f, 0.045f, 7.1f), Vector3.Zero, new Color(0.045f, 0.04f, 0.034f));
-		CreateBox(root, "PlayerBowGuide", new Vector3(0.16f, 0.07f, 1.55f), new Vector3(0.0f, 0.03f, -3.12f), PlayerShipStyle.AccentColor.Darkened(0.2f));
-		CreateBox(root, "PlayerSternGuide", new Vector3(0.16f, 0.07f, 1.55f), new Vector3(0.0f, 0.03f, 3.0f), PlayerShipStyle.AccentColor.Darkened(0.2f));
+		CreateBox(root, "PlayerDeckShadow", new Vector3(4.82f, 0.045f, 9.05f), Vector3.Zero, new Color(0.045f, 0.04f, 0.034f));
+		CreateBox(root, "PlayerBowGuide", new Vector3(0.16f, 0.07f, 1.84f), new Vector3(0.0f, 0.03f, -4.06f), PlayerShipStyle.AccentColor.Darkened(0.2f));
+		CreateBox(root, "PlayerSternGuide", new Vector3(0.16f, 0.07f, 1.84f), new Vector3(0.0f, 0.03f, 3.94f), PlayerShipStyle.AccentColor.Darkened(0.2f));
 	}
 
 	private void CreateEnemyCutoutFrame(Node3D parent)
@@ -409,6 +455,17 @@ public partial class StationCombat3D : Node3D
 	{
 		ClearChildren(shipRoot);
 
+		if (displayName == "Player")
+		{
+			BuildPlayerMediumShipBlockout(shipRoot, style, displayName);
+			return;
+		}
+
+		BuildCompactShipBlockout(shipRoot, style, displayName);
+	}
+
+	private void BuildCompactShipBlockout(Node3D shipRoot, ShipVisualStyle style, string displayName)
+	{
 		CreateBox(shipRoot, "Hull", new Vector3(3.35f, 0.72f, 6.2f), new Vector3(0.0f, 0.36f, 0.0f), style.HullColor);
 		CreateBox(shipRoot, "Deck", new Vector3(2.72f, 0.16f, 5.28f), new Vector3(0.0f, 0.82f, 0.12f), style.DeckColor);
 		CreateBox(shipRoot, "PortRail", new Vector3(0.16f, 0.36f, 5.35f), new Vector3(-1.44f, 1.05f, 0.12f), style.RailColor);
@@ -470,6 +527,117 @@ public partial class StationCombat3D : Node3D
 		}
 	}
 
+	private void BuildPlayerMediumShipBlockout(Node3D shipRoot, ShipVisualStyle style, string displayName)
+	{
+		CreateBox(shipRoot, "Hull", new Vector3(4.02f, 0.76f, 8.18f), new Vector3(0.0f, 0.36f, 0.0f), style.HullColor);
+		CreateBox(shipRoot, "Deck", new Vector3(3.28f, 0.16f, 7.08f), new Vector3(0.0f, 0.84f, 0.08f), style.DeckColor);
+		CreateBox(shipRoot, "PortRail", new Vector3(0.16f, 0.38f, 7.16f), new Vector3(-1.7f, 1.08f, 0.08f), style.RailColor);
+		CreateBox(shipRoot, "StarboardRail", new Vector3(0.16f, 0.38f, 7.16f), new Vector3(1.7f, 1.08f, 0.08f), style.RailColor);
+		CreateBox(shipRoot, "SternRail", new Vector3(3.34f, 0.38f, 0.16f), new Vector3(0.0f, 1.08f, 3.68f), style.RailColor);
+		CreateBeamBetween(shipRoot, "PortBowRail", new Vector2(-1.7f, -3.28f), new Vector2(0.0f, -4.18f), 1.08f, style.RailColor);
+		CreateBeamBetween(shipRoot, "StarboardBowRail", new Vector2(1.7f, -3.28f), new Vector2(0.0f, -4.18f), 1.08f, style.RailColor);
+
+		for (var plank = -3; plank <= 3; plank++)
+		{
+			CreateBox(
+				shipRoot,
+				$"DeckPlankLine_{plank}",
+				new Vector3(0.022f, 0.022f, 6.76f),
+				new Vector3(plank * 0.39f, 0.945f, 0.04f),
+				new Color(0.22f, 0.12f, 0.055f));
+		}
+
+		for (var seam = -4; seam <= 4; seam++)
+		{
+			CreateBox(
+				shipRoot,
+				$"DeckCrossSeam_{seam}",
+				new Vector3(2.82f, 0.018f, 0.025f),
+				new Vector3(0.0f, 0.955f, seam * 0.78f),
+				new Color(0.18f, 0.095f, 0.045f));
+		}
+
+		CreatePlayerStationStandSpots(shipRoot);
+
+		CreateBox(shipRoot, "FactionStripe", new Vector3(2.48f, 0.035f, 0.16f), new Vector3(0.0f, 0.96f, -2.62f), style.AccentColor);
+		CreateBox(shipRoot, "Quarterdeck", new Vector3(2.6f, 0.18f, 1.34f), new Vector3(-0.08f, 1.02f, 2.86f), style.DeckColor.Lightened(0.08f));
+		CreateBox(shipRoot, "HelmStationPad", new Vector3(1.28f, 0.026f, 0.96f), new Vector3(-0.78f, 1.125f, 2.94f), new Color(0.12f, 0.22f, 0.34f));
+		CreateBox(shipRoot, "SternCabin", new Vector3(1.42f, 0.56f, 0.96f), new Vector3(0.16f, 1.28f, 3.26f), style.CabinColor);
+		CreateBox(shipRoot, "HelmWheelBlockout", new Vector3(0.62f, 0.48f, 0.12f), new Vector3(-0.96f, 1.36f, 3.08f), style.RailColor);
+		CreateCylinder(shipRoot, "HelmWheelHub", 0.16f, 0.08f, new Vector3(-0.96f, 1.36f, 2.96f), style.AccentColor, 12, new Vector3(Mathf.Pi * 0.5f, 0.0f, 0.0f));
+
+		CreateBox(shipRoot, "BilgeStationPad", new Vector3(1.22f, 0.026f, 1.06f), new Vector3(0.76f, 0.982f, 0.84f), new Color(0.08f, 0.22f, 0.16f));
+		CreateBox(shipRoot, "BilgeHatch", new Vector3(0.86f, 0.055f, 0.76f), new Vector3(0.74f, 0.96f, 0.8f), HatchColor);
+		CreateBox(shipRoot, "HatchSlatA", new Vector3(0.68f, 0.035f, 0.045f), new Vector3(0.74f, 1.005f, 0.62f), style.RailColor);
+		CreateBox(shipRoot, "HatchSlatB", new Vector3(0.68f, 0.035f, 0.045f), new Vector3(0.74f, 1.005f, 0.8f), style.RailColor);
+		CreateBox(shipRoot, "HatchSlatC", new Vector3(0.68f, 0.035f, 0.045f), new Vector3(0.74f, 1.005f, 0.98f), style.RailColor);
+
+		CreateCylinder(shipRoot, "Mast", 0.14f, 3.1f, new Vector3(-0.18f, 2.28f, -0.34f), style.RailColor, 10);
+		CreateBox(shipRoot, "MastBase", new Vector3(0.58f, 0.16f, 0.58f), new Vector3(-0.18f, 1.02f, -0.34f), style.RailColor.Darkened(0.08f));
+		CreateBox(shipRoot, "FurledSail", new Vector3(2.1f, 0.38f, 0.08f), new Vector3(-0.18f, 2.22f, -0.34f), style.SailColor);
+		CreateBox(shipRoot, "LowerYard", new Vector3(2.72f, 0.08f, 0.08f), new Vector3(-0.18f, 2.18f, -0.34f), style.RailColor);
+		CreateBox(shipRoot, "RiggingPort", new Vector3(0.045f, 1.5f, 0.045f), new Vector3(-0.76f, 1.78f, -0.34f), style.RailColor.Darkened(0.1f), new Vector3(0.0f, 0.0f, 0.42f));
+		CreateBox(shipRoot, "RiggingStarboard", new Vector3(0.045f, 1.5f, 0.045f), new Vector3(0.42f, 1.78f, -0.34f), style.RailColor.Darkened(0.1f), new Vector3(0.0f, 0.0f, -0.42f));
+		CreateBox(shipRoot, "CrowNestPlatform", new Vector3(0.98f, 0.12f, 0.98f), new Vector3(-0.18f, 2.9f, -0.34f), style.DeckColor);
+		CreateBox(shipRoot, "CrowNestRailPort", new Vector3(0.08f, 0.22f, 0.98f), new Vector3(-0.67f, 3.05f, -0.34f), style.RailColor);
+		CreateBox(shipRoot, "CrowNestRailStarboard", new Vector3(0.08f, 0.22f, 0.98f), new Vector3(0.31f, 3.05f, -0.34f), style.RailColor);
+
+		CreateBox(shipRoot, "CannonStationPad", new Vector3(1.24f, 0.028f, 2.84f), new Vector3(1.22f, 0.982f, -1.08f), new Color(0.34f, 0.12f, 0.08f));
+		CreateCannon(shipRoot, "BroadsideCannonAft", new Vector3(1.84f, 1.08f, 0.12f), pointsPort: false);
+		CreateCannon(shipRoot, "BroadsideCannonMid", new Vector3(1.84f, 1.08f, -1.08f), pointsPort: false);
+		CreateCannon(shipRoot, "BroadsideCannonForward", new Vector3(1.84f, 1.08f, -2.28f), pointsPort: false);
+		CreateBox(shipRoot, "ClosedGunportAft", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, 0.12f), style.RailColor.Darkened(0.18f));
+		CreateBox(shipRoot, "ClosedGunportMid", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -1.08f), style.RailColor.Darkened(0.18f));
+		CreateBox(shipRoot, "ClosedGunportForward", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -2.28f), style.RailColor.Darkened(0.18f));
+
+		CreateBox(shipRoot, "PowderAreaPad", new Vector3(0.9f, 0.026f, 1.22f), new Vector3(0.64f, 0.985f, -1.54f), new Color(0.32f, 0.2f, 0.07f));
+		CreatePowderBarrel(shipRoot, "PowderBarrelA", new Vector3(0.76f, 1.08f, -0.86f));
+		CreatePowderBarrel(shipRoot, "PowderBarrelB", new Vector3(0.84f, 1.08f, -1.28f));
+		CreatePowderBarrel(shipRoot, "PowderBarrelC", new Vector3(0.62f, 1.08f, -1.66f));
+		CreateBox(shipRoot, "PowderCrate", new Vector3(0.48f, 0.34f, 0.44f), new Vector3(0.42f, 1.12f, -1.88f), new Color(0.18f, 0.11f, 0.06f));
+
+		CreateBox(shipRoot, "RepairCrateA", new Vector3(0.48f, 0.34f, 0.44f), new Vector3(1.18f, 1.13f, 1.28f), new Color(0.22f, 0.15f, 0.08f));
+		CreateBox(shipRoot, "RepairCrateB", new Vector3(0.36f, 0.28f, 0.34f), new Vector3(1.28f, 1.1f, 0.74f), new Color(0.18f, 0.12f, 0.07f));
+		CreateCylinder(shipRoot, "RepairBucket", 0.18f, 0.22f, new Vector3(0.98f, 1.1f, 1.62f), new Color(0.36f, 0.32f, 0.24f), 10);
+		CreateBox(shipRoot, "RepairPlanks", new Vector3(0.72f, 0.08f, 0.18f), new Vector3(1.06f, 1.2f, 1.88f), style.RailColor);
+
+		CreateBox(shipRoot, "CannonFireGlow", new Vector3(0.18f, 0.22f, 0.18f), new Vector3(2.02f, 1.2f, -2.28f), new Color(0.95f, 0.36f, 0.08f));
+		CreateBox(shipRoot, "CannonSmokePuff", new Vector3(0.32f, 0.24f, 0.32f), new Vector3(2.16f, 1.42f, -2.28f), new Color(0.18f, 0.18f, 0.17f));
+
+		CreateShipLabel(shipRoot, displayName, new Vector3(0.0f, 1.18f, -4.22f), style.AccentColor);
+
+		var hullBarParent = shipRoot.GetParent() is Node3D prototypeRoot
+			? prototypeRoot
+			: shipRoot;
+		var hullBar = CreateHullBar(hullBarParent, $"{displayName}HullBar", $"{displayName} Hull", Vector3.Zero, style.AccentColor);
+		_playerHullBar = hullBar;
+		UpdatePlayerHullBarPresentation();
+	}
+
+	private static void CreatePlayerStationStandSpots(Node3D parent)
+	{
+		foreach (var station in StationDefinitions)
+		{
+			CreateStationStandSpot(
+				parent,
+				$"{SanitizeNodeName(station.Name)}StandSpot",
+				station.Position + station.AssignmentOffset,
+				station.Color);
+		}
+	}
+
+	private static void CreateStationStandSpot(Node3D parent, string nodeName, Vector3 position, Color color)
+	{
+		CreateCylinder(
+			parent,
+			nodeName,
+			0.25f,
+			0.026f,
+			new Vector3(position.X, position.Y - 0.006f, position.Z),
+			color.Darkened(0.28f),
+			14);
+	}
+
 	private void BuildStations()
 	{
 		if (_stationRoot == null)
@@ -492,7 +660,10 @@ public partial class StationCombat3D : Node3D
 				StationName = definition.Name,
 				MarkerColor = definition.Color,
 				Position = definition.Position,
-				AssignmentOffset = definition.AssignmentOffset
+				AssignmentOffset = definition.AssignmentOffset,
+				ClickShapeSize = definition.Name == CannonsStationName
+					? new Vector3(1.28f, 0.95f, 2.85f)
+					: new Vector3(0.88f, 0.9f, 0.88f)
 			};
 
 			_stationRoot.AddChild(marker);
@@ -516,7 +687,7 @@ public partial class StationCombat3D : Node3D
 		_enemyStations.Clear();
 		_enemyStationStatesByName.Clear();
 
-		foreach (var definition in StationDefinitions)
+		foreach (var definition in EnemyStationDefinitions)
 		{
 			var marker = new StationMarker3D
 			{
@@ -592,7 +763,7 @@ public partial class StationCombat3D : Node3D
 		var enemyCrewRoot = new Node3D { Name = "EnemyCrew" };
 		_enemyShipRoot.AddChild(enemyCrewRoot);
 
-		foreach (var definition in CrewDefinitions)
+		foreach (var definition in EnemyCrewDefinitions)
 		{
 			CreateCrewPlaceholder(
 				enemyCrewRoot,
@@ -1100,7 +1271,7 @@ public partial class StationCombat3D : Node3D
 		}
 
 		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
-		_playerHullBar.Root.GlobalPosition = PlayerShipOffset + (screenDown * 4.15f * Mathf.Max(0.1f, PlayerShipScale)) + new Vector3(0.0f, 1.25f, 0.0f);
+		_playerHullBar.Root.GlobalPosition = PlayerShipOffset + (screenDown * 4.45f * Mathf.Max(0.1f, PlayerShipScale)) + new Vector3(0.0f, 1.25f, 0.0f);
 		_playerHullBar.Root.GlobalRotation = Vector3.Zero;
 		_playerHullBar.Root.Scale = Vector3.One * zoomScale;
 	}
@@ -1755,6 +1926,21 @@ public partial class StationCombat3D : Node3D
 			new Color(0.075f, 0.075f, 0.075f),
 			10,
 			rotation);
+	}
+
+	private static void CreatePowderBarrel(Node3D parent, string nodeName, Vector3 position)
+	{
+		var root = new Node3D
+		{
+			Name = nodeName,
+			Position = position
+		};
+		parent.AddChild(root);
+
+		CreateCylinder(root, "BarrelBody", 0.18f, 0.34f, Vector3.Zero, new Color(0.24f, 0.11f, 0.045f), 10);
+		CreateBox(root, "TopBand", new Vector3(0.38f, 0.045f, 0.38f), new Vector3(0.0f, 0.14f, 0.0f), new Color(0.06f, 0.055f, 0.05f));
+		CreateBox(root, "BottomBand", new Vector3(0.38f, 0.045f, 0.38f), new Vector3(0.0f, -0.14f, 0.0f), new Color(0.06f, 0.055f, 0.05f));
+		CreateBox(root, "PowderMark", new Vector3(0.22f, 0.035f, 0.035f), new Vector3(0.0f, 0.19f, -0.12f), new Color(0.9f, 0.74f, 0.26f));
 	}
 
 	private static MeshInstance3D CreateBox(
