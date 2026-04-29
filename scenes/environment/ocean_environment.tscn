@@ -1,0 +1,21 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Environment/OceanEnvironment.cs" id="1_ocean_script"]
+[ext_resource type="Shader" path="res://shaders/stylized_ocean.gdshader" id="2_ocean_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ocean"]
+resource_local_to_scene = true
+shader = ExtResource("2_ocean_shader")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_ocean"]
+resource_local_to_scene = true
+size = Vector2(160, 160)
+subdivide_width = 64
+subdivide_depth = 64
+
+[node name="OceanEnvironment" type="Node3D"]
+script = ExtResource("1_ocean_script")
+
+[node name="OceanPlane" type="MeshInstance3D" parent="."]
+mesh = SubResource("PlaneMesh_ocean")
+material_override = SubResource("ShaderMaterial_ocean")
