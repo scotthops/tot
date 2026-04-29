@@ -587,23 +587,12 @@ public partial class StationCombat3D : Node3D
 		CreatePlayerCannonModel(shipRoot, "BroadsideCannonAft", new Vector3(1.82f, 1.08f, 0.12f));
 		CreatePlayerCannonModel(shipRoot, "BroadsideCannonMid", new Vector3(1.82f, 1.08f, -1.08f));
 		CreatePlayerCannonModel(shipRoot, "BroadsideCannonForward", new Vector3(1.82f, 1.08f, -2.28f));
-		CreateBox(shipRoot, "ClosedGunportAft", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, 0.12f), style.RailColor.Darkened(0.18f));
-		CreateBox(shipRoot, "ClosedGunportMid", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -1.08f), style.RailColor.Darkened(0.18f));
-		CreateBox(shipRoot, "ClosedGunportForward", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -2.28f), style.RailColor.Darkened(0.18f));
 
-		CreateBox(shipRoot, "PowderAreaPad", new Vector3(0.9f, 0.026f, 1.22f), new Vector3(0.64f, 0.985f, -1.54f), new Color(0.32f, 0.2f, 0.07f));
 		CreatePowderBarrel(shipRoot, "PowderBarrelA", new Vector3(0.76f, 1.08f, -0.86f));
 		CreatePowderBarrel(shipRoot, "PowderBarrelB", new Vector3(0.84f, 1.08f, -1.28f));
-		CreatePowderBarrel(shipRoot, "PowderBarrelC", new Vector3(0.62f, 1.08f, -1.66f));
-		CreateBox(shipRoot, "PowderCrate", new Vector3(0.48f, 0.34f, 0.44f), new Vector3(0.42f, 1.12f, -1.88f), new Color(0.18f, 0.11f, 0.06f));
 
 		CreateBox(shipRoot, "RepairCrateA", new Vector3(0.48f, 0.34f, 0.44f), new Vector3(1.18f, 1.13f, 1.28f), new Color(0.22f, 0.15f, 0.08f));
-		CreateBox(shipRoot, "RepairCrateB", new Vector3(0.36f, 0.28f, 0.34f), new Vector3(1.28f, 1.1f, 0.74f), new Color(0.18f, 0.12f, 0.07f));
 		CreateCylinder(shipRoot, "RepairBucket", 0.18f, 0.22f, new Vector3(0.98f, 1.1f, 1.62f), new Color(0.36f, 0.32f, 0.24f), 10);
-		CreateBox(shipRoot, "RepairPlanks", new Vector3(0.72f, 0.08f, 0.18f), new Vector3(1.06f, 1.2f, 1.88f), style.RailColor);
-
-		CreateBox(shipRoot, "CannonFireGlow", new Vector3(0.18f, 0.22f, 0.18f), new Vector3(2.02f, 1.2f, -2.28f), new Color(0.95f, 0.36f, 0.08f));
-		CreateBox(shipRoot, "CannonSmokePuff", new Vector3(0.32f, 0.24f, 0.32f), new Vector3(2.16f, 1.42f, -2.28f), new Color(0.18f, 0.18f, 0.17f));
 
 		CreateShipLabel(shipRoot, displayName, new Vector3(0.0f, 1.18f, -4.22f), style.AccentColor);
 
@@ -1935,7 +1924,7 @@ public partial class StationCombat3D : Node3D
 		{
 			Name = nodeName,
 			Position = position,
-			Rotation = Vector3.Zero,
+			Rotation = new Vector3(0.0f, Mathf.Pi, 0.0f),
 			Scale = Vector3.One * 0.72f
 		};
 		parent.AddChild(root);
