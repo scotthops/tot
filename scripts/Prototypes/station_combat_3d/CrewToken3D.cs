@@ -96,8 +96,8 @@ public partial class CrewToken3D : Area3D
 		var collisionShape = new CollisionShape3D
 		{
 			Name = "ClickShape",
-			Position = new Vector3(0.0f, 0.38f, 0.0f),
-			Shape = new SphereShape3D { Radius = 0.42f }
+			Position = new Vector3(0.0f, 0.68f, 0.0f),
+			Shape = new SphereShape3D { Radius = 0.62f }
 		};
 		AddChild(collisionShape);
 	}
