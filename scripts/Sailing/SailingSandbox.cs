@@ -63,6 +63,7 @@ public partial class SailingSandbox : Node3D
 	[Export] public NodePath ResumeButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/ResumeButton");
 	[Export] public NodePath RestartButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/RestartButton");
 	[Export] public NodePath QuitGameButtonPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/QuitGameButton");
+	[Export] public NodePath VolumeSliderPath { get; set; } = new("HUD/PauseOverlay/MarginContainer/VBoxContainer/ButtonStack/VolumeRow/VolumeSlider");
 	[Export] public ShipArchetypeDef? PlayerShipArchetype { get; set; }
 	[Export] public ShipArchetypeDef? EnemyShipArchetype { get; set; }
 	[Export] public string BattleScenePath { get; set; } = "res://scenes/battle/battle_scene.tscn";
@@ -96,6 +97,7 @@ public partial class SailingSandbox : Node3D
 	private Button? _resumeButton;
 	private Button? _restartButton;
 	private Button? _quitGameButton;
+	private HSlider? _volumeSlider;
 	private readonly List<Node3D> _checkpoints = new();
 	private readonly List<GuideSegmentVisual> _guideSegments = new();
 	private readonly Dictionary<Node3D, float> _checkpointRadii = new();
@@ -143,6 +145,7 @@ public partial class SailingSandbox : Node3D
 		_resumeButton = GetNodeOrNull<Button>(ResumeButtonPath);
 		_restartButton = GetNodeOrNull<Button>(RestartButtonPath);
 		_quitGameButton = GetNodeOrNull<Button>(QuitGameButtonPath);
+		_volumeSlider = GetNodeOrNull<HSlider>(VolumeSliderPath);
 
 		if (_merchantButton != null)
 		{
@@ -172,6 +175,12 @@ public partial class SailingSandbox : Node3D
 		if (_quitGameButton != null)
 		{
 			_quitGameButton.Pressed += OnQuitGamePressed;
+		}
+
+		if (_volumeSlider != null)
+		{
+			_volumeSlider.Value = GetMusicVolumePercent();
+			_volumeSlider.ValueChanged += OnVolumeSliderValueChanged;
 		}
 
 		SetPauseMenuOpen(false);
@@ -1088,6 +1097,16 @@ public partial class SailingSandbox : Node3D
 	{
 		SetPauseMenuOpen(false);
 		GetTree().Quit();
+	}
+
+	private void OnVolumeSliderValueChanged(double value)
+	{
+		GetNodeOrNull<MusicManager>("/root/MusicManager")?.SetVolume((float)value / 100.0f);
+	}
+
+	private float GetMusicVolumePercent()
+	{
+		return (GetNodeOrNull<MusicManager>("/root/MusicManager")?.GetVolume() ?? 1.0f) * 100.0f;
 	}
 
 	private void SetPauseMenuOpen(bool isOpen)

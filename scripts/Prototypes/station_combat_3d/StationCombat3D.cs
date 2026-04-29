@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using TidesOfTime.Audio;
 using TidesOfTime.Encounters;
 
 namespace TidesOfTime.Prototypes;
@@ -206,6 +207,7 @@ public partial class StationCombat3D : Node3D
 	private Button? _resumeSailingButton;
 	private Button? _restartButton;
 	private Button? _quitGameButton;
+	private HSlider? _volumeSlider;
 	private readonly Dictionary<string, Button> _crewButtonsByName = new();
 	private Camera3D? _camera;
 	private SailingEncounterData? _activeEncounterData;
@@ -257,6 +259,7 @@ public partial class StationCombat3D : Node3D
 		_resumeSailingButton!.Pressed += OnResumeSailingPressed;
 		_restartButton!.Pressed += OnRestartPressed;
 		_quitGameButton!.Pressed += OnQuitGamePressed;
+		_volumeSlider!.ValueChanged += OnVolumeSliderValueChanged;
 		_giveNoQuarterButton!.Pressed += OnGiveNoQuarterPressed;
 		SetPauseMenuOpen(false);
 		SetOrdersOverlayOpen(true);
@@ -1383,6 +1386,11 @@ public partial class StationCombat3D : Node3D
 		GetTree().Quit();
 	}
 
+	private void OnVolumeSliderValueChanged(double value)
+	{
+		GetNodeOrNull<MusicManager>("/root/MusicManager")?.SetVolume((float)value / 100.0f);
+	}
+
 	private void OnGiveNoQuarterPressed()
 	{
 		_isCombatStarted = true;
@@ -1996,6 +2004,7 @@ public partial class StationCombat3D : Node3D
 		buttonStack.AddThemeConstantOverride("separation", 14);
 		column.AddChild(buttonStack);
 
+		_volumeSlider = AddVolumeSlider(buttonStack);
 		_resumeButton = AddPauseButton(buttonStack, "ResumeButton", "Resume");
 		_resumeSailingButton = AddPauseButton(buttonStack, "ResumeSailingButton", "Resume Sailing");
 		_restartButton = AddPauseButton(buttonStack, "RestartButton", "Restart");
@@ -2316,6 +2325,38 @@ public partial class StationCombat3D : Node3D
 		parent.AddChild(CreateHudLabel("Cap'n at Helm dodges", fontSize, new Color(0.86f, 0.92f, 1.0f)));
 		parent.AddChild(CreateHudLabel("Repair is on bottom UI", fontSize, new Color(0.74f, 0.95f, 0.74f)));
 		parent.AddChild(CreateHudLabel("ESC - Pause Menu", fontSize, new Color(1.0f, 0.82f, 0.62f)));
+	}
+
+	private HSlider AddVolumeSlider(Container parent)
+	{
+		var row = new HBoxContainer
+		{
+			Name = "VolumeRow",
+			CustomMinimumSize = new Vector2(0.0f, 34.0f),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		row.AddThemeConstantOverride("separation", 12);
+
+		var label = CreateHudLabel("Volume");
+		label.CustomMinimumSize = new Vector2(76.0f, 0.0f);
+		row.AddChild(label);
+
+		var slider = new HSlider
+		{
+			Name = "VolumeSlider",
+			MinValue = 0.0,
+			MaxValue = 100.0,
+			Value = GetMusicVolumePercent(),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		row.AddChild(slider);
+		parent.AddChild(row);
+		return slider;
+	}
+
+	private float GetMusicVolumePercent()
+	{
+		return (GetNodeOrNull<MusicManager>("/root/MusicManager")?.GetVolume() ?? 1.0f) * 100.0f;
 	}
 
 	private static Button AddPauseButton(Container parent, string nodeName, string text)
