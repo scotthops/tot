@@ -9,6 +9,9 @@ public partial class CrewToken3D : Area3D
 	[Export] public string CrewRole { get; set; } = "Crew";
 	[Export] public string ShortLabel { get; set; } = "C";
 	[Export] public Color CrewColor { get; set; } = new(0.22f, 0.44f, 0.76f);
+	[Export] public string ModelPath { get; set; } = string.Empty;
+	[Export] public float ModelScale { get; set; } = 0.69f;
+	[Export] public Vector3 ModelRotationDegrees { get; set; } = new(0.0f, 180.0f, 0.0f);
 
 	public event Action<CrewToken3D>? Clicked;
 
@@ -66,23 +69,26 @@ public partial class CrewToken3D : Area3D
 			12);
 		AddChild(_selectionRing);
 
-		_bodyMesh = CreateCylinder(
-			"Body",
-			0.22f,
-			0.46f,
-			new Vector3(0.0f, 0.28f, 0.0f),
-			CrewColor,
-			10);
-		AddChild(_bodyMesh);
+		if (!TryCreateModelVisual())
+		{
+			_bodyMesh = CreateCylinder(
+				"Body",
+				0.22f,
+				0.46f,
+				new Vector3(0.0f, 0.28f, 0.0f),
+				CrewColor,
+				10);
+			AddChild(_bodyMesh);
 
-		var head = CreateCylinder(
-			"Head",
-			0.16f,
-			0.14f,
-			new Vector3(0.0f, 0.6f, 0.0f),
-			new Color(0.86f, 0.68f, 0.48f),
-			10);
-		AddChild(head);
+			var head = CreateCylinder(
+				"Head",
+				0.16f,
+				0.14f,
+				new Vector3(0.0f, 0.6f, 0.0f),
+				new Color(0.86f, 0.68f, 0.48f),
+				10);
+			AddChild(head);
+		}
 
 		_nameLabel = CreateLabel("NameLabel", CrewName, new Vector3(0.0f, 1.02f, 0.0f));
 		AddChild(_nameLabel);
@@ -115,6 +121,27 @@ public partial class CrewToken3D : Area3D
 		{
 			_nameLabel.Text = ShortLabel;
 		}
+	}
+
+	private bool TryCreateModelVisual()
+	{
+		if (string.IsNullOrWhiteSpace(ModelPath))
+		{
+			return false;
+		}
+
+		var scene = ResourceLoader.Load<PackedScene>(ModelPath);
+		if (scene?.Instantiate() is not Node3D model)
+		{
+			return false;
+		}
+
+		model.Name = "Model";
+		model.Position = new Vector3(0.0f, 0.03f, 0.0f);
+		model.RotationDegrees = ModelRotationDegrees;
+		model.Scale = Vector3.One * ModelScale;
+		AddChild(model);
+		return true;
 	}
 
 	private static MeshInstance3D CreateCylinder(

@@ -16,7 +16,6 @@ public partial class StationMarker3D : Area3D
 	public Vector3 AssignmentSlotGlobalPosition => ToGlobal(AssignmentOffset);
 
 	private MeshInstance3D? _baseMesh;
-	private MeshInstance3D? _flagMesh;
 	private MeshInstance3D? _highlightMesh;
 	private Node3D? _targetReticle;
 	private Label3D? _stationLabel;
@@ -94,20 +93,6 @@ public partial class StationMarker3D : Area3D
 			MarkerColor);
 		AddChild(_baseMesh);
 
-		var post = CreateBox(
-			"Post",
-			new Vector3(0.12f, 0.38f, 0.12f),
-			new Vector3(0.0f, 0.32f, 0.0f),
-			new Color(0.22f, 0.13f, 0.06f));
-		AddChild(post);
-
-		_flagMesh = CreateBox(
-			"MarkerFlag",
-			new Vector3(0.58f, 0.28f, 0.08f),
-			new Vector3(0.28f, 0.58f, 0.0f),
-			MarkerColor);
-		AddChild(_flagMesh);
-
 		_stationLabel = CreateLabel("StationLabel", StationName, GetStationLabelPosition());
 		AddChild(_stationLabel);
 
@@ -131,11 +116,6 @@ public partial class StationMarker3D : Area3D
 		if (_baseMesh != null)
 		{
 			_baseMesh.MaterialOverride = CreateMaterial(activeColor);
-		}
-
-		if (_flagMesh != null)
-		{
-			_flagMesh.MaterialOverride = CreateMaterial(activeColor);
 		}
 
 		if (_highlightMesh != null)

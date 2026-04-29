@@ -17,9 +17,9 @@ public partial class StationCombat3D : Node3D
 	[Export] public Vector3 PlayerShipRotationDegrees { get; set; } = new(0.0f, -90.0f, 0.0f);
 	[Export] public float PlayerShipScale { get; set; } = 1.2f;
 	[Export] public float EnemyShipScale { get; set; } = 0.72f;
-	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.85f, 12.8f, 11.4f);
-	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-55.0f, 0.0f, 0.0f);
-	[Export] public float DefaultCameraSize { get; set; } = 13.2f;
+	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.45f, 12.9f, 11.7f);
+	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-56.0f, -10.0f, 0.0f);
+	[Export] public float DefaultCameraSize { get; set; } = 13.5f;
 	[Export] public float MinCameraSize { get; set; } = 6.2f;
 	[Export] public float MaxCameraSize { get; set; } = 17.0f;
 	[Export] public Vector2 EnemyCutoutScreenAnchor { get; set; } = new(0.80f, 0.49f);
@@ -37,6 +37,9 @@ public partial class StationCombat3D : Node3D
 	private const string CannonsStationName = "Cannons";
 	private const string PlayerCannonModelPath = "res://art/models/cannon-test-1.glb";
 	private const string PlayerHelmModelPath = "res://art/models/helm-test-1.glb";
+	private const string CaptainCrewModelPath = "res://art/models/crew-test-1blue.glb";
+	private const string DeckhandCrewModelPath = "res://art/models/crew-test-1green.glb";
+	private const string GunnerCrewModelPath = "res://art/models/crew-test-1red.glb";
 	private static readonly string[] EnemyTargetPriority =
 	{
 		"Cannons",
@@ -114,19 +117,22 @@ public partial class StationCombat3D : Node3D
 			"C",
 			"Command",
 			new Vector3(-0.38f, 1.16f, 2.8f),
-			new Color(0.26f, 0.46f, 0.82f)),
+			new Color(0.26f, 0.46f, 0.82f),
+			CaptainCrewModelPath),
 		new(
 			"Gunner",
 			"G",
 			"Gunnery",
 			new Vector3(0.6f, 1.06f, -0.9f),
-			new Color(0.72f, 0.32f, 0.24f)),
+			new Color(0.72f, 0.32f, 0.24f),
+			GunnerCrewModelPath),
 		new(
 			"Deckhand",
 			"D",
 			"Repair",
 			new Vector3(1.02f, 1.06f, 1.22f),
-			new Color(0.26f, 0.62f, 0.42f))
+			new Color(0.26f, 0.62f, 0.42f),
+			DeckhandCrewModelPath)
 	};
 
 	private static readonly CrewDefinition[] EnemyCrewDefinitions =
@@ -136,19 +142,22 @@ public partial class StationCombat3D : Node3D
 			"C",
 			"Command",
 			new Vector3(-0.58f, 1.04f, 1.54f),
-			new Color(0.26f, 0.46f, 0.82f)),
+			new Color(0.26f, 0.46f, 0.82f),
+			string.Empty),
 		new(
 			"Gunner",
 			"G",
 			"Gunnery",
 			new Vector3(-0.58f, 1.04f, -0.88f),
-			new Color(0.72f, 0.32f, 0.24f)),
+			new Color(0.72f, 0.32f, 0.24f),
+			string.Empty),
 		new(
 			"Deckhand",
 			"D",
 			"Repair",
 			new Vector3(0.58f, 1.04f, 0.12f),
-			new Color(0.26f, 0.62f, 0.42f))
+			new Color(0.26f, 0.62f, 0.42f),
+			string.Empty)
 	};
 
 	private readonly List<StationMarker3D> _stations = new();
@@ -564,7 +573,6 @@ public partial class StationCombat3D : Node3D
 		CreateBox(shipRoot, "FactionStripe", new Vector3(2.48f, 0.035f, 0.16f), new Vector3(0.0f, 0.96f, -2.62f), style.AccentColor);
 		CreateBox(shipRoot, "Quarterdeck", new Vector3(2.6f, 0.18f, 1.34f), new Vector3(-0.08f, 1.02f, 2.86f), style.DeckColor.Lightened(0.08f));
 		CreateBox(shipRoot, "HelmStationPad", new Vector3(1.28f, 0.026f, 0.96f), new Vector3(-0.78f, 1.125f, 2.94f), new Color(0.12f, 0.22f, 0.34f));
-		CreateBox(shipRoot, "SternCabin", new Vector3(1.42f, 0.56f, 0.96f), new Vector3(0.16f, 1.28f, 3.26f), style.CabinColor);
 		CreatePlayerHelmModel(shipRoot, "PlayerHelmWheel", new Vector3(-0.98f, 1.24f, 3.02f));
 
 		CreateBox(shipRoot, "BilgeStationPad", new Vector3(1.22f, 0.026f, 1.06f), new Vector3(0.76f, 0.982f, 0.84f), new Color(0.08f, 0.22f, 0.16f));
@@ -732,6 +740,7 @@ public partial class StationCombat3D : Node3D
 				ShortLabel = definition.ShortLabel,
 				CrewRole = definition.Role,
 				CrewColor = definition.Color,
+				ModelPath = definition.ModelPath,
 				Position = definition.HomePosition,
 				HomePosition = definition.HomePosition
 			};
@@ -1275,15 +1284,16 @@ public partial class StationCombat3D : Node3D
 
 		var anchor = GetWorldPointForEnemyCutoutAnchor();
 		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
+		var previewYaw = _camera.GlobalRotation.Y;
 
 		_enemyShipRoot.GlobalPosition = anchor + new Vector3(0.0f, 0.08f * zoomScale, 0.0f);
-		_enemyShipRoot.GlobalRotation = new Vector3(0.0f, Mathf.Pi, 0.0f);
+		_enemyShipRoot.GlobalRotation = new Vector3(0.0f, previewYaw + Mathf.Pi, 0.0f);
 		_enemyShipRoot.Scale = Vector3.One * Mathf.Max(0.1f, EnemyShipScale) * zoomScale;
 
 		if (_enemyCutoutFrameRoot != null)
 		{
 			_enemyCutoutFrameRoot.GlobalPosition = anchor + new Vector3(0.0f, -0.04f * zoomScale, 0.0f);
-			_enemyCutoutFrameRoot.GlobalRotation = Vector3.Zero;
+			_enemyCutoutFrameRoot.GlobalRotation = new Vector3(0.0f, previewYaw, 0.0f);
 			_enemyCutoutFrameRoot.Scale = Vector3.One * zoomScale;
 		}
 	}
@@ -2097,7 +2107,8 @@ public partial class StationCombat3D : Node3D
 		string ShortLabel,
 		string Role,
 		Vector3 HomePosition,
-		Color Color);
+		Color Color,
+		string ModelPath);
 
 	private readonly record struct ShipVisualStyle(
 		Color HullColor,
