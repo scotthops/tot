@@ -18,7 +18,7 @@ public partial class StationCombat3D : Node3D
 	[Export] public Vector3 PlayerShipRotationDegrees { get; set; } = new(0.0f, -90.0f, 0.0f);
 	[Export] public float PlayerShipScale { get; set; } = 1.2f;
 	[Export] public float EnemyShipScale { get; set; } = 0.86f;
-	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(-1.05f, 12.9f, 10.9f);
+	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(-0.98f, 13.15f, 10.5f);
 	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-56.0f, -10.0f, 0.0f);
 	[Export] public float DefaultCameraSize { get; set; } = 12.8f;
 	[Export] public float MinCameraSize { get; set; } = 6.2f;
@@ -35,7 +35,11 @@ public partial class StationCombat3D : Node3D
 	[Export] public float PlayerRepairRatePerSecond { get; set; } = 10.0f;
 
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
+	private const string CaptainCrewName = "Captain";
+	private const string HelmStationName = "Helm";
 	private const string CannonsStationName = "Cannons";
+	private const float PlayerHelmDodgeChance = 0.25f;
+	private const float StationDamageFlashSeconds = 1.0f;
 	private const string PlayerCannonModelPath = "res://art/models/cannon-test-1.glb";
 	private const string PlayerHelmModelPath = "res://art/models/helm-test-1.glb";
 	private const string CaptainCrewModelPath = "res://art/models/crew-test-1blue.glb";
@@ -124,7 +128,7 @@ public partial class StationCombat3D : Node3D
 			"Gunner",
 			"G",
 			"Gunnery",
-			new Vector3(0.6f, 1.06f, -0.9f),
+			new Vector3(-0.18f, 3.18f, -0.36f),
 			new Color(0.72f, 0.32f, 0.24f),
 			GunnerCrewModelPath),
 		new(
@@ -169,6 +173,8 @@ public partial class StationCombat3D : Node3D
 	private readonly Dictionary<string, StationRuntimeState> _playerStationStatesByName = new();
 	private readonly Dictionary<string, StationRuntimeState> _enemyStationStatesByName = new();
 	private readonly Dictionary<StationMarker3D, StationRuntimeState> _stationStatesByMarker = new();
+	private readonly Dictionary<string, float> _stationDamageFlashSecondsByName = new();
+	private readonly Dictionary<string, Node3D> _playerDamageIndicatorsByStation = new();
 
 	private Node3D? _shipRoot;
 	private Node3D? _enemyShipRoot;
@@ -179,6 +185,7 @@ public partial class StationCombat3D : Node3D
 	private CanvasLayer? _hudRoot;
 	private Label? _playerHullLabel;
 	private Label? _enemyHullLabel;
+	private PanelContainer? _playerHullPanel;
 	private ProgressBar? _playerHullUiBar;
 	private HullBarVisual? _playerHullBar;
 	private HullBarVisual? _enemyHullBar;
@@ -192,6 +199,8 @@ public partial class StationCombat3D : Node3D
 	private ProgressBar? _playerWeaponChargeBar;
 	private ProgressBar? _enemyWeaponChargeBar;
 	private Label? _enemyWeaponLabel;
+	private Control? _ordersOverlay;
+	private Button? _giveNoQuarterButton;
 	private Control? _pauseOverlay;
 	private Button? _resumeButton;
 	private Button? _resumeSailingButton;
@@ -210,11 +219,15 @@ public partial class StationCombat3D : Node3D
 	private float _playerHull = 100.0f;
 	private float _enemyHull = 100.0f;
 	private bool _isDraggingCannonTarget;
+	private bool _isCombatStarted;
+	private bool _isOrdersOverlayOpen;
 	private bool _isPauseMenuOpen;
+	private readonly RandomNumberGenerator _random = new();
 
 	public override void _Ready()
 	{
 		_activeEncounterData = SailingEncounterStore.ConsumePendingEncounter();
+		_random.Randomize();
 		_shipRoot = GetNodeOrNull<Node3D>(ShipRootPath);
 		_enemyShipRoot = GetNodeOrNull<Node3D>(EnemyShipRootPath);
 		_stationRoot = GetNodeOrNull<Node3D>(StationRootPath);
@@ -244,7 +257,9 @@ public partial class StationCombat3D : Node3D
 		_resumeSailingButton!.Pressed += OnResumeSailingPressed;
 		_restartButton!.Pressed += OnRestartPressed;
 		_quitGameButton!.Pressed += OnQuitGamePressed;
+		_giveNoQuarterButton!.Pressed += OnGiveNoQuarterPressed;
 		SetPauseMenuOpen(false);
+		SetOrdersOverlayOpen(true);
 	}
 
 	public override void _Process(double delta)
@@ -258,10 +273,17 @@ public partial class StationCombat3D : Node3D
 		UpdateCameraPan(deltaSeconds);
 		UpdatePlayerHullBarPresentation();
 		UpdateEnemyScreenPresentation();
+		UpdateHullBars();
+
+		if (!_isCombatStarted)
+		{
+			return;
+		}
+
 		UpdatePlayerStationRepairs(deltaSeconds);
+		UpdateStationDamageFeedback(deltaSeconds);
 		UpdatePlayerCannonCharge(deltaSeconds);
 		UpdateEnemyCannonCharge(deltaSeconds);
-		UpdateHullBars();
 		UpdateWeaponHud();
 	}
 
@@ -275,6 +297,11 @@ public partial class StationCombat3D : Node3D
 		}
 
 		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
+		if (_isOrdersOverlayOpen)
 		{
 			return;
 		}
@@ -684,6 +711,8 @@ public partial class StationCombat3D : Node3D
 		_crewByStationName.Clear();
 		_playerStationStatesByName.Clear();
 		_stationStatesByMarker.Clear();
+		_stationDamageFlashSecondsByName.Clear();
+		_playerDamageIndicatorsByStation.Clear();
 
 		foreach (var definition in StationDefinitions)
 		{
@@ -787,6 +816,8 @@ public partial class StationCombat3D : Node3D
 			crew.Clicked += OnCrewClicked;
 			_crew.Add(crew);
 		}
+
+		AssignCaptainToHelmByDefault();
 	}
 
 	private void BuildEnemyCrewVisuals()
@@ -819,6 +850,18 @@ public partial class StationCombat3D : Node3D
 		_statusText = $"{crew.CrewName} selected.";
 		UpdateSelectionVisuals();
 		UpdateHud();
+	}
+
+	private void AssignCaptainToHelmByDefault()
+	{
+		var captain = FindCrew(CaptainCrewName);
+		var helm = FindStation(HelmStationName);
+		if (captain == null || helm == null)
+		{
+			return;
+		}
+
+		AssignCrewToStation(captain, helm);
 	}
 
 	private void OnStationClicked(StationMarker3D station, MouseButton button)
@@ -947,6 +990,7 @@ public partial class StationCombat3D : Node3D
 
 			station.Repair(PlayerRepairRatePerSecond * deltaSeconds);
 			station.Marker.SetDurabilityPercent(station.Durability);
+			RefreshPlayerStationDamageIndicator(station);
 			hadRepairUpdate = true;
 
 			if (station.Durability >= 100.0f)
@@ -960,6 +1004,75 @@ public partial class StationCombat3D : Node3D
 		{
 			UpdateHud();
 		}
+	}
+
+	private void StartPlayerStationDamageFeedback(StationRuntimeState station)
+	{
+		if (station.IsEnemy)
+		{
+			return;
+		}
+
+		_stationDamageFlashSecondsByName[station.Name] = StationDamageFlashSeconds;
+		RefreshPlayerStationDamageIndicator(station);
+		RebuildStationStatusRows();
+	}
+
+	private void UpdateStationDamageFeedback(float deltaSeconds)
+	{
+		if (_stationDamageFlashSecondsByName.Count == 0)
+		{
+			return;
+		}
+
+		var stationNames = new List<string>(_stationDamageFlashSecondsByName.Keys);
+		foreach (var stationName in stationNames)
+		{
+			var remainingSeconds = _stationDamageFlashSecondsByName[stationName] - deltaSeconds;
+			if (remainingSeconds <= 0.0f)
+			{
+				_stationDamageFlashSecondsByName.Remove(stationName);
+				continue;
+			}
+
+			_stationDamageFlashSecondsByName[stationName] = remainingSeconds;
+		}
+
+		RebuildStationStatusRows();
+	}
+
+	private void RefreshPlayerStationDamageIndicator(StationRuntimeState station)
+	{
+		if (station.IsEnemy)
+		{
+			return;
+		}
+
+		if (station.Durability >= 99.9f)
+		{
+			RemovePlayerStationDamageIndicator(station.Name);
+			return;
+		}
+
+		if (_playerDamageIndicatorsByStation.ContainsKey(station.Name))
+		{
+			return;
+		}
+
+		var indicator = CreateStationDamageIndicator();
+		station.Marker.AddChild(indicator);
+		_playerDamageIndicatorsByStation[station.Name] = indicator;
+	}
+
+	private void RemovePlayerStationDamageIndicator(string stationName)
+	{
+		if (!_playerDamageIndicatorsByStation.Remove(stationName, out var indicator))
+		{
+			return;
+		}
+
+		indicator.GetParent()?.RemoveChild(indicator);
+		indicator.QueueFree();
 	}
 
 	private bool StopRepairIfUncrewed(string stationName)
@@ -1162,10 +1275,20 @@ public partial class StationCombat3D : Node3D
 			return;
 		}
 
+		if (TryDodgeEnemyCannonFire())
+		{
+			_statusText = "Player dodged enemy cannon fire! Captain at Helm.";
+			UpdateSelectionVisuals();
+			UpdateHullBars();
+			UpdateHud();
+			return;
+		}
+
 		if (!_currentEnemyCannonTarget.IsDisabled)
 		{
 			_currentEnemyCannonTarget.ApplyDamage(EnemyCannonDamage);
 			_currentEnemyCannonTarget.Marker.SetDurabilityPercent(_currentEnemyCannonTarget.Durability);
+			StartPlayerStationDamageFeedback(_currentEnemyCannonTarget);
 		}
 
 		_playerHull = Mathf.Clamp(_playerHull - CannonHullDamage, 0.0f, 100.0f);
@@ -1184,6 +1307,24 @@ public partial class StationCombat3D : Node3D
 		UpdateSelectionVisuals();
 		UpdateHullBars();
 		UpdateHud();
+	}
+
+	private bool TryDodgeEnemyCannonFire()
+	{
+		if (!CanPlayerDodgeEnemyFire())
+		{
+			return false;
+		}
+
+		return _random.Randf() < PlayerHelmDodgeChance;
+	}
+
+	private bool CanPlayerDodgeEnemyFire()
+	{
+		return _playerStationStatesByName.TryGetValue(HelmStationName, out var helm) &&
+			!helm.IsDisabled &&
+			_crewByStationName.TryGetValue(HelmStationName, out var crewName) &&
+			crewName == CaptainCrewName;
 	}
 
 	private void UpdateSelectionVisuals()
@@ -1242,6 +1383,14 @@ public partial class StationCombat3D : Node3D
 		GetTree().Quit();
 	}
 
+	private void OnGiveNoQuarterPressed()
+	{
+		_isCombatStarted = true;
+		SetOrdersOverlayOpen(false);
+		_statusText = "Battle joined. Give 'em no quarter!";
+		UpdateHud();
+	}
+
 	private void ResetStationCombat()
 	{
 		var shipRoot = _shipRoot;
@@ -1261,6 +1410,7 @@ public partial class StationCombat3D : Node3D
 		_playerHull = 100.0f;
 		_enemyHull = 100.0f;
 		_statusText = "Awaiting assignment.";
+		_isCombatStarted = false;
 		_playerHullBar = null;
 		_enemyHullBar = null;
 
@@ -1281,6 +1431,7 @@ public partial class StationCombat3D : Node3D
 		UpdateEnemyScreenPresentation();
 		UpdateSelectionVisuals();
 		UpdateHud();
+		SetOrdersOverlayOpen(true);
 	}
 
 	private void ReturnToSailing()
@@ -1323,6 +1474,21 @@ public partial class StationCombat3D : Node3D
 		if (isOpen)
 		{
 			_resumeButton?.GrabFocus();
+		}
+	}
+
+	private void SetOrdersOverlayOpen(bool isOpen)
+	{
+		_isOrdersOverlayOpen = isOpen;
+
+		if (_ordersOverlay != null)
+		{
+			_ordersOverlay.Visible = isOpen;
+		}
+
+		if (isOpen)
+		{
+			_giveNoQuarterButton?.GrabFocus();
 		}
 	}
 
@@ -1398,7 +1564,7 @@ public partial class StationCombat3D : Node3D
 
 	private void UpdatePlayerHullBarPresentation()
 	{
-		if (_camera == null || _playerHullBar?.Root == null)
+		if (_camera == null)
 		{
 			return;
 		}
@@ -1415,9 +1581,28 @@ public partial class StationCombat3D : Node3D
 		}
 
 		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
-		_playerHullBar.Root.GlobalPosition = PlayerShipOffset + (screenDown * 4.45f * Mathf.Max(0.1f, PlayerShipScale)) + new Vector3(0.0f, 1.25f, 0.0f);
-		_playerHullBar.Root.GlobalRotation = Vector3.Zero;
-		_playerHullBar.Root.Scale = Vector3.One * zoomScale;
+		var hullBarWorldPosition = PlayerShipOffset +
+			(screenDown * 4.45f * Mathf.Max(0.1f, PlayerShipScale)) +
+			new Vector3(0.0f, 1.25f, 0.0f);
+
+		if (_playerHullPanel != null)
+		{
+			var viewportSize = GetViewport().GetVisibleRect().Size;
+			var panelSize = _playerHullPanel.CustomMinimumSize;
+			var screenPosition = _camera.UnprojectPosition(hullBarWorldPosition);
+			var panelX = Mathf.Clamp(screenPosition.X - (panelSize.X * 0.5f), 188.0f, Mathf.Max(188.0f, viewportSize.X - panelSize.X - 16.0f));
+			var panelY = Mathf.Clamp(screenPosition.Y + 8.0f, 104.0f, Mathf.Max(104.0f, viewportSize.Y - 204.0f));
+
+			_playerHullPanel.Position = new Vector2(panelX, panelY);
+			_playerHullPanel.Size = panelSize;
+		}
+
+		if (_playerHullBar?.Root != null)
+		{
+			_playerHullBar.Root.GlobalPosition = hullBarWorldPosition;
+			_playerHullBar.Root.GlobalRotation = Vector3.Zero;
+			_playerHullBar.Root.Scale = Vector3.One * zoomScale;
+		}
 	}
 
 	private void UpdateEnemyScreenPresentation()
@@ -1500,8 +1685,10 @@ public partial class StationCombat3D : Node3D
 		_crewButtonsByName.Clear();
 
 		BuildTopBattlePanel(_hudRoot);
+		BuildPlayerHullPanel(_hudRoot);
 		BuildCrewPanel(_hudRoot);
 		BuildBottomBattlePanel(_hudRoot);
+		BuildOrdersOverlay(_hudRoot);
 		BuildPauseOverlay(_hudRoot);
 	}
 
@@ -1522,13 +1709,34 @@ public partial class StationCombat3D : Node3D
 		row.AddThemeConstantOverride("separation", 18);
 		AddPanelMargin(panel, row, 12, 8);
 
-		_playerHullLabel = AddHudValue(row, "Player Hull: 100");
-		_playerHullUiBar = CreateHudHullBar(PlayerShipStyle.AccentColor);
-		row.AddChild(_playerHullUiBar);
 		_enemyHullLabel = AddHudValue(row, "Enemy Hull: 100");
 		_selectedSummaryLabel = AddHudValue(row, "Selected: None");
 		_targetLabel = AddHudValue(row, $"Targets: {GetBattleTargetSummaryText()}");
 		_statusLabel = AddHudValue(row, $"Status: {_statusText}", expand: true);
+	}
+
+	private void BuildPlayerHullPanel(CanvasLayer hudRoot)
+	{
+		var panel = CreateHudPanel("PlayerHullPanel");
+		panel.CustomMinimumSize = new Vector2(230.0f, 46.0f);
+		panel.OffsetLeft = 360.0f;
+		panel.OffsetTop = 430.0f;
+		panel.OffsetRight = 590.0f;
+		panel.OffsetBottom = 476.0f;
+		hudRoot.AddChild(panel);
+		_playerHullPanel = panel;
+
+		var column = new VBoxContainer();
+		column.AddThemeConstantOverride("separation", 4);
+		AddPanelMargin(panel, column, 10, 6);
+
+		_playerHullLabel = CreateHudLabel("Player Hull: 100%", 13, new Color(0.86f, 0.92f, 1.0f));
+		_playerHullLabel.HorizontalAlignment = HorizontalAlignment.Center;
+		_playerHullUiBar = CreateHudHullBar(PlayerShipStyle.AccentColor);
+		_playerHullUiBar.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+
+		column.AddChild(_playerHullLabel);
+		column.AddChild(_playerHullUiBar);
 	}
 
 	private void BuildCrewPanel(CanvasLayer hudRoot)
@@ -1618,6 +1826,91 @@ public partial class StationCombat3D : Node3D
 		row.AddChild(stationColumn);
 		row.AddChild(weaponColumn);
 		RebuildStationStatusRows();
+	}
+
+	private void BuildOrdersOverlay(CanvasLayer hudRoot)
+	{
+		var overlay = new Control
+		{
+			Name = "OrdersOverlay",
+			Visible = false,
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both,
+			MouseFilter = Control.MouseFilterEnum.Stop
+		};
+		hudRoot.AddChild(overlay);
+		_ordersOverlay = overlay;
+
+		var background = new ColorRect
+		{
+			Name = "Background",
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Color = new Color(0.028f, 0.042f, 0.06f, 0.96f)
+		};
+		overlay.AddChild(background);
+
+		var margin = new MarginContainer
+		{
+			Name = "MarginContainer",
+			AnchorLeft = 0.5f,
+			AnchorTop = 0.5f,
+			AnchorRight = 0.5f,
+			AnchorBottom = 0.5f,
+			OffsetLeft = -310.0f,
+			OffsetTop = -245.0f,
+			OffsetRight = 310.0f,
+			OffsetBottom = 245.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both
+		};
+		margin.AddThemeConstantOverride("margin_left", 24);
+		margin.AddThemeConstantOverride("margin_top", 24);
+		margin.AddThemeConstantOverride("margin_right", 24);
+		margin.AddThemeConstantOverride("margin_bottom", 24);
+		overlay.AddChild(margin);
+
+		var column = new VBoxContainer();
+		column.AddThemeConstantOverride("separation", 20);
+		margin.AddChild(column);
+
+		var title = new Label
+		{
+			Text = "Orders, Cap'n?",
+			HorizontalAlignment = HorizontalAlignment.Center
+		};
+		title.AddThemeFontSizeOverride("font_size", 42);
+		title.AddThemeColorOverride("font_color", new Color(1.0f, 0.92f, 0.62f));
+		column.AddChild(title);
+
+		var instructionPanel = CreateHudPanel("InstructionPanel");
+		column.AddChild(instructionPanel);
+
+		var instructions = new VBoxContainer();
+		instructions.AddThemeConstantOverride("separation", 8);
+		AddPanelMargin(instructionPanel, instructions, 16, 14);
+		instructions.AddChild(CreateHudLabel("You'll be under attack immediately.", 14, new Color(1.0f, 0.82f, 0.62f)));
+		instructions.AddChild(CreateHudLabel("1. Left-click the red Gunner then right click Cannons to assign him.", 13));
+		instructions.AddChild(CreateHudLabel("2. Then left-click cannons, right-click an enemy target square to attack it.", 13));
+		instructions.AddChild(CreateHudLabel("3. (Enemy cannons could be dece)", 13));
+		instructions.AddChild(CreateHudLabel("4. Keep the Captain at the Helm for dodge chance.", 13));
+		instructions.AddChild(CreateHudLabel("5. Use Repair in the bottom UI to restore disabled stations. ESC opens Pause.", 13));
+		
+
+		_giveNoQuarterButton = new Button
+		{
+			Name = "GiveNoQuarterButton",
+			Text = "GIVE 'EM NO QUARTER",
+			CustomMinimumSize = new Vector2(0.0f, 54.0f),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		_giveNoQuarterButton.AddThemeFontSizeOverride("font_size", 18);
+		column.AddChild(_giveNoQuarterButton);
 	}
 
 	private void BuildPauseOverlay(CanvasLayer hudRoot)
@@ -1852,15 +2145,25 @@ public partial class StationCombat3D : Node3D
 			var durability = state?.Durability ?? 100.0f;
 			var status = state?.IsDisabled == true ? "Disabled" : "Operational";
 			var repairText = state?.IsRepairing == true ? " - Repairing" : string.Empty;
-			var row = new HBoxContainer
+			_stationDamageFlashSecondsByName.TryGetValue(station.Name, out var flashSeconds);
+			var rowPanel = new PanelContainer
 			{
 				CustomMinimumSize = new Vector2(0.0f, 28.0f),
 				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
 			};
-			row.AddThemeConstantOverride("separation", 6);
+			rowPanel.AddThemeStyleboxOverride("panel", CreateStationStatusRowStyle(durability, flashSeconds));
 
-			var stationLabel = CreateHudLabel($"{station.Name}: {durability:0}% {status}{repairText}", 13,
-				state?.IsRepairing == true ? new Color(0.52f, 0.95f, 0.68f) : null);
+			var row = new HBoxContainer
+			{
+				SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+			};
+			row.AddThemeConstantOverride("separation", 6);
+			AddPanelMargin(rowPanel, row, 6, 2);
+
+			var stationLabel = CreateHudLabel(
+				$"{station.Name}: {durability:0}% {status}{repairText}",
+				13,
+				GetStationStatusLabelColor(state, flashSeconds));
 			stationLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
 
 			var repairButton = new Button
@@ -1874,7 +2177,7 @@ public partial class StationCombat3D : Node3D
 
 			row.AddChild(stationLabel);
 			row.AddChild(repairButton);
-			_stationStatusRows.AddChild(row);
+			_stationStatusRows.AddChild(rowPanel);
 		}
 	}
 
@@ -1887,6 +2190,31 @@ public partial class StationCombat3D : Node3D
 		}
 
 		OnCrewClicked(crew);
+	}
+
+	private static Color GetStationStatusLabelColor(StationRuntimeState? state, float flashSeconds)
+	{
+		if (flashSeconds > 0.0f)
+		{
+			return Colors.White;
+		}
+
+		if (state?.IsRepairing == true)
+		{
+			return new Color(0.52f, 0.95f, 0.68f);
+		}
+
+		if (state?.IsDisabled == true)
+		{
+			return new Color(1.0f, 0.58f, 0.5f);
+		}
+
+		if ((state?.Durability ?? 100.0f) < 100.0f)
+		{
+			return new Color(1.0f, 0.76f, 0.58f);
+		}
+
+		return new Color(0.9f, 0.88f, 0.78f);
 	}
 
 	private string GetCrewAssignmentText(string crewName)
@@ -2032,6 +2360,52 @@ public partial class StationCombat3D : Node3D
 			CornerRadiusTopRight = 2,
 			CornerRadiusBottomRight = 2,
 			CornerRadiusBottomLeft = 2
+		};
+	}
+
+	private static StyleBoxFlat CreateStationStatusRowStyle(float durability, float flashSeconds)
+	{
+		var isDisabled = durability <= 0.0f;
+		var isDamaged = durability < 99.9f;
+		var bgColor = new Color(0.035f, 0.05f, 0.055f, 0.0f);
+		var borderColor = new Color(0.54f, 0.46f, 0.32f, 0.0f);
+		var borderWidth = 0;
+
+		if (isDamaged)
+		{
+			var damageRatio = 1.0f - Mathf.Clamp(durability / 100.0f, 0.0f, 1.0f);
+			bgColor = new Color(0.22f, 0.045f, 0.035f, 0.34f + damageRatio * 0.32f);
+			borderColor = new Color(0.74f, 0.18f, 0.12f, 0.55f + damageRatio * 0.3f);
+			borderWidth = 1;
+		}
+
+		if (isDisabled)
+		{
+			bgColor = new Color(0.36f, 0.025f, 0.025f, 0.82f);
+			borderColor = new Color(1.0f, 0.12f, 0.08f, 0.94f);
+			borderWidth = 2;
+		}
+
+		if (flashSeconds > 0.0f)
+		{
+			var pulse = 0.55f + (MathF.Sin(flashSeconds * 24.0f) * 0.45f);
+			bgColor = bgColor.Lerp(new Color(0.82f, 0.035f, 0.025f, 0.9f), pulse);
+			borderColor = new Color(1.0f, 0.12f, 0.08f, 0.98f);
+			borderWidth = 2;
+		}
+
+		return new StyleBoxFlat
+		{
+			BgColor = bgColor,
+			BorderColor = borderColor,
+			BorderWidthLeft = borderWidth,
+			BorderWidthTop = borderWidth,
+			BorderWidthRight = borderWidth,
+			BorderWidthBottom = borderWidth,
+			CornerRadiusTopLeft = 3,
+			CornerRadiusTopRight = 3,
+			CornerRadiusBottomRight = 3,
+			CornerRadiusBottomLeft = 3
 		};
 	}
 
@@ -2250,6 +2624,28 @@ public partial class StationCombat3D : Node3D
 		CreateBox(root, "TopBand", new Vector3(0.38f, 0.045f, 0.38f), new Vector3(0.0f, 0.14f, 0.0f), new Color(0.06f, 0.055f, 0.05f));
 		CreateBox(root, "BottomBand", new Vector3(0.38f, 0.045f, 0.38f), new Vector3(0.0f, -0.14f, 0.0f), new Color(0.06f, 0.055f, 0.05f));
 		CreateBox(root, "PowderMark", new Vector3(0.22f, 0.035f, 0.035f), new Vector3(0.0f, 0.19f, -0.12f), new Color(0.9f, 0.74f, 0.26f));
+	}
+
+	private static Node3D CreateStationDamageIndicator()
+	{
+		var root = new Node3D
+		{
+			Name = "DamageIndicator",
+			Position = new Vector3(0.0f, 0.18f, 0.0f)
+		};
+
+		var smokeA = CreateCylinder(root, "SmokePuffA", 0.18f, 0.14f, new Vector3(-0.12f, 0.36f, 0.04f), new Color(0.08f, 0.075f, 0.068f), 12);
+		var smokeB = CreateCylinder(root, "SmokePuffB", 0.23f, 0.16f, new Vector3(0.1f, 0.58f, -0.02f), new Color(0.055f, 0.052f, 0.05f), 12);
+		var smokeC = CreateCylinder(root, "SmokePuffC", 0.16f, 0.12f, new Vector3(0.0f, 0.82f, 0.11f), new Color(0.12f, 0.112f, 0.1f), 12);
+		smokeA.Scale = new Vector3(1.35f, 1.0f, 0.8f);
+		smokeB.Scale = new Vector3(0.9f, 1.0f, 1.25f);
+		smokeC.Scale = new Vector3(1.15f, 1.0f, 0.95f);
+
+		var sparkColor = new Color(0.95f, 0.12f, 0.06f);
+		CreateBox(root, "DamageSlashA", new Vector3(0.64f, 0.055f, 0.055f), new Vector3(0.0f, 0.2f, 0.0f), sparkColor, new Vector3(0.0f, Mathf.Pi * 0.25f, 0.0f));
+		CreateBox(root, "DamageSlashB", new Vector3(0.64f, 0.055f, 0.055f), new Vector3(0.0f, 0.2f, 0.0f), sparkColor, new Vector3(0.0f, -Mathf.Pi * 0.25f, 0.0f));
+
+		return root;
 	}
 
 	private static MeshInstance3D CreateBox(

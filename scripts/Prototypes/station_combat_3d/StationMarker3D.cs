@@ -140,28 +140,31 @@ public partial class StationMarker3D : Area3D
 		var root = new Node3D
 		{
 			Name = "TargetReticle",
-			Position = new Vector3(0.0f, 0.08f, 0.0f),
+			Position = new Vector3(0.0f, 0.16f, 0.0f),
 			Visible = false
 		};
 		var color = new Color(1.0f, 0.08f, 0.05f);
-		var length = 0.34f;
-		var thickness = 0.045f;
-		var offset = 0.48f;
+		var length = 0.58f;
+		var thickness = 0.075f;
+		var offset = 0.42f;
 
 		root.AddChild(CreateBox("NorthReticle", new Vector3(length, thickness, thickness), new Vector3(0.0f, 0.0f, -offset), color));
 		root.AddChild(CreateBox("SouthReticle", new Vector3(length, thickness, thickness), new Vector3(0.0f, 0.0f, offset), color));
 		root.AddChild(CreateBox("WestReticle", new Vector3(thickness, thickness, length), new Vector3(-offset, 0.0f, 0.0f), color));
 		root.AddChild(CreateBox("EastReticle", new Vector3(thickness, thickness, length), new Vector3(offset, 0.0f, 0.0f), color));
+		root.AddChild(CreateBox("SlashReticleA", new Vector3(1.02f, thickness, thickness), Vector3.Zero, color, new Vector3(0.0f, Mathf.Pi * 0.25f, 0.0f)));
+		root.AddChild(CreateBox("SlashReticleB", new Vector3(1.02f, thickness, thickness), Vector3.Zero, color, new Vector3(0.0f, -Mathf.Pi * 0.25f, 0.0f)));
 
 		return root;
 	}
 
-	private static MeshInstance3D CreateBox(string nodeName, Vector3 size, Vector3 position, Color color)
+	private static MeshInstance3D CreateBox(string nodeName, Vector3 size, Vector3 position, Color color, Vector3? rotation = null)
 	{
 		return new MeshInstance3D
 		{
 			Name = nodeName,
 			Position = position,
+			Rotation = rotation ?? Vector3.Zero,
 			Mesh = new BoxMesh { Size = size },
 			MaterialOverride = CreateMaterial(color)
 		};
