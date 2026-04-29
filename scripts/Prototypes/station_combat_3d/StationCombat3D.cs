@@ -1687,6 +1687,7 @@ public partial class StationCombat3D : Node3D
 		BuildTopBattlePanel(_hudRoot);
 		BuildPlayerHullPanel(_hudRoot);
 		BuildCrewPanel(_hudRoot);
+		BuildQuickTipsPanel(_hudRoot);
 		BuildBottomBattlePanel(_hudRoot);
 		BuildOrdersOverlay(_hudRoot);
 		BuildPauseOverlay(_hudRoot);
@@ -1759,6 +1760,23 @@ public partial class StationCombat3D : Node3D
 		_crewRows.AddThemeConstantOverride("separation", 5);
 		column.AddChild(_crewRows);
 		RebuildCrewRows();
+	}
+
+	private void BuildQuickTipsPanel(CanvasLayer hudRoot)
+	{
+		var panel = CreateHudPanel("QuickTipsPanel");
+		panel.OffsetLeft = 16.0f;
+		panel.OffsetTop = 336.0f;
+		panel.OffsetRight = 306.0f;
+		panel.OffsetBottom = 486.0f;
+		hudRoot.AddChild(panel);
+
+		var column = new VBoxContainer();
+		column.AddThemeConstantOverride("separation", 5);
+		AddPanelMargin(panel, column, 10, 8);
+
+		column.AddChild(CreateHudLabel("Quick Tips", 14, new Color(0.98f, 0.9f, 0.62f)));
+		AddQuickTipLabels(column, 12);
 	}
 
 	private void BuildBottomBattlePanel(CanvasLayer hudRoot)
@@ -1895,12 +1913,11 @@ public partial class StationCombat3D : Node3D
 		instructions.AddThemeConstantOverride("separation", 8);
 		AddPanelMargin(instructionPanel, instructions, 16, 14);
 		instructions.AddChild(CreateHudLabel("You'll be under attack immediately.", 14, new Color(1.0f, 0.82f, 0.62f)));
-		instructions.AddChild(CreateHudLabel("1. Left-click the red Gunner then right click Cannons to assign him.", 13));
-		instructions.AddChild(CreateHudLabel("2. Then left-click cannons, right-click an enemy target square to attack it.", 13));
-		instructions.AddChild(CreateHudLabel("3. (Enemy cannons could be dece)", 13));
-		instructions.AddChild(CreateHudLabel("4. Keep the Captain at the Helm for dodge chance.", 13));
-		instructions.AddChild(CreateHudLabel("5. Use Repair in the bottom UI to restore disabled stations. ESC opens Pause.", 13));
-		
+		instructions.AddChild(CreateHudLabel("1. Left-click friendly red Gunner then right click friendly cannons to assign him.", 13));
+		instructions.AddChild(CreateHudLabel("2. Once he's there, left-click cannons and right-click an enemy square to attack it.", 13));
+		instructions.AddChild(CreateHudLabel("   (Enemy cannons [red square] could be dece)", 13));
+		instructions.AddChild(CreateHudLabel("3. Keep the Captain at the Helm for dodge chance.", 13));
+		instructions.AddChild(CreateHudLabel("4. Use Repair in the bottom UI to restore disabled stations. ESC opens Pause.", 13));
 
 		_giveNoQuarterButton = new Button
 		{
@@ -2290,6 +2307,15 @@ public partial class StationCombat3D : Node3D
 
 		parent.AddChild(label);
 		return label;
+	}
+
+	private static void AddQuickTipLabels(Container parent, int fontSize)
+	{
+		parent.AddChild(CreateHudLabel("Left-click Gunner -> right-click Cannons", fontSize, new Color(0.95f, 0.88f, 0.72f)));
+		parent.AddChild(CreateHudLabel("Left-click Cannons -> right-click enemy square", fontSize, new Color(0.95f, 0.88f, 0.72f)));
+		parent.AddChild(CreateHudLabel("Cap'n at Helm dodges", fontSize, new Color(0.86f, 0.92f, 1.0f)));
+		parent.AddChild(CreateHudLabel("Repair is on bottom UI", fontSize, new Color(0.74f, 0.95f, 0.74f)));
+		parent.AddChild(CreateHudLabel("ESC - Pause Menu", fontSize, new Color(1.0f, 0.82f, 0.62f)));
 	}
 
 	private static Button AddPauseButton(Container parent, string nodeName, string text)

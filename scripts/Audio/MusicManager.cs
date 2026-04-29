@@ -5,7 +5,7 @@ namespace TidesOfTime.Audio;
 public partial class MusicManager : Node
 {
 	private const string SailingCombatMusicPath = "res://audio/music/thoughtful.mp3";
-	private const float DefaultVolumeDb = -10.0f;
+	private const float DefaultVolumeDb = -16.0f;
 
 	private readonly AudioStreamPlayer _musicPlayer = new();
 	private string? _currentTrackPath;
