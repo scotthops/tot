@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Collections.Generic;
+using TidesOfTime.Encounters;
 
 namespace TidesOfTime.Prototypes;
 
@@ -16,13 +17,13 @@ public partial class StationCombat3D : Node3D
 	[Export] public Vector3 EnemyShipOffset { get; set; } = new(4.45f, 0.0f, 0.35f);
 	[Export] public Vector3 PlayerShipRotationDegrees { get; set; } = new(0.0f, -90.0f, 0.0f);
 	[Export] public float PlayerShipScale { get; set; } = 1.2f;
-	[Export] public float EnemyShipScale { get; set; } = 0.72f;
-	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.45f, 12.9f, 11.7f);
+	[Export] public float EnemyShipScale { get; set; } = 0.86f;
+	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(-1.05f, 12.9f, 10.9f);
 	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-56.0f, -10.0f, 0.0f);
-	[Export] public float DefaultCameraSize { get; set; } = 13.5f;
+	[Export] public float DefaultCameraSize { get; set; } = 12.8f;
 	[Export] public float MinCameraSize { get; set; } = 6.2f;
 	[Export] public float MaxCameraSize { get; set; } = 17.0f;
-	[Export] public Vector2 EnemyCutoutScreenAnchor { get; set; } = new(0.80f, 0.49f);
+	[Export] public Vector2 EnemyCutoutScreenAnchor { get; set; } = new(0.81f, 0.49f);
 	[Export] public float EnemyCutoutAnchorDepth { get; set; } = 10.5f;
 	[Export] public float CameraPanSpeed { get; set; } = 5.0f;
 	[Export] public float CameraZoomStep { get; set; } = 0.55f;
@@ -90,22 +91,22 @@ public partial class StationCombat3D : Node3D
 	{
 		new(
 			"Helm",
-			new Vector3(0.0f, 1.02f, 2.18f),
+			new Vector3(-1.18f, 1.16f, 2.02f),
 			new Vector3(0.68f, 0.0f, 0.0f),
 			new Color(0.34f, 0.52f, 0.78f)),
 		new(
 			"Cannons",
-			new Vector3(-1.08f, 1.02f, -0.18f),
+			new Vector3(-1.34f, 1.16f, -1.08f),
 			new Vector3(0.82f, 0.0f, 0.0f),
 			new Color(0.74f, 0.28f, 0.2f)),
 		new(
 			"Crow's Nest",
-			new Vector3(0.0f, 2.96f, -0.66f),
+			new Vector3(1.16f, 1.28f, -1.72f),
 			new Vector3(0.6f, 0.0f, 0.0f),
 			new Color(0.86f, 0.72f, 0.28f)),
 		new(
 			"Bilge",
-			new Vector3(0.74f, 1.02f, 0.82f),
+			new Vector3(1.24f, 1.16f, 0.72f),
 			new Vector3(-0.76f, 0.0f, 0.0f),
 			new Color(0.28f, 0.58f, 0.44f))
 	};
@@ -178,6 +179,7 @@ public partial class StationCombat3D : Node3D
 	private CanvasLayer? _hudRoot;
 	private Label? _playerHullLabel;
 	private Label? _enemyHullLabel;
+	private ProgressBar? _playerHullUiBar;
 	private HullBarVisual? _playerHullBar;
 	private HullBarVisual? _enemyHullBar;
 	private Label? _selectedSummaryLabel;
@@ -190,8 +192,14 @@ public partial class StationCombat3D : Node3D
 	private ProgressBar? _playerWeaponChargeBar;
 	private ProgressBar? _enemyWeaponChargeBar;
 	private Label? _enemyWeaponLabel;
+	private Control? _pauseOverlay;
+	private Button? _resumeButton;
+	private Button? _resumeSailingButton;
+	private Button? _restartButton;
+	private Button? _quitGameButton;
 	private readonly Dictionary<string, Button> _crewButtonsByName = new();
 	private Camera3D? _camera;
+	private SailingEncounterData? _activeEncounterData;
 	private CrewToken3D? _selectedCrew;
 	private StationMarker3D? _clickedStation;
 	private StationRuntimeState? _currentCannonTarget;
@@ -202,9 +210,11 @@ public partial class StationCombat3D : Node3D
 	private float _playerHull = 100.0f;
 	private float _enemyHull = 100.0f;
 	private bool _isDraggingCannonTarget;
+	private bool _isPauseMenuOpen;
 
 	public override void _Ready()
 	{
+		_activeEncounterData = SailingEncounterStore.ConsumePendingEncounter();
 		_shipRoot = GetNodeOrNull<Node3D>(ShipRootPath);
 		_enemyShipRoot = GetNodeOrNull<Node3D>(EnemyShipRootPath);
 		_stationRoot = GetNodeOrNull<Node3D>(StationRootPath);
@@ -230,10 +240,20 @@ public partial class StationCombat3D : Node3D
 		BuildEnemyCrewVisuals();
 		UpdateEnemyScreenPresentation();
 		UpdateHud();
+		_resumeButton!.Pressed += OnResumePressed;
+		_resumeSailingButton!.Pressed += OnResumeSailingPressed;
+		_restartButton!.Pressed += OnRestartPressed;
+		_quitGameButton!.Pressed += OnQuitGamePressed;
+		SetPauseMenuOpen(false);
 	}
 
 	public override void _Process(double delta)
 	{
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		var deltaSeconds = (float)delta;
 		UpdateCameraPan(deltaSeconds);
 		UpdatePlayerHullBarPresentation();
@@ -247,6 +267,18 @@ public partial class StationCombat3D : Node3D
 
 	public override void _UnhandledInput(InputEvent @event)
 	{
+		if (@event is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape })
+		{
+			SetPauseMenuOpen(!_isPauseMenuOpen);
+			GetViewport().SetInputAsHandled();
+			return;
+		}
+
+		if (_isPauseMenuOpen)
+		{
+			return;
+		}
+
 		if (@event is InputEventKey { Pressed: true, Echo: false } keyEvent &&
 			(keyEvent.Keycode == Key.R || keyEvent.Keycode == Key.Home))
 		{
@@ -451,15 +483,15 @@ public partial class StationCombat3D : Node3D
 
 		var panelColor = new Color(0.025f, 0.13f, 0.16f);
 		var borderColor = EnemyShipStyle.AccentColor.Darkened(0.08f);
-		CreateBox(root, "EnemyPanelShadow", new Vector3(4.68f, 0.045f, 7.28f), new Vector3(0.0f, -0.012f, 0.0f), new Color(0.012f, 0.014f, 0.014f));
-		CreateBox(root, "EnemyPanelWater", new Vector3(4.42f, 0.055f, 7.02f), Vector3.Zero, panelColor);
-		CreateBox(root, "EnemyWaterBandA", new Vector3(3.75f, 0.058f, 0.05f), new Vector3(0.0f, 0.018f, -1.92f), panelColor.Lightened(0.18f));
-		CreateBox(root, "EnemyWaterBandB", new Vector3(3.25f, 0.058f, 0.05f), new Vector3(0.16f, 0.018f, 0.12f), panelColor.Lightened(0.14f));
-		CreateBox(root, "EnemyWaterBandC", new Vector3(3.55f, 0.058f, 0.05f), new Vector3(-0.1f, 0.018f, 2.12f), panelColor.Lightened(0.16f));
-		CreateBox(root, "EnemyPanelNorth", new Vector3(4.54f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, -3.51f), borderColor);
-		CreateBox(root, "EnemyPanelSouth", new Vector3(4.54f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, 3.51f), borderColor);
-		CreateBox(root, "EnemyPanelWest", new Vector3(0.12f, 0.1f, 7.02f), new Vector3(-2.27f, 0.055f, 0.0f), borderColor);
-		CreateBox(root, "EnemyPanelEast", new Vector3(0.12f, 0.1f, 7.02f), new Vector3(2.27f, 0.055f, 0.0f), borderColor);
+		CreateBox(root, "EnemyPanelShadow", new Vector3(5.62f, 0.045f, 8.74f), new Vector3(0.0f, -0.012f, 0.0f), new Color(0.012f, 0.014f, 0.014f));
+		CreateBox(root, "EnemyPanelWater", new Vector3(5.3f, 0.055f, 8.42f), Vector3.Zero, panelColor);
+		CreateBox(root, "EnemyWaterBandA", new Vector3(4.5f, 0.058f, 0.05f), new Vector3(0.0f, 0.018f, -2.3f), panelColor.Lightened(0.18f));
+		CreateBox(root, "EnemyWaterBandB", new Vector3(3.9f, 0.058f, 0.05f), new Vector3(0.2f, 0.018f, 0.14f), panelColor.Lightened(0.14f));
+		CreateBox(root, "EnemyWaterBandC", new Vector3(4.26f, 0.058f, 0.05f), new Vector3(-0.12f, 0.018f, 2.54f), panelColor.Lightened(0.16f));
+		CreateBox(root, "EnemyPanelNorth", new Vector3(5.44f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, -4.21f), borderColor);
+		CreateBox(root, "EnemyPanelSouth", new Vector3(5.44f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, 4.21f), borderColor);
+		CreateBox(root, "EnemyPanelWest", new Vector3(0.12f, 0.1f, 8.42f), new Vector3(-2.72f, 0.055f, 0.0f), borderColor);
+		CreateBox(root, "EnemyPanelEast", new Vector3(0.12f, 0.1f, 8.42f), new Vector3(2.72f, 0.055f, 0.0f), borderColor);
 	}
 
 	private void BuildShipBlockout(Node3D shipRoot, ShipVisualStyle style, string displayName)
@@ -606,9 +638,8 @@ public partial class StationCombat3D : Node3D
 		var hullBarParent = shipRoot.GetParent() is Node3D prototypeRoot
 			? prototypeRoot
 			: shipRoot;
-		var hullBar = CreateHullBar(hullBarParent, $"{displayName}HullBar", $"{displayName} Hull", Vector3.Zero, style.AccentColor);
-		_playerHullBar = hullBar;
-		UpdatePlayerHullBarPresentation();
+		RemoveNamedChild(hullBarParent, $"{displayName}HullBar");
+		_playerHullBar = null;
 	}
 
 	private static void CreatePlayerStationStandSpots(Node3D parent)
@@ -697,7 +728,10 @@ public partial class StationCombat3D : Node3D
 				StationName = definition.Name,
 				MarkerColor = definition.Color.Darkened(0.28f).Lerp(new Color(0.72f, 0.18f, 0.14f), 0.22f),
 				Position = definition.Position,
-				AssignmentOffset = -definition.AssignmentOffset
+				Scale = Vector3.One * 1.12f,
+				AssignmentOffset = -definition.AssignmentOffset,
+				ClickShapeSize = new Vector3(1.18f, 1.05f, 1.18f),
+				ClickShapeOffset = new Vector3(0.0f, 0.48f, 0.0f)
 			};
 
 			enemyStationRoot.AddChild(marker);
@@ -1185,6 +1219,113 @@ public partial class StationCombat3D : Node3D
 		UpdateHud();
 	}
 
+	private void OnResumePressed()
+	{
+		SetPauseMenuOpen(false);
+	}
+
+	private void OnResumeSailingPressed()
+	{
+		SetPauseMenuOpen(false);
+		ReturnToSailing();
+	}
+
+	private void OnRestartPressed()
+	{
+		SetPauseMenuOpen(false);
+		ResetStationCombat();
+	}
+
+	private void OnQuitGamePressed()
+	{
+		SetPauseMenuOpen(false);
+		GetTree().Quit();
+	}
+
+	private void ResetStationCombat()
+	{
+		var shipRoot = _shipRoot;
+		var enemyShipRoot = _enemyShipRoot;
+		if (shipRoot == null || enemyShipRoot == null)
+		{
+			return;
+		}
+
+		_selectedCrew = null;
+		_clickedStation = null;
+		_currentCannonTarget = null;
+		_currentEnemyCannonTarget = null;
+		_isDraggingCannonTarget = false;
+		_playerCannonChargeSeconds = 0.0f;
+		_enemyCannonChargeSeconds = 0.0f;
+		_playerHull = 100.0f;
+		_enemyHull = 100.0f;
+		_statusText = "Awaiting assignment.";
+		_playerHullBar = null;
+		_enemyHullBar = null;
+
+		if (shipRoot.GetParent() is Node3D prototypeRoot)
+		{
+			RemoveNamedChild(prototypeRoot, "PlayerHullBar");
+		}
+
+		PositionBattleRoots();
+		ResetCamera();
+		BuildBattleAreaFrames();
+		BuildShipBlockout(shipRoot, PlayerShipStyle, "Player");
+		BuildShipBlockout(enemyShipRoot, EnemyShipStyle, "Enemy");
+		BuildStations();
+		BuildEnemyStations();
+		BuildCrew();
+		BuildEnemyCrewVisuals();
+		UpdateEnemyScreenPresentation();
+		UpdateSelectionVisuals();
+		UpdateHud();
+	}
+
+	private void ReturnToSailing()
+	{
+		var returnScenePath = _activeEncounterData?.ReturnScenePath;
+		if (string.IsNullOrWhiteSpace(returnScenePath))
+		{
+			_statusText = "No sailing scene return path is available.";
+			UpdateHud();
+			return;
+		}
+
+		var sceneChangeError = GetTree().ChangeSceneToFile(returnScenePath);
+		if (sceneChangeError != Error.Ok)
+		{
+			_statusText = $"Could not return to sailing: {sceneChangeError}.";
+			UpdateHud();
+		}
+	}
+
+	private bool CanReturnToSailing()
+	{
+		return !string.IsNullOrWhiteSpace(_activeEncounterData?.ReturnScenePath);
+	}
+
+	private void SetPauseMenuOpen(bool isOpen)
+	{
+		_isPauseMenuOpen = isOpen;
+
+		if (_pauseOverlay != null)
+		{
+			_pauseOverlay.Visible = isOpen;
+		}
+
+		if (_resumeSailingButton != null)
+		{
+			_resumeSailingButton.Visible = CanReturnToSailing();
+		}
+
+		if (isOpen)
+		{
+			_resumeButton?.GrabFocus();
+		}
+	}
+
 	private void ResetCamera()
 	{
 		if (_camera == null)
@@ -1323,6 +1464,11 @@ public partial class StationCombat3D : Node3D
 
 	private void UpdateHullBars()
 	{
+		if (_playerHullUiBar != null)
+		{
+			_playerHullUiBar.Value = Mathf.Clamp(_playerHull, 0.0f, 100.0f);
+		}
+
 		UpdateHullBar(_playerHullBar, _playerHull, "Player Hull");
 		UpdateHullBar(_enemyHullBar, _enemyHull, "Enemy Hull");
 	}
@@ -1356,6 +1502,7 @@ public partial class StationCombat3D : Node3D
 		BuildTopBattlePanel(_hudRoot);
 		BuildCrewPanel(_hudRoot);
 		BuildBottomBattlePanel(_hudRoot);
+		BuildPauseOverlay(_hudRoot);
 	}
 
 	private void BuildTopBattlePanel(CanvasLayer hudRoot)
@@ -1376,6 +1523,8 @@ public partial class StationCombat3D : Node3D
 		AddPanelMargin(panel, row, 12, 8);
 
 		_playerHullLabel = AddHudValue(row, "Player Hull: 100");
+		_playerHullUiBar = CreateHudHullBar(PlayerShipStyle.AccentColor);
+		row.AddChild(_playerHullUiBar);
 		_enemyHullLabel = AddHudValue(row, "Enemy Hull: 100");
 		_selectedSummaryLabel = AddHudValue(row, "Selected: None");
 		_targetLabel = AddHudValue(row, $"Targets: {GetBattleTargetSummaryText()}");
@@ -1469,6 +1618,78 @@ public partial class StationCombat3D : Node3D
 		row.AddChild(stationColumn);
 		row.AddChild(weaponColumn);
 		RebuildStationStatusRows();
+	}
+
+	private void BuildPauseOverlay(CanvasLayer hudRoot)
+	{
+		var overlay = new Control
+		{
+			Name = "PauseOverlay",
+			Visible = false,
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both,
+			MouseFilter = Control.MouseFilterEnum.Stop
+		};
+		hudRoot.AddChild(overlay);
+		_pauseOverlay = overlay;
+
+		var background = new ColorRect
+		{
+			Name = "Background",
+			AnchorRight = 1.0f,
+			AnchorBottom = 1.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Color = new Color(0.043f, 0.055f, 0.09f, 1.0f)
+		};
+		overlay.AddChild(background);
+
+		var margin = new MarginContainer
+		{
+			Name = "MarginContainer",
+			AnchorLeft = 0.5f,
+			AnchorTop = 0.5f,
+			AnchorRight = 0.5f,
+			AnchorBottom = 0.5f,
+			OffsetLeft = -220.0f,
+			OffsetTop = -200.0f,
+			OffsetRight = 220.0f,
+			OffsetBottom = 200.0f,
+			GrowHorizontal = Control.GrowDirection.Both,
+			GrowVertical = Control.GrowDirection.Both
+		};
+		margin.AddThemeConstantOverride("margin_left", 24);
+		margin.AddThemeConstantOverride("margin_top", 24);
+		margin.AddThemeConstantOverride("margin_right", 24);
+		margin.AddThemeConstantOverride("margin_bottom", 24);
+		overlay.AddChild(margin);
+
+		var column = new VBoxContainer();
+		column.AddThemeConstantOverride("separation", 28);
+		margin.AddChild(column);
+
+		var title = new Label
+		{
+			Text = "Paused",
+			HorizontalAlignment = HorizontalAlignment.Center
+		};
+		title.AddThemeFontSizeOverride("font_size", 42);
+		column.AddChild(title);
+
+		var buttonStack = new VBoxContainer
+		{
+			Name = "ButtonStack"
+		};
+		buttonStack.AddThemeConstantOverride("separation", 14);
+		column.AddChild(buttonStack);
+
+		_resumeButton = AddPauseButton(buttonStack, "ResumeButton", "Resume");
+		_resumeSailingButton = AddPauseButton(buttonStack, "ResumeSailingButton", "Resume Sailing");
+		_restartButton = AddPauseButton(buttonStack, "RestartButton", "Restart");
+		_quitGameButton = AddPauseButton(buttonStack, "QuitGameButton", "Quit Game");
 	}
 
 	private void UpdateHud()
@@ -1743,6 +1964,34 @@ public partial class StationCombat3D : Node3D
 		return label;
 	}
 
+	private static Button AddPauseButton(Container parent, string nodeName, string text)
+	{
+		var button = new Button
+		{
+			Name = nodeName,
+			Text = text,
+			CustomMinimumSize = new Vector2(0.0f, 48.0f),
+			SizeFlagsHorizontal = Control.SizeFlags.ExpandFill
+		};
+		parent.AddChild(button);
+		return button;
+	}
+
+	private static ProgressBar CreateHudHullBar(Color fillColor)
+	{
+		var bar = new ProgressBar
+		{
+			MinValue = 0.0,
+			MaxValue = 100.0,
+			Value = 100.0,
+			ShowPercentage = false,
+			CustomMinimumSize = new Vector2(132.0f, 12.0f)
+		};
+		bar.AddThemeStyleboxOverride("background", CreateProgressBarStyle(new Color(0.03f, 0.035f, 0.04f, 0.95f)));
+		bar.AddThemeStyleboxOverride("fill", CreateProgressBarStyle(fillColor.Lightened(0.16f)));
+		return bar;
+	}
+
 	private static Label CreateHudLabel(string text, int fontSize = 14, Color? color = null)
 	{
 		var label = new Label
@@ -1771,6 +2020,18 @@ public partial class StationCombat3D : Node3D
 			CornerRadiusTopRight = 4,
 			CornerRadiusBottomRight = 4,
 			CornerRadiusBottomLeft = 4
+		};
+	}
+
+	private static StyleBoxFlat CreateProgressBarStyle(Color color)
+	{
+		return new StyleBoxFlat
+		{
+			BgColor = color,
+			CornerRadiusTopLeft = 2,
+			CornerRadiusTopRight = 2,
+			CornerRadiusBottomRight = 2,
+			CornerRadiusBottomLeft = 2
 		};
 	}
 
