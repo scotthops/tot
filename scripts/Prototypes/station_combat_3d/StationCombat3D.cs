@@ -35,6 +35,7 @@ public partial class StationCombat3D : Node3D
 
 	private static readonly Color HatchColor = new(0.08f, 0.055f, 0.03f);
 	private const string CannonsStationName = "Cannons";
+	private const string PlayerCannonModelPath = "res://art/models/cannon-test-1.glb";
 	private static readonly string[] EnemyTargetPriority =
 	{
 		"Cannons",
@@ -583,9 +584,9 @@ public partial class StationCombat3D : Node3D
 		CreateBox(shipRoot, "CrowNestRailStarboard", new Vector3(0.08f, 0.22f, 0.98f), new Vector3(0.31f, 3.05f, -0.34f), style.RailColor);
 
 		CreateBox(shipRoot, "CannonStationPad", new Vector3(1.24f, 0.028f, 2.84f), new Vector3(1.22f, 0.982f, -1.08f), new Color(0.34f, 0.12f, 0.08f));
-		CreateCannon(shipRoot, "BroadsideCannonAft", new Vector3(1.84f, 1.08f, 0.12f), pointsPort: false);
-		CreateCannon(shipRoot, "BroadsideCannonMid", new Vector3(1.84f, 1.08f, -1.08f), pointsPort: false);
-		CreateCannon(shipRoot, "BroadsideCannonForward", new Vector3(1.84f, 1.08f, -2.28f), pointsPort: false);
+		CreatePlayerCannonModel(shipRoot, "BroadsideCannonAft", new Vector3(1.82f, 1.08f, 0.12f));
+		CreatePlayerCannonModel(shipRoot, "BroadsideCannonMid", new Vector3(1.82f, 1.08f, -1.08f));
+		CreatePlayerCannonModel(shipRoot, "BroadsideCannonForward", new Vector3(1.82f, 1.08f, -2.28f));
 		CreateBox(shipRoot, "ClosedGunportAft", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, 0.12f), style.RailColor.Darkened(0.18f));
 		CreateBox(shipRoot, "ClosedGunportMid", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -1.08f), style.RailColor.Darkened(0.18f));
 		CreateBox(shipRoot, "ClosedGunportForward", new Vector3(0.08f, 0.24f, 0.38f), new Vector3(-1.78f, 1.06f, -2.28f), style.RailColor.Darkened(0.18f));
@@ -662,7 +663,7 @@ public partial class StationCombat3D : Node3D
 				Position = definition.Position,
 				AssignmentOffset = definition.AssignmentOffset,
 				ClickShapeSize = definition.Name == CannonsStationName
-					? new Vector3(1.28f, 0.95f, 2.85f)
+					? new Vector3(1.65f, 0.95f, 2.95f)
 					: new Vector3(0.88f, 0.9f, 0.88f)
 			};
 
@@ -1926,6 +1927,28 @@ public partial class StationCombat3D : Node3D
 			new Color(0.075f, 0.075f, 0.075f),
 			10,
 			rotation);
+	}
+
+	private static void CreatePlayerCannonModel(Node3D parent, string nodeName, Vector3 position)
+	{
+		var root = new Node3D
+		{
+			Name = nodeName,
+			Position = position,
+			Rotation = Vector3.Zero,
+			Scale = Vector3.One * 0.72f
+		};
+		parent.AddChild(root);
+
+		var cannonScene = ResourceLoader.Load<PackedScene>(PlayerCannonModelPath);
+		if (cannonScene?.Instantiate() is Node3D cannonModel)
+		{
+			cannonModel.Name = "Model";
+			root.AddChild(cannonModel);
+			return;
+		}
+
+		CreateCannon(parent, $"{nodeName}Fallback", position, pointsPort: false);
 	}
 
 	private static void CreatePowderBarrel(Node3D parent, string nodeName, Vector3 position)
