@@ -12,13 +12,18 @@ public partial class StationCombat3D : Node3D
 	[Export] public NodePath CrewRootPath { get; set; } = new("PrototypeRoot/Crew");
 	[Export] public NodePath HudRootPath { get; set; } = new("HUD");
 	[Export] public NodePath CameraPath { get; set; } = new("Camera3D");
-	[Export] public Vector3 PlayerShipOffset { get; set; } = new(-3.2f, 0.0f, 0.0f);
-	[Export] public Vector3 EnemyShipOffset { get; set; } = new(3.2f, 0.0f, 0.0f);
-	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.0f, 11.2f, 10.2f);
+	[Export] public Vector3 PlayerShipOffset { get; set; } = new(-2.2f, 0.0f, 0.35f);
+	[Export] public Vector3 EnemyShipOffset { get; set; } = new(4.45f, 0.0f, 0.35f);
+	[Export] public Vector3 PlayerShipRotationDegrees { get; set; } = new(0.0f, -90.0f, 0.0f);
+	[Export] public float PlayerShipScale { get; set; } = 1.18f;
+	[Export] public float EnemyShipScale { get; set; } = 0.72f;
+	[Export] public Vector3 DefaultCameraPosition { get; set; } = new(0.85f, 12.8f, 11.4f);
 	[Export] public Vector3 DefaultCameraRotationDegrees { get; set; } = new(-55.0f, 0.0f, 0.0f);
-	[Export] public float DefaultCameraSize { get; set; } = 12.0f;
-	[Export] public float MinCameraSize { get; set; } = 5.4f;
-	[Export] public float MaxCameraSize { get; set; } = 16.0f;
+	[Export] public float DefaultCameraSize { get; set; } = 13.2f;
+	[Export] public float MinCameraSize { get; set; } = 6.2f;
+	[Export] public float MaxCameraSize { get; set; } = 17.0f;
+	[Export] public Vector2 EnemyCutoutScreenAnchor { get; set; } = new(0.80f, 0.49f);
+	[Export] public float EnemyCutoutAnchorDepth { get; set; } = 10.5f;
 	[Export] public float CameraPanSpeed { get; set; } = 5.0f;
 	[Export] public float CameraZoomStep { get; set; } = 0.55f;
 	[Export] public float PlayerCannonChargeDurationSeconds { get; set; } = 7.0f;
@@ -111,6 +116,8 @@ public partial class StationCombat3D : Node3D
 	private Node3D? _enemyShipRoot;
 	private Node3D? _stationRoot;
 	private Node3D? _crewRoot;
+	private Node3D? _playerBattleAreaFrameRoot;
+	private Node3D? _enemyCutoutFrameRoot;
 	private CanvasLayer? _hudRoot;
 	private Label? _playerHullLabel;
 	private Label? _enemyHullLabel;
@@ -157,12 +164,14 @@ public partial class StationCombat3D : Node3D
 		PositionBattleRoots();
 		ResetCamera();
 		BuildHud();
+		BuildBattleAreaFrames();
 		BuildShipBlockout(_shipRoot, PlayerShipStyle, "Player");
 		BuildShipBlockout(_enemyShipRoot, EnemyShipStyle, "Enemy");
 		BuildStations();
 		BuildEnemyStations();
 		BuildCrew();
 		BuildEnemyCrewVisuals();
+		UpdateEnemyScreenPresentation();
 		UpdateHud();
 	}
 
@@ -170,6 +179,8 @@ public partial class StationCombat3D : Node3D
 	{
 		var deltaSeconds = (float)delta;
 		UpdateCameraPan(deltaSeconds);
+		UpdatePlayerHullBarPresentation();
+		UpdateEnemyScreenPresentation();
 		UpdatePlayerStationRepairs(deltaSeconds);
 		UpdatePlayerCannonCharge(deltaSeconds);
 		UpdateEnemyCannonCharge(deltaSeconds);
@@ -319,11 +330,79 @@ public partial class StationCombat3D : Node3D
 			return;
 		}
 
+		var playerRotation = DegreesToRadians(PlayerShipRotationDegrees);
+		var playerScale = Vector3.One * Mathf.Max(0.1f, PlayerShipScale);
+		var enemyScale = Vector3.One * Mathf.Max(0.1f, EnemyShipScale);
+
 		_shipRoot.Position = PlayerShipOffset;
+		_shipRoot.Rotation = playerRotation;
+		_shipRoot.Scale = playerScale;
+
 		_stationRoot.Position = PlayerShipOffset;
+		_stationRoot.Rotation = playerRotation;
+		_stationRoot.Scale = playerScale;
+
 		_crewRoot.Position = PlayerShipOffset;
+		_crewRoot.Rotation = playerRotation;
+		_crewRoot.Scale = playerScale;
+
 		_enemyShipRoot.Position = EnemyShipOffset;
 		_enemyShipRoot.Rotation = new Vector3(0.0f, Mathf.Pi, 0.0f);
+		_enemyShipRoot.Scale = enemyScale;
+	}
+
+	private void BuildBattleAreaFrames()
+	{
+		if (_enemyShipRoot?.GetParent() is not Node3D prototypeRoot)
+		{
+			return;
+		}
+
+		RemoveNamedChild(prototypeRoot, "PlayerBattleAreaFrame");
+		RemoveNamedChild(prototypeRoot, "EnemyCutoutFrame");
+		_playerBattleAreaFrameRoot = null;
+		_enemyCutoutFrameRoot = null;
+		CreatePlayerBattleAreaFrame(prototypeRoot);
+		CreateEnemyCutoutFrame(prototypeRoot);
+	}
+
+	private void CreatePlayerBattleAreaFrame(Node3D parent)
+	{
+		var root = new Node3D
+		{
+			Name = "PlayerBattleAreaFrame",
+			Position = PlayerShipOffset + new Vector3(0.0f, 0.025f, 0.0f),
+			Rotation = DegreesToRadians(PlayerShipRotationDegrees)
+		};
+		parent.AddChild(root);
+		_playerBattleAreaFrameRoot = root;
+
+		CreateBox(root, "PlayerDeckShadow", new Vector3(4.05f, 0.045f, 7.1f), Vector3.Zero, new Color(0.045f, 0.04f, 0.034f));
+		CreateBox(root, "PlayerBowGuide", new Vector3(0.16f, 0.07f, 1.55f), new Vector3(0.0f, 0.03f, -3.12f), PlayerShipStyle.AccentColor.Darkened(0.2f));
+		CreateBox(root, "PlayerSternGuide", new Vector3(0.16f, 0.07f, 1.55f), new Vector3(0.0f, 0.03f, 3.0f), PlayerShipStyle.AccentColor.Darkened(0.2f));
+	}
+
+	private void CreateEnemyCutoutFrame(Node3D parent)
+	{
+		var root = new Node3D
+		{
+			Name = "EnemyCutoutFrame",
+			Position = EnemyShipOffset + new Vector3(0.0f, 0.035f, 0.0f)
+		};
+		parent.AddChild(root);
+		_enemyCutoutFrameRoot = root;
+
+		var panelColor = new Color(0.025f, 0.13f, 0.16f);
+		var borderColor = EnemyShipStyle.AccentColor.Darkened(0.08f);
+		CreateBox(root, "EnemyPanelShadow", new Vector3(4.68f, 0.045f, 7.28f), new Vector3(0.0f, -0.012f, 0.0f), new Color(0.012f, 0.014f, 0.014f));
+		CreateBox(root, "EnemyPanelWater", new Vector3(4.42f, 0.055f, 7.02f), Vector3.Zero, panelColor);
+		CreateBox(root, "EnemyWaterBandA", new Vector3(3.75f, 0.058f, 0.05f), new Vector3(0.0f, 0.018f, -1.92f), panelColor.Lightened(0.18f));
+		CreateBox(root, "EnemyWaterBandB", new Vector3(3.25f, 0.058f, 0.05f), new Vector3(0.16f, 0.018f, 0.12f), panelColor.Lightened(0.14f));
+		CreateBox(root, "EnemyWaterBandC", new Vector3(3.55f, 0.058f, 0.05f), new Vector3(-0.1f, 0.018f, 2.12f), panelColor.Lightened(0.16f));
+		CreateBox(root, "EnemyPanelNorth", new Vector3(4.54f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, -3.51f), borderColor);
+		CreateBox(root, "EnemyPanelSouth", new Vector3(4.54f, 0.1f, 0.12f), new Vector3(0.0f, 0.055f, 3.51f), borderColor);
+		CreateBox(root, "EnemyPanelWest", new Vector3(0.12f, 0.1f, 7.02f), new Vector3(-2.27f, 0.055f, 0.0f), borderColor);
+		CreateBox(root, "EnemyPanelEast", new Vector3(0.12f, 0.1f, 7.02f), new Vector3(2.27f, 0.055f, 0.0f), borderColor);
 	}
 
 	private void BuildShipBlockout(Node3D shipRoot, ShipVisualStyle style, string displayName)
@@ -367,12 +446,25 @@ public partial class StationCombat3D : Node3D
 		CreateCannon(shipRoot, "StarboardCannonForward", new Vector3(1.54f, 1.05f, -0.72f), pointsPort: false);
 		CreateCannon(shipRoot, "StarboardCannonAft", new Vector3(1.54f, 1.05f, 0.28f), pointsPort: false);
 		CreateShipLabel(shipRoot, displayName, new Vector3(0.0f, 1.16f, -3.62f), style.AccentColor);
-		var hullBar = CreateHullBar(shipRoot, $"{displayName}HullBar", $"{displayName} Hull", new Vector3(0.0f, 1.06f, 3.64f), style.AccentColor);
+		var isEnemyShip = displayName == "Enemy";
+		var isPlayerShip = displayName == "Player";
+		var hullBarParent = isEnemyShip && _enemyCutoutFrameRoot != null
+			? _enemyCutoutFrameRoot
+			: isPlayerShip && shipRoot.GetParent() is Node3D prototypeRoot
+				? prototypeRoot
+				: shipRoot;
+		var hullBarPosition = isEnemyShip
+			? new Vector3(0.0f, 0.18f, 3.18f)
+			: isPlayerShip
+				? Vector3.Zero
+				: new Vector3(0.0f, 1.06f, -4.08f);
+		var hullBar = CreateHullBar(hullBarParent, $"{displayName}HullBar", $"{displayName} Hull", hullBarPosition, style.AccentColor);
 		if (displayName == "Player")
 		{
 			_playerHullBar = hullBar;
+			UpdatePlayerHullBarPresentation();
 		}
-		else if (displayName == "Enemy")
+		else if (isEnemyShip)
 		{
 			_enemyHullBar = hullBar;
 		}
@@ -930,6 +1022,8 @@ public partial class StationCombat3D : Node3D
 		_camera.Position = DefaultCameraPosition;
 		_camera.RotationDegrees = DefaultCameraRotationDegrees;
 		_camera.Size = Mathf.Clamp(DefaultCameraSize, MinCameraSize, MaxCameraSize);
+		UpdatePlayerHullBarPresentation();
+		UpdateEnemyScreenPresentation();
 	}
 
 	private void UpdateCameraPan(float deltaSeconds)
@@ -970,9 +1064,9 @@ public partial class StationCombat3D : Node3D
 		var panDistance = CameraPanSpeed * zoomScale * deltaSeconds;
 		var nextPosition = _camera.Position + new Vector3(input.X, 0.0f, input.Y) * panDistance;
 		_camera.Position = new Vector3(
-			Mathf.Clamp(nextPosition.X, -4.5f, 4.5f),
+			Mathf.Clamp(nextPosition.X, -5.6f, 6.2f),
 			nextPosition.Y,
-			Mathf.Clamp(nextPosition.Z, 3.0f, 12.5f));
+			Mathf.Clamp(nextPosition.Z, 4.6f, 14.2f));
 	}
 
 	private void AdjustCameraZoom(float sizeDelta)
@@ -983,6 +1077,73 @@ public partial class StationCombat3D : Node3D
 		}
 
 		_camera.Size = Mathf.Clamp(_camera.Size + sizeDelta, MinCameraSize, MaxCameraSize);
+		UpdatePlayerHullBarPresentation();
+		UpdateEnemyScreenPresentation();
+	}
+
+	private void UpdatePlayerHullBarPresentation()
+	{
+		if (_camera == null || _playerHullBar?.Root == null)
+		{
+			return;
+		}
+
+		var screenDown = -_camera.GlobalTransform.Basis.Y;
+		screenDown.Y = 0.0f;
+		if (screenDown.LengthSquared() <= 0.001f)
+		{
+			screenDown = Vector3.Forward;
+		}
+		else
+		{
+			screenDown = screenDown.Normalized();
+		}
+
+		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
+		_playerHullBar.Root.GlobalPosition = PlayerShipOffset + (screenDown * 4.15f * Mathf.Max(0.1f, PlayerShipScale)) + new Vector3(0.0f, 1.25f, 0.0f);
+		_playerHullBar.Root.GlobalRotation = Vector3.Zero;
+		_playerHullBar.Root.Scale = Vector3.One * zoomScale;
+	}
+
+	private void UpdateEnemyScreenPresentation()
+	{
+		if (_camera == null || _enemyShipRoot == null)
+		{
+			return;
+		}
+
+		var anchor = GetWorldPointForEnemyCutoutAnchor();
+		var zoomScale = _camera.Size / Mathf.Max(0.01f, DefaultCameraSize);
+
+		_enemyShipRoot.GlobalPosition = anchor + new Vector3(0.0f, 0.08f * zoomScale, 0.0f);
+		_enemyShipRoot.GlobalRotation = new Vector3(0.0f, Mathf.Pi, 0.0f);
+		_enemyShipRoot.Scale = Vector3.One * Mathf.Max(0.1f, EnemyShipScale) * zoomScale;
+
+		if (_enemyCutoutFrameRoot != null)
+		{
+			_enemyCutoutFrameRoot.GlobalPosition = anchor + new Vector3(0.0f, -0.04f * zoomScale, 0.0f);
+			_enemyCutoutFrameRoot.GlobalRotation = Vector3.Zero;
+			_enemyCutoutFrameRoot.Scale = Vector3.One * zoomScale;
+		}
+	}
+
+	private Vector3 GetWorldPointForEnemyCutoutAnchor()
+	{
+		if (_camera == null)
+		{
+			return EnemyShipOffset;
+		}
+
+		var viewportSize = GetViewport().GetVisibleRect().Size;
+		var clampedAnchor = new Vector2(
+			Mathf.Clamp(EnemyCutoutScreenAnchor.X, 0.0f, 1.0f),
+			Mathf.Clamp(EnemyCutoutScreenAnchor.Y, 0.0f, 1.0f));
+		var screenPoint = new Vector2(
+			viewportSize.X * clampedAnchor.X,
+			viewportSize.Y * clampedAnchor.Y);
+
+		return _camera.ProjectRayOrigin(screenPoint) +
+			_camera.ProjectRayNormal(screenPoint) * EnemyCutoutAnchorDepth;
 	}
 
 	private void UpdateHullBars()
@@ -1521,7 +1682,7 @@ public partial class StationCombat3D : Node3D
 		};
 		root.AddChild(fill);
 
-		return new HullBarVisual(fill, label, fullWidth, fill.Position.X);
+		return new HullBarVisual(root, fill, label, fullWidth, fill.Position.X);
 	}
 
 	private static void CreateCrewPlaceholder(Node3D parent, string nodeName, string shortLabel, Vector3 position, Color color)
@@ -1671,6 +1832,14 @@ public partial class StationCombat3D : Node3D
 		};
 	}
 
+	private static Vector3 DegreesToRadians(Vector3 degrees)
+	{
+		return new Vector3(
+			Mathf.DegToRad(degrees.X),
+			Mathf.DegToRad(degrees.Y),
+			Mathf.DegToRad(degrees.Z));
+	}
+
 	private static void ClearChildren(Node parent)
 	{
 		foreach (var child in parent.GetChildren())
@@ -1746,6 +1915,7 @@ public partial class StationCombat3D : Node3D
 	}
 
 	private sealed record HullBarVisual(
+		Node3D Root,
 		MeshInstance3D Fill,
 		Label3D Label,
 		float FullWidth,
